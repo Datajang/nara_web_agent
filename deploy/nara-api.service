@@ -1,0 +1,17 @@
+[Unit]
+Description=nara-web FastAPI Server
+After=network.target nara-vllm.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/app/nara-web
+EnvironmentFile=/app/nara-web/.env
+ExecStart=/home/ubuntu/.local/bin/uv run uvicorn app.main:app --host 127.0.0.1 --port 8001 --workers 1
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

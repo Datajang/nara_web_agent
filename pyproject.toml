@@ -1,0 +1,39 @@
+[project]
+name = "nara-web"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    # Web framework
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "sqlalchemy>=2.0",
+    "aiosqlite>=0.20",
+    "python-jose[cryptography]>=3.3",
+    "passlib[bcrypt]>=1.7",
+    "openai>=1.50",
+    "httpx>=0.27",
+    "python-multipart>=0.0.9",
+    "pydantic-settings>=2.0",
+    "python-dotenv>=1.0.0",
+    # File extraction (matching naraMcp GitHub dependencies)
+    "langchain>=0.1.0,<1.0.0",
+    "langchain-core>=0.1.0,<1.0.0",
+    "langchain-teddynote>=0.3.9",
+    "olefile>=0.47",
+    "pypdf>=4.0",
+    "python-docx>=1.1",
+    "openpyxl>=3.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.24", "httpx>=0.27", "pyyaml>=6.0"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app", "nara_server"]

@@ -1,0 +1,23 @@
+name: Deploy to GCP
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.GCP_VM_HOST }}
+          username: ubuntu
+          key: ${{ secrets.GCP_SSH_KEY }}
+          timeout: 120s
+          script: |
+            set -e
+            cd /app/nara-web
+            git pull origin main
+            uv sync
+            sudo systemctl restart nara-api
+            sleep 3
+            curl -sf http://localhost:8001/health || (echo "Health check failed" && exit 1)

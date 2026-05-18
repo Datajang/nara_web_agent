@@ -1,0 +1,23 @@
+name: Run Tests
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.10" }
+      - run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - run: uv sync --extra dev
+      - run: uv run pytest tests/ -v --tb=short
+        env:
+          DB_PATH: ":memory:"
+          SECRET_KEY: "test-only"
+          VLLM_BASE_URL: "http://localhost:8000/v1"
+          VLLM_MODEL_NAME: "test-model"
+          NARA_API_KEY: "test"
+          NARA_PRESPEC_API_KEY: "test"

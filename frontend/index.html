@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>nara-web</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<div id="auth-overlay" class="hidden">
+  <div id="login-form">
+    <h2>로그인</h2>
+    <input id="email" type="email" placeholder="이메일" />
+    <input id="password" type="password" placeholder="비밀번호" />
+    <button id="login-btn">로그인</button>
+    <button id="register-btn">회원가입</button>
+    <p id="auth-error" class="error hidden"></p>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <span id="user-email"></span>
+    <button id="logout-btn">로그아웃</button>
+  </header>
+  <div>
+    <aside id="sidebar">
+      <button id="new-conv-btn">+ 새 대화</button>
+      <div id="conv-list"></div>
+      <hr />
+      <div id="bookmark-list"><strong>🔖 북마크</strong></div>
+    </aside>
+    <main>
+      <div id="project-bar">
+        <select id="project-select"></select>
+        <button id="new-project-btn">+ 프로젝트</button>
+        <button id="edit-profile-btn">부서 프로필</button>
+      </div>
+      <div id="chat-messages"></div>
+      <div id="new-search-bar" class="hidden">
+        <button id="new-search-btn">🔍 새 검색 시작</button>
+      </div>
+      <div id="input-area">
+        <textarea id="msg-input" rows="2" placeholder="메시지를 입력하세요..."></textarea>
+        <button id="send-btn">전송 ↵</button>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>

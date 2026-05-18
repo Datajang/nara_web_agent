@@ -4,10 +4,10 @@ After=network.target nara-vllm.service
 
 [Service]
 Type=simple
-User=ubuntu
+User=searching-doc-rag
 WorkingDirectory=/app/nara-web
 EnvironmentFile=/app/nara-web/.env
-ExecStart=/home/ubuntu/.local/bin/uv run uvicorn app.main:app --host 127.0.0.1 --port 8001 --workers 1
+ExecStart=/home/searching-doc-rag/.local/bin/uv run uvicorn app.main:app --host 127.0.0.1 --port 8001 --workers 1
 Restart=always
 RestartSec=5
 StandardOutput=journal

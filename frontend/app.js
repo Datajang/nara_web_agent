@@ -3,6 +3,9 @@ let token = localStorage.getItem('token');
 let currentProjectId = null;
 let currentConvId = null;
 let currentStep = null;
+let currentProjectProfile = null;
+let allProjects = [];
+let currentAbortController = null;
 
 async function apiFetch(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
@@ -12,42 +15,81 @@ async function apiFetch(path, opts = {}) {
   } catch { return null; }
 }
 
+function showAuthError(msg) {
+  const err = document.getElementById('auth-error');
+  err.textContent = msg;
+  err.classList.remove('hidden');
+}
+
 function logout() {
   localStorage.removeItem('token');
   token = null;
   location.reload();
 }
 
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+
 document.getElementById('login-btn').addEventListener('click', async () => {
-  const email = document.getElementById('email').value;
+  const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
+  document.getElementById('auth-error').classList.add('hidden');
+
+  if (!email || !password) {
+    showAuthError('이메일과 비밀번호를 입력하세요');
+    return;
+  }
+
   const resp = await fetch(API + '/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password })
   });
-  if (resp.ok) {
+  if (resp && resp.ok) {
     const data = await resp.json();
     token = data.access_token;
     localStorage.setItem('token', token);
     document.getElementById('user-email').textContent = email;
     showApp();
   } else {
-    const err = document.getElementById('auth-error');
-    err.textContent = '로그인 실패';
-    err.classList.remove('hidden');
+    showAuthError('이메일 또는 비밀번호가 올바르지 않습니다');
   }
 });
 
 document.getElementById('register-btn').addEventListener('click', async () => {
-  const email = document.getElementById('email').value;
+  const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
-  await fetch(API + '/auth/register', {
+  document.getElementById('auth-error').classList.add('hidden');
+
+  if (!email || !password) {
+    showAuthError('이메일과 비밀번호를 입력하세요');
+    return;
+  }
+
+  const resp = await fetch(API + '/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password })
   });
-  document.getElementById('login-btn').click();
+  if (resp && resp.ok) {
+    document.getElementById('login-btn').click();
+  } else if (resp) {
+    const data = await resp.json().catch(() => ({}));
+    showAuthError(data.detail === 'Email already registered' ? '이미 등록된 이메일입니다' : '회원가입 실패');
+  } else {
+    showAuthError('서버 연결 실패');
+  }
+});
+
+// ── STREAMING ─────────────────────────────────────────────────────────────────
+
+function setStreaming(on) {
+  document.getElementById('stop-btn').classList.toggle('hidden', !on);
+  document.getElementById('send-btn').disabled = on;
+  document.getElementById('msg-input').disabled = on;
+}
+
+document.getElementById('stop-btn').addEventListener('click', () => {
+  if (currentAbortController) currentAbortController.abort();
 });
 
 document.getElementById('send-btn').addEventListener('click', sendMessage);
@@ -63,50 +105,70 @@ async function sendMessage() {
   input.value = '';
   appendUserBubble(text);
 
-  const resp = await fetch(API + `/conversations/${currentConvId}/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-    body: JSON.stringify({ message: text })
-  });
-  if (!resp.ok || !resp.body) { appendErrorBubble('서버 오류'); return; }
+  currentAbortController = new AbortController();
+  setStreaming(true);
 
-  const reader = resp.body.getReader();
+  try {
+    const resp = await fetch(API + `/conversations/${currentConvId}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ message: text }),
+      signal: currentAbortController.signal
+    });
+    if (!resp || !resp.ok || !resp.body) { appendErrorBubble('서버 오류'); return; }
+    await readStream(resp.body);
+  } catch (e) {
+    if (e.name !== 'AbortError') appendErrorBubble('서버 오류');
+  } finally {
+    setStreaming(false);
+    currentAbortController = null;
+  }
+}
+
+async function readStream(body) {
+  const reader = body.getReader();
   const decoder = new TextDecoder();
   let assistantBubble = null;
   let buffer = '';
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop();
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue;
-      try {
-        const payload = JSON.parse(line.slice(6));
-        if (payload.type === 'token') {
-          if (!assistantBubble) assistantBubble = appendAssistantBubble('');
-          assistantBubble.textContent += payload.content;
-        } else if (payload.type === 'cards') {
-          currentStep = 'search';
-          renderCards(payload.content);
-        } else if (payload.type === 'action' && payload.content === 'bookmark_prompt') {
-          currentStep = 'chat';
-          document.getElementById('new-search-bar').classList.remove('hidden');
-          showBookmarkPrompt();
-        } else if (payload.type === 'done') {
-          if (currentStep !== 'search') {
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const payload = JSON.parse(line.slice(6));
+          if (payload.type === 'token') {
+            if (!assistantBubble) assistantBubble = appendAssistantBubble('');
+            assistantBubble.textContent += payload.content;
+          } else if (payload.type === 'cards') {
+            currentStep = 'search';
+            renderCards(payload.content);
+          } else if (payload.type === 'action' && payload.content === 'bookmark_prompt') {
+            currentStep = 'chat';
             document.getElementById('new-search-bar').classList.remove('hidden');
+            showBookmarkPrompt();
+          } else if (payload.type === 'done') {
+            if (currentStep !== 'search') {
+              document.getElementById('new-search-bar').classList.remove('hidden');
+            }
+          } else if (payload.type === 'status') {
+            if (!assistantBubble) assistantBubble = appendAssistantBubble(payload.content);
+            else assistantBubble.textContent = payload.content;
           }
-        } else if (payload.type === 'status') {
-          if (!assistantBubble) assistantBubble = appendAssistantBubble(payload.content);
-          else assistantBubble.textContent = payload.content;
-        }
-      } catch { /* ignore malformed lines */ }
+        } catch { /* ignore malformed lines */ }
+      }
     }
+  } finally {
+    reader.cancel();
   }
 }
+
+// ── BID CARDS ─────────────────────────────────────────────────────────────────
 
 function renderCards(cards) {
   const container = document.createElement('div');
@@ -128,42 +190,61 @@ function renderCards(cards) {
 
 async function analyzeCard(card) {
   appendUserBubble(`[분석 요청] ${card.bid_title}`);
-  const resp = await fetch(API + `/conversations/${currentConvId}/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-    body: JSON.stringify({
-      message: `${card.bid_title} 분석`,
-      selected_bid: { bid_title: card.bid_title, file_url: card.file_url, filename: card.filename || 'document.hwp' }
-    })
-  });
-  window._lastAnalysis = { bid_title: card.bid_title };
-  if (!resp.ok || !resp.body) return;
-  const reader = resp.body.getReader();
-  const decoder = new TextDecoder();
-  let bubble = null;
-  let buf = '';
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += decoder.decode(value, { stream: true });
-    const lines = buf.split('\n'); buf = lines.pop();
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue;
-      try {
-        const p = JSON.parse(line.slice(6));
-        if (p.type === 'token') {
-          if (!bubble) bubble = appendAssistantBubble('');
-          bubble.textContent += p.content;
-          if (window._lastAnalysis) window._lastAnalysis.summary = bubble.textContent;
-        } else if (p.type === 'action' && p.content === 'bookmark_prompt') {
-          showBookmarkPrompt();
-          document.getElementById('new-search-bar').classList.remove('hidden');
-          currentStep = 'chat';
+
+  currentAbortController = new AbortController();
+  setStreaming(true);
+
+  try {
+    const resp = await fetch(API + `/conversations/${currentConvId}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({
+        message: `${card.bid_title} 분석`,
+        selected_bid: { bid_title: card.bid_title, file_url: card.file_url, filename: card.filename || 'document.hwp' }
+      }),
+      signal: currentAbortController.signal
+    });
+    window._lastAnalysis = { bid_title: card.bid_title };
+    if (!resp || !resp.ok || !resp.body) return;
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let bubble = null;
+    let buf = '';
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n'); buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const p = JSON.parse(line.slice(6));
+            if (p.type === 'token') {
+              if (!bubble) bubble = appendAssistantBubble('');
+              bubble.textContent += p.content;
+              if (window._lastAnalysis) window._lastAnalysis.summary = bubble.textContent;
+            } else if (p.type === 'action' && p.content === 'bookmark_prompt') {
+              showBookmarkPrompt();
+              document.getElementById('new-search-bar').classList.remove('hidden');
+              currentStep = 'chat';
+            }
+          } catch {}
         }
-      } catch {}
+      }
+    } finally {
+      reader.cancel();
     }
+  } catch (e) {
+    if (e.name !== 'AbortError') appendErrorBubble('분석 오류');
+  } finally {
+    setStreaming(false);
+    currentAbortController = null;
   }
 }
+
+// ── BOOKMARK ──────────────────────────────────────────────────────────────────
 
 document.getElementById('new-search-btn').addEventListener('click', () => {
   currentStep = null;
@@ -188,6 +269,35 @@ function showBookmarkPrompt() {
   appendToChatDisplay(el);
 }
 
+// ── PROFILE MODAL ─────────────────────────────────────────────────────────────
+
+document.getElementById('edit-profile-btn').addEventListener('click', () => {
+  if (!currentProjectId) return;
+  document.getElementById('profile-textarea').value = currentProjectProfile || '';
+  document.getElementById('profile-modal').classList.remove('hidden');
+});
+
+document.getElementById('profile-cancel-btn').addEventListener('click', () => {
+  document.getElementById('profile-modal').classList.add('hidden');
+});
+
+document.getElementById('profile-save-btn').addEventListener('click', async () => {
+  const profile = document.getElementById('profile-textarea').value.trim();
+  const resp = await apiFetch(`/projects/${currentProjectId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ department_profile: profile })
+  });
+  if (resp && resp.ok) {
+    const p = await resp.json();
+    currentProjectProfile = p.department_profile;
+    const idx = allProjects.findIndex(x => x.id === currentProjectId);
+    if (idx !== -1) allProjects[idx].department_profile = currentProjectProfile;
+  }
+  document.getElementById('profile-modal').classList.add('hidden');
+});
+
+// ── CHAT UI HELPERS ───────────────────────────────────────────────────────────
+
 function appendToChatDisplay(el) {
   const c = document.getElementById('chat-messages');
   c.appendChild(el);
@@ -206,6 +316,8 @@ function appendErrorBubble(text) {
   el.className = 'bubble error'; el.textContent = '오류: ' + text; appendToChatDisplay(el);
 }
 
+// ── APP INIT ──────────────────────────────────────────────────────────────────
+
 async function showApp() {
   document.getElementById('auth-overlay').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
@@ -215,14 +327,19 @@ async function showApp() {
 async function loadProjects() {
   const resp = await apiFetch('/projects');
   if (!resp || !resp.ok) return;
-  const projects = await resp.json();
+  allProjects = await resp.json();
   const sel = document.getElementById('project-select');
   sel.innerHTML = '';
-  projects.forEach(p => {
+  allProjects.forEach(p => {
     const opt = document.createElement('option');
     opt.value = p.id; opt.textContent = p.name; sel.appendChild(opt);
   });
-  if (projects.length > 0) { currentProjectId = projects[0].id; await loadConversations(); await loadBookmarks(); }
+  if (allProjects.length > 0) {
+    currentProjectId = allProjects[0].id;
+    currentProjectProfile = allProjects[0].department_profile;
+    await loadConversations();
+    await loadBookmarks();
+  }
 }
 
 async function loadConversations() {
@@ -282,7 +399,11 @@ document.getElementById('new-project-btn').addEventListener('click', async () =>
 });
 
 document.getElementById('project-select').addEventListener('change', async e => {
-  currentProjectId = parseInt(e.target.value); await loadConversations(); await loadBookmarks();
+  currentProjectId = parseInt(e.target.value);
+  const project = allProjects.find(p => p.id === currentProjectId);
+  currentProjectProfile = project ? project.department_profile : null;
+  await loadConversations();
+  await loadBookmarks();
 });
 
 document.getElementById('logout-btn').addEventListener('click', logout);

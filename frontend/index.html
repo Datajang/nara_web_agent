@@ -19,6 +19,17 @@
   </div>
 </div>
 
+<div id="profile-modal" class="hidden">
+  <div id="profile-modal-inner">
+    <h3>부서 프로필</h3>
+    <textarea id="profile-textarea" rows="6" placeholder="부서 정보, 담당 업무, 전문 분야 등을 입력하세요..."></textarea>
+    <div class="modal-actions">
+      <button id="profile-save-btn">저장</button>
+      <button id="profile-cancel-btn">취소</button>
+    </div>
+  </div>
+</div>
+
 <div id="app" class="hidden">
   <header>
     <span id="user-email"></span>
@@ -43,6 +54,7 @@
       </div>
       <div id="input-area">
         <textarea id="msg-input" rows="2" placeholder="메시지를 입력하세요..."></textarea>
+        <button id="stop-btn" class="hidden">중단 ✕</button>
         <button id="send-btn">전송 ↵</button>
       </div>
     </main>

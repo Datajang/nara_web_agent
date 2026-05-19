@@ -10,12 +10,22 @@
 
 <div id="auth-overlay" class="hidden">
   <div id="login-form">
-    <h2>로그인</h2>
-    <input id="email" type="email" placeholder="이메일" />
-    <input id="password" type="password" placeholder="비밀번호" />
-    <button id="login-btn">로그인</button>
-    <button id="register-btn">회원가입</button>
-    <p id="auth-error" class="error hidden"></p>
+    <div id="login-panel">
+      <h2>로그인</h2>
+      <input id="email" type="email" placeholder="이메일" />
+      <input id="password" type="password" placeholder="비밀번호" />
+      <button id="login-btn">로그인</button>
+      <button id="go-register-btn">회원가입</button>
+      <p id="auth-error" class="error hidden"></p>
+    </div>
+    <div id="register-panel" class="hidden">
+      <h2>회원가입</h2>
+      <input id="reg-email" type="email" placeholder="이메일" />
+      <input id="reg-password" type="password" placeholder="비밀번호" />
+      <button id="register-btn">가입하기</button>
+      <button id="go-login-btn">로그인으로 돌아가기</button>
+      <p id="reg-error" class="error hidden"></p>
+    </div>
   </div>
 </div>
 

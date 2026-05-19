@@ -21,6 +21,26 @@ function showAuthError(msg) {
   err.classList.remove('hidden');
 }
 
+function showRegError(msg) {
+  const err = document.getElementById('reg-error');
+  err.textContent = msg;
+  err.classList.remove('hidden');
+}
+
+document.getElementById('go-register-btn').addEventListener('click', () => {
+  document.getElementById('login-panel').classList.add('hidden');
+  document.getElementById('register-panel').classList.remove('hidden');
+  document.getElementById('auth-error').classList.add('hidden');
+  document.getElementById('reg-error').classList.add('hidden');
+  document.getElementById('reg-email').value = '';
+  document.getElementById('reg-password').value = '';
+});
+
+document.getElementById('go-login-btn').addEventListener('click', () => {
+  document.getElementById('register-panel').classList.add('hidden');
+  document.getElementById('login-panel').classList.remove('hidden');
+});
+
 function logout() {
   localStorage.removeItem('token');
   token = null;
@@ -56,12 +76,12 @@ document.getElementById('login-btn').addEventListener('click', async () => {
 });
 
 document.getElementById('register-btn').addEventListener('click', async () => {
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
-  document.getElementById('auth-error').classList.add('hidden');
+  const email = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+  document.getElementById('reg-error').classList.add('hidden');
 
   if (!email || !password) {
-    showAuthError('이메일과 비밀번호를 입력하세요');
+    showRegError('이메일과 비밀번호를 입력하세요');
     return;
   }
 
@@ -71,12 +91,26 @@ document.getElementById('register-btn').addEventListener('click', async () => {
     body: JSON.stringify({ email, password })
   });
   if (resp && resp.ok) {
-    document.getElementById('login-btn').click();
+    // 가입 성공 → 자동 로그인
+    const loginResp = await fetch(API + '/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    if (loginResp && loginResp.ok) {
+      const data = await loginResp.json();
+      token = data.access_token;
+      localStorage.setItem('token', token);
+      document.getElementById('user-email').textContent = email;
+      showApp();
+    } else {
+      document.getElementById('go-login-btn').click();
+    }
   } else if (resp) {
     const data = await resp.json().catch(() => ({}));
-    showAuthError(data.detail === 'Email already registered' ? '이미 등록된 이메일입니다' : '회원가입 실패');
+    showRegError(data.detail === 'Email already registered' ? '이미 등록된 이메일입니다' : '회원가입 실패');
   } else {
-    showAuthError('서버 연결 실패');
+    showRegError('서버 연결 실패');
   }
 });
 

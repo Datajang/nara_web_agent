@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from app.db.database import create_tables
 import os
@@ -10,6 +10,12 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="nara-web", lifespan=lifespan)
+
+@app.middleware("http")
+async def strip_api_prefix(request: Request, call_next):
+    if request.url.path.startswith("/api/"):
+        request.scope["path"] = request.url.path[4:]
+    return await call_next(request)
 
 from app.auth.router import router as auth_router
 from app.projects.router import router as projects_router

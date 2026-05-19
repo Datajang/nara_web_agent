@@ -1,14 +1,22 @@
+import bcrypt as _bcrypt
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
-from passlib.context import CryptContext
 from app.db.database import get_db
 from app.db.models import User
 from app.auth.jwt import create_access_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+class _Pwd:
+    def hash(self, plain: str) -> str:
+        return _bcrypt.hashpw(plain.encode(), _bcrypt.gensalt()).decode()
+    def verify(self, plain: str, hashed: str) -> bool:
+        return _bcrypt.checkpw(plain.encode(), hashed.encode())
+
+pwd = _Pwd()
 
 class RegisterIn(BaseModel):
     email: str

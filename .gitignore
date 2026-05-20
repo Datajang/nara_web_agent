@@ -8,3 +8,7 @@ build/
 .venv/
 .DS_Store
 uv.lock
+
+# Local config files (machine-specific, not for version control)
+.mcp.json
+.claude/settings.json

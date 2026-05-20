@@ -205,18 +205,27 @@ async function readStream(body) {
 // ── BID CARDS ─────────────────────────────────────────────────────────────────
 
 function renderCards(cards) {
+  if (cards.length === 0) {
+    const el = document.createElement('div');
+    el.className = 'bubble assistant';
+    el.textContent = '검색 결과가 없습니다. 다른 키워드로 검색해보세요.';
+    appendToChatDisplay(el);
+    document.getElementById('new-search-bar').classList.remove('hidden');
+    return;
+  }
   const container = document.createElement('div');
   container.className = 'cards-container';
   cards.forEach(card => {
     const el = document.createElement('div');
     el.className = `bid-card ${card.is_open ? 'open' : 'closed'}`;
+    const pageLink = card.bid_page_url
+      ? `<a class="card-link" href="${card.bid_page_url}" target="_blank" rel="noopener">나라장터 보기</a>`
+      : '';
     el.innerHTML = `
       <div class="card-title">${card.bid_title}</div>
       <div class="card-meta">마감: ${card.deadline || '-'} | 예산: ${card.budget || '-'}</div>
-      ${card.file_url ? `<button class="analyze-btn">분석하기</button>` : ''}`;
-    if (card.file_url) {
-      el.querySelector('.analyze-btn').addEventListener('click', () => analyzeCard(card));
-    }
+      <div class="card-actions">${pageLink}<button class="analyze-btn">분석하기</button></div>`;
+    el.querySelector('.analyze-btn').addEventListener('click', () => analyzeCard(card));
     container.appendChild(el);
   });
   appendToChatDisplay(container);
@@ -234,7 +243,7 @@ async function analyzeCard(card) {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({
         message: `${card.bid_title} 분석`,
-        selected_bid: { bid_title: card.bid_title, file_url: card.file_url, filename: card.filename || 'document.hwp' }
+        selected_bid: { bid_title: card.bid_title, file_url: card.file_url, filename: card.filename || 'document.hwp', bid_page_url: card.bid_page_url || '' }
       }),
       signal: currentAbortController.signal
     });

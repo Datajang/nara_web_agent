@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.db.database import get_db
 from app.db.models import Conversation, Message, Project
 from app.auth.deps import get_current_user
-from app.pipeline.orchestrator import run_pipeline, is_search_intent, _get_current_step
+from app.pipeline.orchestrator import run_pipeline
 
 router = APIRouter(tags=["conversations"])
 

@@ -13,8 +13,7 @@ import zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Optional
-
-import httpx
+import asyncio
 
 # Optional imports with fallbacks
 try:
@@ -405,35 +404,91 @@ def extract_text_from_bytes(file_bytes: bytes, filename: str, url: str = "") -> 
 
 async def download_file(url: str, timeout: float = 60.0) -> tuple[bytes, str]:
     """
-    URL에서 파일 다운로드
+    Download via curl subprocess — handles Korean government TLS (g2b.go.kr)
+    that is incompatible with Python's ssl/httpx stack.
     Returns: (file_bytes, filename)
     """
-    async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
-        response = await client.get(url)
-        response.raise_for_status()
+    import urllib.parse
+    import tempfile
 
-        # Try to get filename from Content-Disposition header
-        filename = ""
-        content_disposition = response.headers.get('content-disposition', '')
-        if 'filename=' in content_disposition:
-            # Handle both filename= and filename*=
-            import urllib.parse
-            if 'filename*=' in content_disposition:
-                # RFC 5987 encoded filename
-                match = re.search(r"filename\*=(?:UTF-8''|utf-8'')(.+?)(?:;|$)", content_disposition, re.IGNORECASE)
-                if match:
-                    filename = urllib.parse.unquote(match.group(1))
+    # Force /tmp — TMPDIR=/var/tmp causes curl SSL errors on this server
+    with tempfile.NamedTemporaryFile(delete=False, dir="/tmp") as tmp:
+        tmp_path = tmp.name
+
+    # TMPDIR=/var/tmp on this server causes OpenSSL TLS failures in subprocesses
+    env = dict(os.environ)
+    env["TMPDIR"] = "/tmp"
+
+    curl_cmd = [
+        "curl", "-L", "--insecure", "-s",
+        "-A", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "-e", "https://www.g2b.go.kr/",
+        "-D", tmp_path + ".headers",
+        "-o", tmp_path,
+        "--max-time", str(int(timeout)),
+    ]
+    proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+    if proxy:
+        curl_cmd += ["--proxy", proxy]
+    curl_cmd.append(url)
+
+    proc = await asyncio.create_subprocess_exec(
+        *curl_cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        env=env,
+    )
+    _, stderr = await proc.communicate()
+
+    if proc.returncode != 0:
+        raise RuntimeError(f"curl failed (code {proc.returncode}): {stderr.decode()[:200]}")
+
+    # Read downloaded bytes
+    try:
+        with open(tmp_path, "rb") as f:
+            file_bytes = f.read()
+    finally:
+        try: os.unlink(tmp_path)
+        except OSError: pass
+
+    if not file_bytes:
+        raise RuntimeError("curl returned empty response")
+
+    # Parse Content-Disposition for filename
+    filename = ""
+    headers_path = tmp_path + ".headers"
+    try:
+        with open(headers_path, "r", errors="replace") as f:
+            raw_headers = f.read()
+        os.unlink(headers_path)
+
+        # Check HTTP status from headers
+        first_line = raw_headers.splitlines()[0] if raw_headers else ""
+        if first_line.startswith("HTTP/") and " " in first_line:
+            status_code = int(first_line.split()[1])
+            if status_code >= 400:
+                raise RuntimeError(f"HTTP {status_code}")
+
+        # Extract filename from Content-Disposition
+        cd_match = re.search(r"(?i)content-disposition:(.+)", raw_headers)
+        if cd_match:
+            cd = cd_match.group(1)
+            if "filename*=" in cd:
+                m = re.search(r"filename\*=(?:UTF-8''|utf-8'')(.+?)(?:;|\r|\n|$)", cd, re.IGNORECASE)
+                if m:
+                    filename = urllib.parse.unquote(m.group(1).strip())
             if not filename:
-                match = re.search(r'filename="?([^";\n]+)"?', content_disposition)
-                if match:
-                    filename = match.group(1)
+                m = re.search(r'filename="?([^";\r\n]+)"?', cd)
+                if m:
+                    filename = urllib.parse.unquote(m.group(1).strip())
+    except (OSError, ValueError):
+        pass
 
-        # Fallback to URL path
-        if not filename:
-            from urllib.parse import urlparse
-            filename = os.path.basename(urlparse(url).path)
+    if not filename:
+        from urllib.parse import urlparse
+        filename = os.path.basename(urlparse(url).path)
 
-        return response.content, filename
+    return file_bytes, filename
 
 
 async def extract_text_from_url(url: str, filename: str = "") -> str:
@@ -465,9 +520,10 @@ async def extract_text_from_url(url: str, filename: str = "") -> str:
 
         return extract_text_from_bytes(file_bytes, final_filename, url)
 
-    except httpx.HTTPStatusError as e:
-        return f"Download failed (HTTP {e.response.status_code}). Manual link: {url}"
-    except httpx.TimeoutException:
-        return f"Download timed out. Manual link: {url}"
     except Exception as e:
-        return f"Text extraction unavailable: {str(e)}. Manual link: {url}"
+        err = str(e)
+        if "HTTP 4" in err or "HTTP 5" in err:
+            return f"Download failed ({err}). Manual link: {url}"
+        if "timed out" in err.lower() or "timeout" in err.lower():
+            return f"Download timed out. Manual link: {url}"
+        return f"Text extraction unavailable: {err}. Manual link: {url}"

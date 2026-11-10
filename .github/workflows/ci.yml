@@ -1,0 +1,58 @@
+# PR 게이트 (SPEC §12.8). 실패하면 병합하지 않는다.
+# PostgreSQL 서비스 컨테이너는 첫 통합 테스트가 생기는 P1에서, E2E는 P2 이후에 추가한다.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, v2]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: Install
+        run: uv sync --locked
+      - name: Ruff lint
+        run: uv run ruff check . ../eval
+      - name: Ruff format
+        run: uv run ruff format --check . ../eval
+      - name: Mypy
+        run: uv run mypy app ../eval
+      - name: Pytest
+        run: uv run pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: ESLint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Vitest
+        run: npm run test
+      - name: Build
+        run: npm run build

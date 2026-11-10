@@ -1,0 +1,14 @@
+# P0-a 도구 체인 결정
+- 명세 위치: §3 기술 스택, §12.8 CI 게이트, 알려진 문제 #10
+- 질문: Python 버전, lock 파일, 타입체크 도구, 프론트 생성 방식
+- 방법: 로컬(Python 3.12.11, Node 22.22.0, npm 10.9.4, uv 0.11.14)에서 설치·게이트 실행
+- 결과·결정:
+  - Python: `requires-python >=3.11`, 실행은 3.12(`backend/.python-version`). v1은 3.10이었다
+  - `backend/uv.lock`을 커밋하고 CI는 `uv sync --locked`. v1은 uv.lock을 gitignore하고 있었다
+  - 타입체크: mypy(비엄격, `ignore_missing_imports`). 옮긴 레거시 모듈도 오류 없이 통과해 예외 설정 없음
+  - 린트: ruff(E,F,W,I,UP,B, 줄 100자). `eval/ruff.toml`이 백엔드 설정을 상속
+  - 프론트: create-vue 3.24(Vue 3.5, Vite 8, TS 6, ESLint 10). oxlint·devtools 플러그인 제거(§3은 eslint만)
+  - vitest는 템플릿의 ^4 대신 ^5.1.0: npm 10.9에서 `@vitest/browser-playwright@5.1.0` peer 해석이 `edgesOut` 오류로 실패
+  - sqlalchemy[asyncio](#10)는 DB 코드가 들어오는 P1에서 asyncpg·alembic과 함께 추가
+  - jsdom 의존성이 Node 22.22.2 이상을 요구(로컬 22.22.0은 경고만). CI는 최신 22.x
+- 명세 수정 필요: 있음 — §3 "Python 3.11+"는 유지하되 실행 버전 3.12 명시 제안

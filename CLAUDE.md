@@ -17,18 +17,23 @@
 10. `docs/SPEC.md`는 길다. 전체를 읽지 말고 `grep -n '^## ' docs/SPEC.md`로 목차를 본 뒤 필요한 § 만 읽는다.
 11. `docs/` 문서는 파일당 약 80줄 이하로 유지한다. 넘으면 역할별로 나눠 아래 문서 지도에 추가한다.
 
-## 명령 [가정: P0에서 확정하고 이 절을 고칠 것]
+## 명령 (P0-a에서 확정, CI `.github/workflows/ci.yml`과 같음)
 
 ```bash
-cd backend && uv run ruff check . && uv run pytest     # 백엔드
-cd frontend && npm run typecheck && npm run build      # 프론트
+cd backend && uv sync && uv run ruff check . ../eval && uv run ruff format --check . ../eval \
+  && uv run mypy app ../eval && uv run pytest -q                                    # 백엔드 + eval
+cd frontend && npm ci && npm run lint && npm run typecheck && npm run test && npm run build  # 프론트
 ```
+
+- 저장소 루트 `.env`는 v1용이다. v2 테스트는 `.env`를 읽지 않아야 한다.
+- v1 코드 참조: `git show 61519ad:<경로>` (v2 브랜치에서는 삭제됨).
 
 ## 문서 지도 — 해당 작업을 할 때만 읽는다
 
 | 하는 일 | 읽을 파일 |
 |---|---|
 | 지금 할 단계·완료 조건 | `docs/SPEC.md` §13 |
+| 어디까지 했는지 이어받기 | `docs/PROGRESS.md` |
 | 테이블·마이그레이션 | `docs/SPEC.md` §4 |
 | 수집기·캐시·G2B 호출 코드 | `docs/SPEC.md` §5 + `docs/g2b/API.md` |
 | 첨부파일 다운로드·텍스트 추출 | `docs/SPEC.md` §5.6 + `docs/g2b/FILES.md` |

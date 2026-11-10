@@ -18,6 +18,9 @@ v2의 호출 구조(DB-first, 일일 예산, 단일 실행)는 `docs/SPEC.md` §
 |---|---|---|
 | 입찰공고 | `getBidPblancListInfoServcPPSSrch` | `http://apis.data.go.kr/1230000/ad/BidPublicInfoService` |
 | 사전규격 | `getPublicPrcureThngInfoServcPPSSrch` | `http://apis.data.go.kr/1230000/ao/HrcspSsstndrdInfoService` |
+| e발주 첨부 | `getBidPblancListInfoEorderAtchFileInfo` | 입찰공고와 같은 URL. v1이 첨부 없는 공고 보충에 사용 |
+
+e발주 첨부 조회는 `inqryDiv=2`, `bidNtceNo=<공고번호>`로 부른다. 응답의 `eorderAtchFileNm`·`eorderAtchFileUrl`·`eorderDocDivNm`에서 문서구분 또는 파일명에 '제안요청'이 든 것만 쓴다. 그래도 없으면 공고의 `bfSpecRgstNo`로 사전규격 `specDocFileUrl1~5`를 교차 참조한다 (v1 `g2b_search.py`, 커밋 61519ad).
 
 | 구분 | 키워드 파라미터 | 마감 필드 | 금액 필드 |
 |---|---|---|---|
@@ -33,3 +36,4 @@ MCP 서버는 용역(Service) 유형만 조회한다. v2의 조회 범위는 SPE
 - **날짜 형식이 섞여 있다**: `YYYYMMDDHHMM`, `YYYY-MM-DD HH:MM:SS`, `YYYY-MM-DD HH:MM`, `YYYYMMDD`. 마감 판정 함수가 모두 받아야 한다.
 - **사전규격 첨부 URL**은 `specDocFileUrl1~5` 필드에 있고 파일명 필드가 없다.
 - 마감 여부와 관계없이 전부 돌려주고, 진행중/마감은 표시에만 쓴다(MCP 서버의 동작).
+- **첨부 다운로드**: v1은 httpx가 아니라 `curl` 서브프로세스로 받는다. 주석상 이유는 "g2b TLS가 Python ssl과 호환되지 않음"이다. `--insecure`(인증서 검증 끔), 브라우저 UA, `-e https://www.g2b.go.kr/` 리퍼러를 쓴다. httpx로 되는지는 [미확인]이므로 P1(SPEC §5.6)에서 확인 스크립트로 검증한다.

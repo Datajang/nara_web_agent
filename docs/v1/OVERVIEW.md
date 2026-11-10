@@ -17,6 +17,8 @@
 
 ## 옮길 것과 버릴 것
 
+P0-a(2026-11-11)에서 v2 브랜치의 v1 실행 코드를 지웠다. 원본은 `git show 61519ad:<경로>`로 본다(예: `git show 61519ad:nara_server/g2b_api.py`). 무엇을 어디로 옮겼는지는 `docs/decisions/2026-11-11-p0a-repo-layout.md`에 있다.
+
 - 옮긴다: `nara_server/g2b_api.py`(엔드포인트·파라미터 지식), `file_extractor.py`(HWP 대체 경로 등). 먼저 `docs/g2b/`를 읽고, 테스트를 붙인 뒤 `backend/app`으로 이동한다.
 - 버린다: `app/pipeline/orchestrator.py`의 키워드 분기, bearer 인증 코드, SQLite 자동 생성 코드.
 - v1 데이터 이전 방법은 SPEC §4 "v1 데이터 이전" 절을 따른다.

@@ -1,0 +1,13 @@
+# P0-a 저장소 정리: v1 코드 처리와 실패 테스트 8개 분류
+- 명세 위치: §2 (v1 파일 맵, 실패 테스트 8개), §3 (저장소 구조), §13.2
+- 질문: v1 코드를 v2 구조로 어떻게 옮기고, 실패 테스트 8개를 어떻게 처리할지
+- 방법: `61519ad`에서 v1 pytest 직접 실행 → 44개 중 36개 통과, 실패 8개(§2와 같음). 단 저장소 루트의 `.env`(HTTP_PROXY 등)가 v1 Settings의 extra=forbid에 걸려 수집 오류가 나므로 저장소 밖에서 실행해야 재현된다
+- 결정 (코드 처리):
+  - 이동: `nara_server/file_extractor.py` → `backend/app/files/extractor.py`, `app/pipeline/section_extractor.py` → `backend/app/pipeline/`
+  - 일부 이전: `g2b_api.py`의 순수 함수 → `backend/app/g2b/parse.py`. HTTP 호출부와 `g2b_search.py`는 P1에서 재작성
+  - 삭제: 나머지 v1 실행 코드(SQLite·bearer 인증·orchestrator·바닐라 프론트)와 SQLite 기반 테스트. 참조는 `git show 61519ad:<경로>`
+- 결정 (실패 테스트 8개):
+  - 고침 `test_extract_docx`: 원인은 테스트가 httpx를 mock하지만 구현은 curl 서브프로세스로 다운로드해서 mock이 안 먹는 것. `download_file`을 가짜로 대체
+  - 고침 `test_is_bid_open_empty`: §4(205행)대로 빈 마감 = 진행중(True)으로 기대값 수정
+  - 버림 `test_orchestrator` 6개: orchestrator 폐기. 대체 테스트(b-ID 검증기, 읽기 전용 도구 목록)는 P3a에서 작성
+- 명세 수정 필요: 있음 — §2 `test_extract_docx`의 원인·조치 문구(curl 경계 mock), §2 파일 맵에 `app/pipeline/file_extract.py`(7줄 연결 코드) 누락

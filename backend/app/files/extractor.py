@@ -1,53 +1,56 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Universal Content Extraction Module
 다형식 파일 처리 모듈 - HWP, HWPX, PDF, DOCX, XLSX, ZIP
 """
 
+import asyncio
 import io
 import os
 import re
 import tempfile
-import zipfile
 import xml.etree.ElementTree as ET
+import zipfile
 from pathlib import Path
-from typing import Optional
-import asyncio
 
 # Optional imports with fallbacks
 try:
     import olefile
+
     HAS_OLEFILE = True
 except ImportError:
     HAS_OLEFILE = False
 
 try:
     from langchain_teddynote.document_loaders import HWPLoader
+
     HAS_HWPLOADER = True
 except ImportError:
     HAS_HWPLOADER = False
 
 try:
     from pypdf import PdfReader
+
     HAS_PYPDF = True
 except ImportError:
     HAS_PYPDF = False
 
 try:
     from docx import Document
+
     HAS_DOCX = True
 except ImportError:
     HAS_DOCX = False
 
 try:
     from openpyxl import load_workbook
+
     HAS_OPENPYXL = True
 except ImportError:
     HAS_OPENPYXL = False
 
 
-def select_best_file_from_zip(file_list: list[str]) -> Optional[str]:
+def select_best_file_from_zip(file_list: list[str]) -> str | None:
     """
     ZIP 파일 내에서 가장 적합한 파일 선택 (가이드 §8.2.A 준수)
 
@@ -59,26 +62,27 @@ def select_best_file_from_zip(file_list: list[str]) -> Optional[str]:
     """
     # 숨김 파일 및 __MACOSX 제외
     valid_files = [
-        f for f in file_list
-        if not f.startswith('__MACOSX')
-        and not os.path.basename(f).startswith('.')
-        and not f.endswith('/')
+        f
+        for f in file_list
+        if not f.startswith("__MACOSX")
+        and not os.path.basename(f).startswith(".")
+        and not f.endswith("/")
     ]
 
     # Priority 1: 제안요청서/과업지시서
     for f in valid_files:
         basename = os.path.basename(f)
-        if '제안요청서' in basename or '과업지시서' in basename:
+        if "제안요청서" in basename or "과업지시서" in basename:
             return f
 
     # Priority 2: HWP/HWPX
     for f in valid_files:
-        if f.lower().endswith(('.hwp', '.hwpx')):
+        if f.lower().endswith((".hwp", ".hwpx")):
             return f
 
     # Priority 3: DOCX/PDF
     for f in valid_files:
-        if f.lower().endswith(('.docx', '.pdf')):
+        if f.lower().endswith((".docx", ".pdf")):
             return f
 
     return None
@@ -96,20 +100,20 @@ def _extract_from_hwp_olefile(file_bytes: bytes) -> str:
         ole = olefile.OleFileIO(io.BytesIO(file_bytes))
 
         # Check for encryption
-        if ole.exists('EncryptedPackage'):
+        if ole.exists("EncryptedPackage"):
             return "HWP Protected: This file is encrypted."
 
         # Try to extract text from various streams
         text_parts = []
 
         # PrvText stream contains preview text
-        if ole.exists('PrvText'):
+        if ole.exists("PrvText"):
             try:
-                prv_text = ole.openstream('PrvText').read()
+                prv_text = ole.openstream("PrvText").read()
                 # PrvText is UTF-16LE encoded
-                decoded = prv_text.decode('utf-16-le', errors='ignore')
+                decoded = prv_text.decode("utf-16-le", errors="ignore")
                 # Remove null characters
-                decoded = decoded.replace('\x00', '')
+                decoded = decoded.replace("\x00", "")
                 if decoded.strip():
                     text_parts.append(decoded)
             except Exception:
@@ -117,15 +121,18 @@ def _extract_from_hwp_olefile(file_bytes: bytes) -> str:
 
         # BodyText sections
         for i in range(100):
-            section_name = f'BodyText/Section{i}'
+            section_name = f"BodyText/Section{i}"
             if ole.exists(section_name):
                 try:
                     section_data = ole.openstream(section_name).read()
                     # Try to decode as UTF-16LE
                     try:
-                        decoded = section_data.decode('utf-16-le', errors='ignore')
+                        decoded = section_data.decode("utf-16-le", errors="ignore")
                         # Extract readable text using regex
-                        readable = re.findall(r'[\uAC00-\uD7A3a-zA-Z0-9\s.,!?@#$%^&*()_+=\-\[\]{}|;:\'\"<>/\\]+', decoded)
+                        readable = re.findall(
+                            r"[\uAC00-\uD7A3a-zA-Z0-9\s.,!?@#$%^&*()_+=\-\[\]{}|;:\'\"<>/\\]+",
+                            decoded,
+                        )
                         text_parts.extend(readable)
                     except Exception:
                         pass
@@ -137,7 +144,7 @@ def _extract_from_hwp_olefile(file_bytes: bytes) -> str:
         ole.close()
 
         if text_parts:
-            return '\n'.join(text_parts)
+            return "\n".join(text_parts)
         else:
             return "HWP: Could not extract text. File may use unsupported encoding."
 
@@ -156,11 +163,7 @@ def extract_from_hwp(file_bytes: bytes) -> str:
         temp_file_path = None
         try:
             # 1. 임시 파일 생성 (.hwp 확장자 필수)
-            with tempfile.NamedTemporaryFile(
-                mode='wb',
-                suffix='.hwp',
-                delete=False
-            ) as temp_file:
+            with tempfile.NamedTemporaryFile(mode="wb", suffix=".hwp", delete=False) as temp_file:
                 temp_file.write(file_bytes)
                 temp_file_path = temp_file.name
 
@@ -170,13 +173,9 @@ def extract_from_hwp(file_bytes: bytes) -> str:
 
             # 3. Document에서 텍스트 추출
             if documents:
-                text_parts = [
-                    doc.page_content
-                    for doc in documents
-                    if doc.page_content.strip()
-                ]
+                text_parts = [doc.page_content for doc in documents if doc.page_content.strip()]
                 if text_parts:
-                    return '\n\n'.join(text_parts)
+                    return "\n\n".join(text_parts)
 
             # HWPLoader 성공했지만 텍스트 없음 → olefile fallback
             return _extract_from_hwp_olefile(file_bytes)
@@ -185,6 +184,7 @@ def extract_from_hwp(file_bytes: bytes) -> str:
             # HWPLoader 실패 → olefile fallback
             # 디버깅을 위한 로그 출력
             import sys
+
             print(f"[DEBUG] HWPLoader failed, falling back to olefile: {str(e)}", file=sys.stderr)
             return _extract_from_hwp_olefile(file_bytes)
 
@@ -193,7 +193,7 @@ def extract_from_hwp(file_bytes: bytes) -> str:
             if temp_file_path and os.path.exists(temp_file_path):
                 try:
                     os.unlink(temp_file_path)
-                except:
+                except OSError:
                     pass  # 정리 실패 무시
 
     # HWPLoader 없음 → olefile 직접 사용
@@ -207,18 +207,21 @@ def extract_from_hwpx(file_bytes: bytes) -> str:
     Contents/section0.xml에서 텍스트 추출
     """
     try:
-        with zipfile.ZipFile(io.BytesIO(file_bytes), 'r') as zf:
+        with zipfile.ZipFile(io.BytesIO(file_bytes), "r") as zf:
             text_parts = []
 
             # Find all section files
-            section_files = sorted([
-                name for name in zf.namelist()
-                if name.startswith('Contents/section') and name.endswith('.xml')
-            ])
+            section_files = sorted(
+                [
+                    name
+                    for name in zf.namelist()
+                    if name.startswith("Contents/section") and name.endswith(".xml")
+                ]
+            )
 
             for section_file in section_files:
                 try:
-                    content = zf.read(section_file).decode('utf-8')
+                    content = zf.read(section_file).decode("utf-8")
                     # Parse XML and extract text
                     root = ET.fromstring(content)
 
@@ -232,7 +235,7 @@ def extract_from_hwpx(file_bytes: bytes) -> str:
                     continue
 
             if text_parts:
-                return '\n'.join(text_parts)
+                return "\n".join(text_parts)
             else:
                 return "HWPX: No text content found in sections."
 
@@ -257,12 +260,12 @@ def extract_from_pdf(file_bytes: bytes) -> str:
             try:
                 page_text = page.extract_text()
                 if page_text and page_text.strip():
-                    text_parts.append(f"[Page {i+1}]\n{page_text}")
+                    text_parts.append(f"[Page {i + 1}]\n{page_text}")
             except Exception:
                 continue
 
         if text_parts:
-            return '\n\n'.join(text_parts)
+            return "\n\n".join(text_parts)
         else:
             return "PDF: No extractable text found (may be image-based)."
 
@@ -293,10 +296,10 @@ def extract_from_docx(file_bytes: bytes) -> str:
                     if cell.text and cell.text.strip():
                         row_text.append(cell.text.strip())
                 if row_text:
-                    text_parts.append(' | '.join(row_text))
+                    text_parts.append(" | ".join(row_text))
 
         if text_parts:
-            return '\n'.join(text_parts)
+            return "\n".join(text_parts)
         else:
             return "DOCX: No text content found."
 
@@ -325,15 +328,15 @@ def extract_from_xlsx(file_bytes: bytes) -> str:
                     if cell.value is not None:
                         row_values.append(str(cell.value))
                 if row_values:
-                    sheet_text.append(' | '.join(row_values))
+                    sheet_text.append(" | ".join(row_values))
 
             if len(sheet_text) > 1:
-                text_parts.append('\n'.join(sheet_text))
+                text_parts.append("\n".join(sheet_text))
 
         wb.close()
 
         if text_parts:
-            return '\n\n'.join(text_parts)
+            return "\n\n".join(text_parts)
         else:
             return "XLSX: No data found."
 
@@ -346,28 +349,29 @@ def extract_from_zip(file_bytes: bytes, original_url: str = "") -> str:
     ZIP 파일 처리 - 우선순위에 따라 최적 파일 선택 후 추출
     """
     try:
-        with zipfile.ZipFile(io.BytesIO(file_bytes), 'r') as zf:
+        with zipfile.ZipFile(io.BytesIO(file_bytes), "r") as zf:
             file_list = zf.namelist()
 
             best_file = select_best_file_from_zip(file_list)
 
             if not best_file:
-                return f"ZIP: No suitable document found. Files in archive: {', '.join(file_list[:10])}"
+                listed = ", ".join(file_list[:10])
+                return f"ZIP: No suitable document found. Files in archive: {listed}"
 
             # Extract the best file
             inner_bytes = zf.read(best_file)
             inner_ext = Path(best_file).suffix.lower()
 
             # Recursively process based on extension
-            if inner_ext == '.hwp':
+            if inner_ext == ".hwp":
                 result = extract_from_hwp(inner_bytes)
-            elif inner_ext == '.hwpx':
+            elif inner_ext == ".hwpx":
                 result = extract_from_hwpx(inner_bytes)
-            elif inner_ext == '.pdf':
+            elif inner_ext == ".pdf":
                 result = extract_from_pdf(inner_bytes)
-            elif inner_ext == '.docx':
+            elif inner_ext == ".docx":
                 result = extract_from_docx(inner_bytes)
-            elif inner_ext == '.xlsx':
+            elif inner_ext == ".xlsx":
                 result = extract_from_xlsx(inner_bytes)
             else:
                 result = f"ZIP: Unsupported inner file format: {inner_ext}"
@@ -386,17 +390,17 @@ def extract_text_from_bytes(file_bytes: bytes, filename: str, url: str = "") -> 
     """
     ext = Path(filename).suffix.lower()
 
-    if ext == '.zip':
+    if ext == ".zip":
         return extract_from_zip(file_bytes, url)
-    elif ext == '.hwp':
+    elif ext == ".hwp":
         return extract_from_hwp(file_bytes)
-    elif ext == '.hwpx':
+    elif ext == ".hwpx":
         return extract_from_hwpx(file_bytes)
-    elif ext == '.pdf':
+    elif ext == ".pdf":
         return extract_from_pdf(file_bytes)
-    elif ext == '.docx':
+    elif ext == ".docx":
         return extract_from_docx(file_bytes)
-    elif ext in ('.xlsx', '.xls'):
+    elif ext in (".xlsx", ".xls"):
         return extract_from_xlsx(file_bytes)
     else:
         return f"Unsupported file format: {ext}. Please check the manual link: {url}"
@@ -408,8 +412,8 @@ async def download_file(url: str, timeout: float = 60.0) -> tuple[bytes, str]:
     that is incompatible with Python's ssl/httpx stack.
     Returns: (file_bytes, filename)
     """
-    import urllib.parse
     import tempfile
+    import urllib.parse
 
     # Force /tmp — TMPDIR=/var/tmp causes curl SSL errors on this server
     with tempfile.NamedTemporaryFile(delete=False, dir="/tmp") as tmp:
@@ -420,12 +424,20 @@ async def download_file(url: str, timeout: float = 60.0) -> tuple[bytes, str]:
     env["TMPDIR"] = "/tmp"
 
     curl_cmd = [
-        "curl", "-L", "--insecure", "-s",
-        "-A", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "-e", "https://www.g2b.go.kr/",
-        "-D", tmp_path + ".headers",
-        "-o", tmp_path,
-        "--max-time", str(int(timeout)),
+        "curl",
+        "-L",
+        "--insecure",
+        "-s",
+        "-A",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "-e",
+        "https://www.g2b.go.kr/",
+        "-D",
+        tmp_path + ".headers",
+        "-o",
+        tmp_path,
+        "--max-time",
+        str(int(timeout)),
     ]
     proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
     if proxy:
@@ -448,8 +460,10 @@ async def download_file(url: str, timeout: float = 60.0) -> tuple[bytes, str]:
         with open(tmp_path, "rb") as f:
             file_bytes = f.read()
     finally:
-        try: os.unlink(tmp_path)
-        except OSError: pass
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
 
     if not file_bytes:
         raise RuntimeError("curl returned empty response")
@@ -458,7 +472,7 @@ async def download_file(url: str, timeout: float = 60.0) -> tuple[bytes, str]:
     filename = ""
     headers_path = tmp_path + ".headers"
     try:
-        with open(headers_path, "r", errors="replace") as f:
+        with open(headers_path, errors="replace") as f:
             raw_headers = f.read()
         os.unlink(headers_path)
 
@@ -474,7 +488,9 @@ async def download_file(url: str, timeout: float = 60.0) -> tuple[bytes, str]:
         if cd_match:
             cd = cd_match.group(1)
             if "filename*=" in cd:
-                m = re.search(r"filename\*=(?:UTF-8''|utf-8'')(.+?)(?:;|\r|\n|$)", cd, re.IGNORECASE)
+                m = re.search(
+                    r"filename\*=(?:UTF-8''|utf-8'')(.+?)(?:;|\r|\n|$)", cd, re.IGNORECASE
+                )
                 if m:
                     filename = urllib.parse.unquote(m.group(1).strip())
             if not filename:
@@ -486,6 +502,7 @@ async def download_file(url: str, timeout: float = 60.0) -> tuple[bytes, str]:
 
     if not filename:
         from urllib.parse import urlparse
+
         filename = os.path.basename(urlparse(url).path)
 
     return file_bytes, filename
@@ -506,8 +523,8 @@ async def extract_text_from_url(url: str, filename: str = "") -> str:
         file_bytes, detected_filename = await download_file(url)
 
         # Use provided filename if it has a recognized extension, otherwise use detected filename
-        recognized_exts = {'.hwp', '.hwpx', '.pdf', '.docx', '.xlsx', '.xls', '.zip'}
-        provided_ext = Path(filename).suffix.lower() if filename else ''
+        recognized_exts = {".hwp", ".hwpx", ".pdf", ".docx", ".xlsx", ".xls", ".zip"}
+        provided_ext = Path(filename).suffix.lower() if filename else ""
         if filename and provided_ext in recognized_exts:
             final_filename = filename
         elif detected_filename:

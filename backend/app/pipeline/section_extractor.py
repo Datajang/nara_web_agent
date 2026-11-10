@@ -3,26 +3,26 @@ import re
 TARGET_DOC_TOKENS = 5500
 
 SECTION_RULES: list[tuple[str, int]] = [
-    (r"사업\s*개요|추진\s*배경|사업\s*목적|과업\s*목적",        1800),
+    (r"사업\s*개요|추진\s*배경|사업\s*목적|과업\s*목적", 1800),
     (r"과업\s*(내용|범위|지시서)|수행\s*(내용|범위)|주요\s*업무", 1800),
-    (r"기술\s*요구사항|기능\s*요구사항|구축\s*(내용|범위)",      1800),
-    (r"자격\s*요건|참가\s*자격|제한\s*(사항|조건)",             600),
-    (r"사업\s*기간|수행\s*기간|납품\s*기한|과업\s*기간",         400),
-    (r"예산|사업\s*금액|계약\s*금액|추정\s*가격",               400),
-    (r"평가\s*(기준|항목)|기술\s*평가",                         300),
-    (r"제안서\s*작성|작성\s*요령",                              200),
-    (r"별첨|붙임|첨부",                                         150),
+    (r"기술\s*요구사항|기능\s*요구사항|구축\s*(내용|범위)", 1800),
+    (r"자격\s*요건|참가\s*자격|제한\s*(사항|조건)", 600),
+    (r"사업\s*기간|수행\s*기간|납품\s*기한|과업\s*기간", 400),
+    (r"예산|사업\s*금액|계약\s*금액|추정\s*가격", 400),
+    (r"평가\s*(기준|항목)|기술\s*평가", 300),
+    (r"제안서\s*작성|작성\s*요령", 200),
+    (r"별첨|붙임|첨부", 150),
 ]
 
 SECTION_HEADER_RE = re.compile(
-    r'^(?:\d{1,2}[\.\)]\s+|#{1,3}\s+|[IVX]+\.\s+)'
-    r'[가-힣A-Za-z0-9\s]{2,30}$',
+    r"^(?:\d{1,2}[\.\)]\s+|#{1,3}\s+|[IVX]+\.\s+)"
+    r"[가-힣A-Za-z0-9\s]{2,30}$",
     re.MULTILINE,
 )
 
 
 def estimate_tokens(text: str) -> int:
-    korean = sum(1 for c in text if '가' <= c <= '힣')
+    korean = sum(1 for c in text if "가" <= c <= "힣")
     other = len(text) - korean
     return int(korean * 1.5 + other * 0.3)
 
@@ -30,7 +30,7 @@ def estimate_tokens(text: str) -> int:
 def _truncate_to_tokens(text: str, max_tokens: int) -> str:
     chars, tokens = [], 0.0
     for c in text:
-        t = 1.5 if '가' <= c <= '힣' else 0.3
+        t = 1.5 if "가" <= c <= "힣" else 0.3
         if tokens + t > max_tokens:
             break
         chars.append(c)

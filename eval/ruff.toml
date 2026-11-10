@@ -1,0 +1,2 @@
+# eval/ 스크립트도 백엔드와 같은 규칙으로 검사한다.
+extend = "../backend/pyproject.toml"

@@ -40,6 +40,7 @@ cd frontend && npm ci && npm run lint && npm run typecheck && npm run test && np
 | API·SSE 규약 | `docs/SPEC.md` §6 |
 | 화면·탭 기능 | `docs/SPEC.md` §7 |
 | LLM 호출·프롬프트·모델 설정 | `docs/SPEC.md` §8 |
+| vLLM 실행 명령·플래그·측정치 | `docs/LLM_SETUP.md` |
 | 회원가입·로그인·권한·보안 | `docs/SPEC.md` §9 |
 | 프론트엔드 구현·디자인 시스템 | `docs/SPEC.md` §10 |
 | 테스트 작성 | `docs/SPEC.md` §12 + `docs/v1/TESTING.md` |

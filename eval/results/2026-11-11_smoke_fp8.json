@@ -1,0 +1,88 @@
+{
+  "label": "fp8",
+  "model": "brain",
+  "vllm_flags": "vllm 0.19.1; Qwen/Qwen3.5-9B online FP8; --quantization fp8 --max-model-len 32768 --max-num-seqs 8 --gpu-memory-utilization 0.90 --language-model-only --reasoning-parser qwen3 --enable-auto-tool-choice --tool-call-parser qwen3_coder --default-chat-template-kwargs {enable_thinking:false}",
+  "run_at": "2026-11-11T01:26:35",
+  "server": {
+    "models": [
+      {
+        "id": "brain",
+        "max_model_len": 32768
+      }
+    ]
+  },
+  "gpu_memory_mib": {
+    "before": [
+      18604
+    ],
+    "after": [
+      18990
+    ]
+  },
+  "results": [
+    {
+      "name": "simple",
+      "passed": true,
+      "metrics": {
+        "ttft_s": 2.766,
+        "latency_s": 5.164,
+        "completion_tokens": 59,
+        "tokens_per_s": 24.6,
+        "sample": "나라장터는 대한민국 정부에서 운영하는 전자조달망으로, 모든 공공기관의 물품 구매와 용역 계약이 이루어지는 유일한 공식 플랫폼입니다. 이 시스템을 통해 정부는 투명한 조달 절차를 보장하고, 기업들은 공정한 경쟁 기회를"
+      },
+      "error": null
+    },
+    {
+      "name": "json_schema",
+      "passed": true,
+      "metrics": {
+        "latency_s": 4.87,
+        "raw": "{\n  \"title\": \"2026 년 AI 기반 민원 분석 시스템 구축 용역\",\n  \"budget_won\": 150000000,\n  \"deadline\": \"2026-12-01T10:00:00\",\n  \"method\": \"협상에 의한 계약\"\n}",
+        "budget_ok": true
+      },
+      "error": null
+    },
+    {
+      "name": "tool_call",
+      "passed": true,
+      "metrics": {
+        "latency_s": 1.745,
+        "function": "search_bids",
+        "arguments": "{\"keyword\": \"AI\", \"days\": 30}"
+      },
+      "error": null
+    },
+    {
+      "name": "long_input",
+      "passed": true,
+      "metrics": {
+        "target_tokens": 12000,
+        "prompt_tokens": 11970,
+        "ttft_s": 3.583,
+        "latency_s": 3.879,
+        "answer": "NARA-7342"
+      },
+      "error": null
+    },
+    {
+      "name": "concurrency",
+      "passed": true,
+      "metrics": {
+        "requests": 4,
+        "succeeded": 4,
+        "latency_p50_s": 11.068,
+        "latency_max_s": 11.07,
+        "ttft_p50_s": 0.118,
+        "ttft_max_s": 0.122,
+        "aggregate_tokens_per_s": 92.49,
+        "per_request_tokens_per_s": [
+          23.38,
+          23.38,
+          23.38,
+          23.38
+        ]
+      },
+      "error": null
+    }
+  ]
+}

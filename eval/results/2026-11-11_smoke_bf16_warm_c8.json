@@ -1,0 +1,60 @@
+{
+  "label": "bf16_warm_c8",
+  "model": "brain",
+  "vllm_flags": "BF16 warm rerun; concurrency 8 to verify --max-num-seqs 8",
+  "run_at": "2026-11-11T01:22:57",
+  "server": {
+    "models": [
+      {
+        "id": "brain",
+        "max_model_len": 32768
+      }
+    ]
+  },
+  "gpu_memory_mib": {
+    "before": [
+      21742
+    ],
+    "after": [
+      21742
+    ]
+  },
+  "results": [
+    {
+      "name": "simple",
+      "passed": true,
+      "metrics": {
+        "ttft_s": 0.138,
+        "latency_s": 3.917,
+        "completion_tokens": 61,
+        "tokens_per_s": 16.14,
+        "sample": "나라장터는 대한민국 정부에서 운영하는 전자조달망으로, 모든 공공기관의 물품 구매와 용역 계약이 이루어지는 유일한 공식 플랫폼입니다. 이 시스템을 통해 정부는 투명한 입찰 절차를 보장하고, 기업들은 공정한 경쟁 기회를"
+      },
+      "error": null
+    },
+    {
+      "name": "concurrency",
+      "passed": true,
+      "metrics": {
+        "requests": 8,
+        "succeeded": 8,
+        "latency_p50_s": 17.933,
+        "latency_max_s": 17.937,
+        "ttft_p50_s": 0.186,
+        "ttft_max_s": 0.192,
+        "aggregate_tokens_per_s": 114.15,
+        "per_request_tokens_per_s": [
+          14.43,
+          14.42,
+          14.42,
+          14.42,
+          14.43,
+          14.43,
+          14.42,
+          14.42
+        ]
+      },
+      "error": null
+    }
+  ]
+}

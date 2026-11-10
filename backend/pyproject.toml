@@ -1,0 +1,51 @@
+[project]
+name = "nara-web-backend"
+version = "2.0.0.dev0"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.4",
+    "httpx>=0.27",
+    # 첨부파일 텍스트 추출 (docs/g2b/FILES.md)
+    "langchain-teddynote>=0.3.9",
+    "langchain>=0.1.0,<1.0.0",
+    "langchain-core>=0.1.0,<1.0.0",
+    "olefile>=0.47",
+    "pypdf>=4.0",
+    "python-docx>=1.1",
+    "openpyxl>=3.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "openai>=1.50",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["app", "../eval"]
+ignore_missing_imports = true
+warn_unused_ignores = true

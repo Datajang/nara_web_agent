@@ -2,12 +2,15 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 *.egg-info/
 dist/
 build/
 .venv/
 .DS_Store
-uv.lock
+node_modules/
+*.tsbuildinfo
 
 # Local config files (machine-specific, not for version control)
 .mcp.json

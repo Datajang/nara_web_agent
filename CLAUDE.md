@@ -25,7 +25,9 @@ cd backend && uv sync && uv run ruff check . ../eval && uv run ruff format --che
 cd frontend && npm ci && npm run lint && npm run typecheck && npm run test && npm run build  # 프론트
 ```
 
-- 저장소 루트 `.env`는 v1용이다. v2 테스트는 `.env`를 읽지 않아야 한다.
+- pytest는 PostgreSQL 16이 필요하다: 로컬은 Docker `nara-pg16`(127.0.0.1:5433, `docker start nara-pg16`), 접속 정보는 `backend/.env`의 `TEST_DATABASE_URL`(gitignore).
+- 저장소 루트 `.env`(서비스키)는 테스트가 읽지 않는다. CLI는 `NARA_ENV_FILE=../.env,.env uv run python -m app.collector incremental` 처럼 명시한다.
+- 마이그레이션: `uv run alembic -x url=$DATABASE_URL upgrade head`
 - v1 코드 참조: `git show 61519ad:<경로>` (v2 브랜치에서는 삭제됨).
 
 ## 문서 지도 — 해당 작업을 할 때만 읽는다

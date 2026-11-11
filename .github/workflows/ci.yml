@@ -1,5 +1,5 @@
 # PR 게이트 (SPEC §12.8). 실패하면 병합하지 않는다.
-# PostgreSQL 서비스 컨테이너는 첫 통합 테스트가 생기는 P1에서, E2E는 P2 이후에 추가한다.
+# DB 테스트는 실제 PostgreSQL 16 (SQLite 금지, §12.1). E2E는 P2 이후에 추가한다.
 name: CI
 
 on:
@@ -17,6 +17,18 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: nara
+          POSTGRES_PASSWORD: nara-ci
+          POSTGRES_DB: nara_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U nara" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+asyncpg://nara:nara-ci@127.0.0.1:5432/nara_test
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6

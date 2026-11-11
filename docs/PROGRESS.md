@@ -13,3 +13,9 @@
 - **한 일**: v1 vLLM을 중지(사용자 지시)하고, vLLM 0.19.1로 Qwen3.5-9B를 BF16과 FP8로 띄워 `smoke_llm.py` 5항목과 동시 8요청을 측정했다. 둘 다 전 항목 통과했다. 기록은 `docs/LLM_SETUP.md`와 `docs/decisions/2026-11-11-bf16-vs-fp8.md`.
 - **달라진 결정**: 드라이버 550 때문에 vLLM은 0.19.1이 상한(0.20 이상은 CUDA 13). BF16 + 32K는 `--gpu-memory-utilization 0.95`가 필요(0.90에서 KV 부족). `qwen3_coder` 파서가 정상이라 `qwen3_xml` 폴백은 쓰지 않음.
 - **남은 문제**: FP8 채택(사용자 결정). 품질 손실은 §12 골든셋에서 확인. v1 `nara-vllm`은 stop·disable 완료. 운영 포트(8000·8001 사용 중)와 `/opt/nara` 유닛은 P4에서.
+
+## P1 — 데이터와 수집기 (2026-11-11, 태그 전 확인 대기)
+
+- **한 일**: §4 전 테이블을 Alembic 2개(공유·개인)로 만들고, G2B 클라이언트(페이지네이션·재시도·예산·키 마스킹), 수집기 backfill/incremental/fill, DB-first 검색, single-flight, 첨부 파이프라인, 요약·분석·점수 캐시 계약(가짜 LLM)을 구현했다. 테스트 먼저(55개 실패 확인) → pytest 92개 통과. 실제 G2B로 90일 backfill(181회 호출, 52,177건).
+- **달라진 결정**: Docker PG 16(5433), numOfRows 999, 정정공고는 최대 차수만 반영, `bid_files.attempts` 추가, 커버리지 1시간 여유, 점수에는 single-flight 미적용. httpx 로그가 서비스키를 찍던 문제를 발견해 고침 (`docs/decisions/2026-11-11-p1-implementation.md`, `-g2b-probe.md`).
+- **남은 문제**: 사용자 결정 반영 — 취소공고는 검색에 남기고 "취소공고" 배지로 표시(P3), 커버리지 밖 fill은 "수집 중" 상태로(P3), 일일 예산 1000회. CI의 PG 서비스는 push 후 확인. collector timer는 파일만(설치는 P4).

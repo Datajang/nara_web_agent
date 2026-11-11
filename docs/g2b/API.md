@@ -31,9 +31,12 @@ MCP 서버는 용역(Service) 유형만 조회한다. v2의 조회 범위는 SPE
 
 ## 알려진 함정
 
-- **조회 기간 제한**: 약 15일을 넘는 구간은 404가 난다. 15일 단위 청크로 나눠 호출하고 결과를 합친다.
+- **조회 기간 제한**: 약 15일을 넘으면 HTTP 200에 `nkoneps.com.response.ResponseError`(resultCode 07)가 온다. 15일 단위로 나눠 호출한다.
+- **오류 응답 2종**: 위의 07과, 잘못된 키의 HTTP 403 + `OpenAPI_ServiceResponse.cmmMsgHeader`. 정상은 `response.header.resultCode=00`.
+- **페이지**: `numOfRows` 999 허용(2026-11 확인). 하루 일반공고 약 850건, 사전규격 약 420건.
+- **정정 차수**: 같은 `bidNtceNo`가 `bidNtceOrd`(000~)별로 여러 줄 온다. 차수가 가장 큰 행이 최신.
 - **`response.body.items` 모양이 세 가지**: `list`, `"item"` 키를 가진 `dict`(결과 1건), 문자열 `"null"`(결과 없음). 셋 다 처리한다.
 - **날짜 형식이 섞여 있다**: `YYYYMMDDHHMM`, `YYYY-MM-DD HH:MM:SS`, `YYYY-MM-DD HH:MM`, `YYYYMMDD`. 마감 판정 함수가 모두 받아야 한다.
 - **사전규격 첨부 URL**은 `specDocFileUrl1~5` 필드에 있고 파일명 필드가 없다.
 - 마감 여부와 관계없이 전부 돌려주고, 진행중/마감은 표시에만 쓴다(MCP 서버의 동작).
-- **첨부 다운로드**: v1은 httpx가 아니라 `curl` 서브프로세스로 받는다. 주석상 이유는 "g2b TLS가 Python ssl과 호환되지 않음"이다. `--insecure`(인증서 검증 끔), 브라우저 UA, `-e https://www.g2b.go.kr/` 리퍼러를 쓴다. httpx로 되는지는 [미확인]이므로 P1(SPEC §5.6)에서 확인 스크립트로 검증한다.
+- **첨부 다운로드**: v1은 httpx가 아니라 `curl` 서브프로세스로 받는다. 주석상 이유는 "g2b TLS가 Python ssl과 호환되지 않음"이다. `--insecure`(인증서 검증 끔), 브라우저 UA, `-e https://www.g2b.go.kr/` 리퍼러를 쓴다. 2026-11 확인 결과 httpx(인증서 검증 켬)로 정상 다운로드되어 v2는 curl을 쓰지 않는다(`docs/decisions/2026-11-11-g2b-probe.md`).

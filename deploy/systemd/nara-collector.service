@@ -1,0 +1,12 @@
+# 수집기 1회 실행 (SPEC §11.3). 설치는 P4(deploy.sh). 경로·사용자는 §11.2 가정값.
+[Unit]
+Description=nara collector (incremental)
+After=network-online.target postgresql.service
+
+[Service]
+Type=oneshot
+User=nara
+WorkingDirectory=/opt/nara/app/backend
+EnvironmentFile=/etc/nara/nara.env
+ExecStart=/opt/nara/venv/bin/python -m app.collector incremental
+TimeoutStartSec=900

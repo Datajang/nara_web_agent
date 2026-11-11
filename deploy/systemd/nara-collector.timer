@@ -1,0 +1,13 @@
+# SPEC §5.3 [가정]: 평일 07~20시 10분 간격, 그 외 1시간 간격
+[Unit]
+Description=nara collector schedule
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 07..19:00/10
+OnCalendar=Mon..Fri *-*-* 20..23,00..06:00
+OnCalendar=Sat,Sun *-*-* *:00
+Persistent=true
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target

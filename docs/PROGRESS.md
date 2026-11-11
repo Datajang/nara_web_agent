@@ -19,3 +19,9 @@
 - **한 일**: §4 전 테이블을 Alembic 2개(공유·개인)로 만들고, G2B 클라이언트(페이지네이션·재시도·예산·키 마스킹), 수집기 backfill/incremental/fill, DB-first 검색, single-flight, 첨부 파이프라인, 요약·분석·점수 캐시 계약(가짜 LLM)을 구현했다. 테스트 먼저(55개 실패 확인) → pytest 92개 통과. 실제 G2B로 90일 backfill(181회 호출, 52,177건).
 - **달라진 결정**: Docker PG 16(5433), numOfRows 999, 정정공고는 최대 차수만 반영, `bid_files.attempts` 추가, 커버리지 1시간 여유, 점수에는 single-flight 미적용. httpx 로그가 서비스키를 찍던 문제를 발견해 고침 (`docs/decisions/2026-11-11-p1-implementation.md`, `-g2b-probe.md`).
 - **남은 문제**: 사용자 결정 반영 — 취소공고는 검색에 남기고 "취소공고" 배지로 표시(P3), 커버리지 밖 fill은 "수집 중" 상태로(P3), 일일 예산 1000회. CI의 PG 서비스는 push 후 확인. collector timer는 파일만(설치는 P4).
+
+## P2 — 회원과 프런트 골격 (2026-11-11, 태그 전 확인 대기)
+
+- **한 일**: §9 가입(도메인·승인 정책)·메일 인증·로그인·쿠키 JWT·회전 refresh(재사용 감지)·잠금·재설정·관리자 승인 API와 `app.cli create-admin`, 개인 자원 예시로 프로필 CRUD. 프런트는 토큰·Tailwind 4·UI 프리미티브·앱 셸(반응형)·가드·401 단일 refresh 클라이언트·`useSse`·인증 화면 7개·관리자 사용자 화면. 테스트 먼저(백엔드 67개, 프런트 8파일 실패 확인) → pytest 161개, vitest 64개 통과, 브라우저 흐름 22항목 통과.
+- **달라진 결정**: 로그인 실패는 이메일 해시 기준 `login_failures`(마이그레이션 0003), resend 엔드포인트 추가, logout은 refresh 쿠키만으로, `MAIL_BACKEND=memory`와 개발 전용 메일함, 폰트는 npm `pretendard` 묶음 (`docs/decisions/2026-11-11-p2-auth.md`).
+- **남은 문제**: SPEC 수정 제안(§4·§6.2·§9.7·§10.2), SSE 형식과 사이드바 메뉴는 P3에서 §6.4·§7.1과 대조, e2e의 CI 편입·전 화면 axe·스크린샷 테스트는 P4, 회사 도메인·SMTP 미정(§14).

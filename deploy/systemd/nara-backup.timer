@@ -1,0 +1,11 @@
+# 매일 03:30 KST (SPEC §11.3). 서버가 꺼져 있었으면 켜진 뒤 바로 실행(Persistent).
+[Unit]
+Description=nara DB backup schedule
+
+[Timer]
+OnCalendar=*-*-* 03:30:00 Asia/Seoul
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

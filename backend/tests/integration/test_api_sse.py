@@ -237,5 +237,8 @@ async def test_readyz_reports_db_and_llm(full_api, fake_llm):
         ok = await c.get("/readyz")
         fake_llm.down = True
         down = await c.get("/readyz")
-    assert ok.status_code == 200 and ok.json() == {"db": "ok", "llm": "ok"}
+    assert ok.status_code == 200 and {k: ok.json()[k] for k in ("db", "llm")} == {
+        "db": "ok",
+        "llm": "ok",
+    }
     assert down.status_code == 200 and down.json()["llm"] == "unavailable"

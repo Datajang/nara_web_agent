@@ -5,6 +5,7 @@ access 토큰은 서명만 믿지 않고 매 요청 DB에서 사용자 상태를
 
 from __future__ import annotations
 
+import ipaddress
 from collections.abc import AsyncIterator
 from typing import Annotated
 
@@ -16,6 +17,7 @@ from app.api.security import ACCESS_COOKIE
 from app.auth.tokens import decode_access_token
 from app.db.models.personal import User
 from app.errors import ApiError
+from app.logging_setup import current_context
 
 
 def get_ctx(request: Request) -> AppContext:
@@ -45,6 +47,7 @@ async def current_user(request: Request, ctx: Ctx, s: DbSession) -> User:
     user = await s.get(User, claims.user_id) if claims else None
     if user is None:
         raise ApiError(401, "unauthorized", "로그인이 필요해요.")
+    current_context()["user_id"] = user.id  # 요청 로그용 (§11.7)
     return user
 
 
@@ -69,5 +72,21 @@ ActiveUser = Annotated[User, Depends(require_active)]
 AdminUser = Annotated[User, Depends(require_admin)]
 
 
+TRUSTED_PROXIES = frozenset({"127.0.0.1", "::1"})
+
+
 def client_ip(request: Request) -> str:
-    return request.client.host if request.client else "unknown"
+    """§11.4: nginx(127.0.0.1)에서 온 요청만 X-Forwarded-For를 믿는다.
+
+    마지막 값을 쓴다. nginx가 붙인 값이라 클라이언트가 앞에 넣은 값으로 속일 수 없다.
+    """
+    peer = request.client.host if request.client else None
+    if peer is None:
+        return "unknown"
+    if peer in TRUSTED_PROXIES:
+        last = request.headers.get("x-forwarded-for", "").rsplit(",", 1)[-1].strip()
+        try:
+            return str(ipaddress.ip_address(last))
+        except ValueError:
+            pass
+    return peer

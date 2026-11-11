@@ -1,0 +1,10 @@
+# 10분마다 경보 점검. readyz 3회 연속 실패 = 약 30분.
+[Unit]
+Description=nara alert check schedule
+
+[Timer]
+OnCalendar=*:0/10
+Persistent=true
+
+[Install]
+WantedBy=timers.target

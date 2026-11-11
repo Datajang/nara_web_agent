@@ -19,8 +19,16 @@ class UsageRow(BaseModel):
     hit_rate: dict[str, float | None]
 
 
+class FeedbackRow(BaseModel):
+    target_type: str
+    rating: int
+    reason: str | None
+    count: int
+
+
 class UsageOut(BaseModel):
     items: list[UsageRow]
+    feedback: list[FeedbackRow] = []  # §12.7-2 사유별 👍·👎 (기간 내)
 
 
 class CollectorRunOut(BaseModel):

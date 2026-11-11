@@ -1,0 +1,6 @@
+# §12.9 [가정]: 커밋 전 시크릿 스캔. 설치: `uvx pre-commit install` (각자 한 번)
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.2
+    hooks:
+      - id: gitleaks

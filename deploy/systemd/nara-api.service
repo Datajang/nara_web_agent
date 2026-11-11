@@ -1,0 +1,25 @@
+# nara API (SPEC §11.3). 127.0.0.1:8010만 바인드하고 nginx가 /api/를 넘긴다.
+# vLLM이 죽어도 API는 떠 있어야 하므로 Wants(약한 의존). 워커 1개(§6.1 인메모리 속도 제한).
+# 요청 로그는 앱이 JSON으로 남긴다(쿼리스트링 제외) → uvicorn 접근 로그는 끈다.
+[Unit]
+Description=nara API
+After=network-online.target postgresql.service nara-vllm.service
+Wants=nara-vllm.service
+
+[Service]
+User=nara
+WorkingDirectory=/opt/nara/app/backend
+EnvironmentFile=/etc/nara/nara.env
+Environment=TMPDIR=/var/lib/nara/tmp
+Environment=HOME=/var/lib/nara
+ExecStart=/opt/nara/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8010 --workers 1 --no-access-log
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/nara
+
+[Install]
+WantedBy=multi-user.target

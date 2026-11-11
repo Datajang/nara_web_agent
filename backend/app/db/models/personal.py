@@ -216,6 +216,11 @@ class Feedback(Base):
             "target_type IN ('analysis','assistant_message','search_run')", name="target_type"
         ),
         CheckConstraint("rating IN (-1, 1)", name="rating"),
+        CheckConstraint(
+            "reason IS NULL OR reason IN ('wrong','missing','irrelevant','too_long','other')",
+            name="reason",
+        ),
+        CheckConstraint("reason IS NULL OR rating = -1", name="reason_only_down"),
     )
 
     id: Mapped[int] = pk()
@@ -223,5 +228,8 @@ class Feedback(Base):
     target_type: Mapped[str] = mapped_column(Text)
     target_id: Mapped[int] = mapped_column(BigInteger)
     rating: Mapped[int] = mapped_column(SmallInteger)
+    reason: Mapped[str | None] = mapped_column(Text)  # §12.7 사유 코드 (👎만)
     comment: Mapped[str | None] = mapped_column(Text)
+    model: Mapped[str | None] = mapped_column(Text)  # 대상이 만들어질 때의 모델 ID
+    prompt_version: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

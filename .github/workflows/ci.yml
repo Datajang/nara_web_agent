@@ -1,11 +1,13 @@
 # PR 게이트 (SPEC §12.8). 실패하면 병합하지 않는다.
-# DB 테스트는 실제 PostgreSQL 16 (SQLite 금지, §12.1). E2E는 P2 이후에 추가한다.
+# DB 테스트는 실제 PostgreSQL 16 (SQLite 금지, §12.1).
+# main 병합(push)에는 Playwright E2E 스모크(가짜 LLM)를 더 돌린다. 실패하면 배포하지 않는다.
 name: CI
 
 on:
   pull_request:
   push:
     branches: [main, v2]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -71,3 +73,89 @@ jobs:
         run: npm run test
       - name: Build
         run: npm run build
+
+  # §9.5 의존성 점검. npm 운영 의존성은 high 이상이면 실패.
+  # pip-audit는 HWP 추출용 langchain 계열 알려진 항목 때문에 지금은 보고만 한다
+  # (docs/decisions/2026-11-11-p4-ops.md). 정리되면 continue-on-error를 지운다.
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm audit (runtime)
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
+      - name: pip-audit
+        working-directory: backend
+        continue-on-error: true
+        run: |
+          uv export --locked --no-dev --no-emit-project --format requirements-txt > /tmp/req.txt
+          uvx pip-audit -r /tmp/req.txt --disable-pip --progress-spinner off
+
+  # §12.8 main 병합: 로그인 → 검색 → 상세 → 분석 → 내 기록 (가짜 LLM, 외부 호출 없음)
+  e2e:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: nara
+          POSTGRES_PASSWORD: nara-ci
+          POSTGRES_DB: nara_e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U nara" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://nara:nara-ci@127.0.0.1:5432/nara_e2e
+      ENV: development
+      MAIL_BACKEND: memory
+      LLM_BACKEND: fake
+      G2B_FILE_HOST_ALLOWLIST: ""
+      APP_ORIGIN: http://localhost:4173
+      COOKIE_SECURE: "false"
+      LOG_FORMAT: json
+      E2E_ADMIN: e2e-admin@corp.example
+      E2E_ADMIN_PW: e2e-admin-password-1
+      E2E_BASE: http://localhost:4173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Backend (migrate, seed, serve)
+        working-directory: backend
+        run: |
+          uv sync --locked
+          uv run alembic upgrade head
+          uv run python -m scripts.seed_e2e
+          nohup uv run uvicorn app.main:app --host 127.0.0.1 --port 8030 --no-access-log > /tmp/backend.log 2>&1 &
+      - name: Frontend (build, preview)
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run build
+          VITE_API_TARGET=http://127.0.0.1:8030 nohup npx vite preview --host 127.0.0.1 --port 4173 --strictPort > /tmp/preview.log 2>&1 &
+          for i in $(seq 60); do curl -fsS -o /dev/null http://127.0.0.1:8030/healthz && curl -fsS -o /dev/null http://127.0.0.1:4173/login && break; sleep 1; done
+      - name: Playwright
+        working-directory: frontend
+        run: npx playwright test
+      - name: Logs and report on failure
+        if: failure()
+        run: tail -n 100 /tmp/backend.log /tmp/preview.log
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report

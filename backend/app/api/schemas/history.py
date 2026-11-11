@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 
 from app.bids.cards import BidCard
 from app.llm.schemas import AnalysisResult
@@ -73,11 +73,21 @@ class BookmarkList(BaseModel):
     items: list[BookmarkOut]
 
 
+FeedbackReason = Literal["wrong", "missing", "irrelevant", "too_long", "other"]
+
+
 class FeedbackIn(BaseModel):
     target_type: Literal["analysis", "assistant_message", "search_run"]
     target_id: int
     rating: Literal[-1, 1]
+    reason: FeedbackReason | None = None  # §12.7: 👎일 때만
     comment: Annotated[str, StringConstraints(max_length=1000)] | None = None
+
+    @model_validator(mode="after")
+    def _reason_only_down(self) -> FeedbackIn:
+        if self.reason is not None and self.rating != -1:
+            raise ValueError("reason은 rating=-1일 때만 쓸 수 있다")
+        return self
 
 
 class FeedbackOut(BaseModel):

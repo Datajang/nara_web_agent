@@ -613,7 +613,7 @@ export interface paths {
         };
         /**
          * Readyz
-         * @description DB·LLM 연결 확인 (§6.2). LLM만 불가면 200(검색은 동작), DB 불가면 503.
+         * @description DB·LLM·마지막 수집 성공 시각 (§6.2, §11.7). LLM만 불가면 200, DB 불가면 503.
          */
         get: operations["readyz_readyz_get"];
         put?: never;
@@ -1136,6 +1136,8 @@ export interface components {
              * @enum {integer}
              */
             rating: -1 | 1;
+            /** Reason */
+            reason?: ("wrong" | "missing" | "irrelevant" | "too_long" | "other") | null;
             /** Comment */
             comment?: string | null;
         };
@@ -1143,6 +1145,17 @@ export interface components {
         FeedbackOut: {
             /** Id */
             id: number;
+        };
+        /** FeedbackRow */
+        FeedbackRow: {
+            /** Target Type */
+            target_type: string;
+            /** Rating */
+            rating: number;
+            /** Reason */
+            reason: string | null;
+            /** Count */
+            count: number;
         };
         /** FileOut */
         FileOut: {
@@ -1582,6 +1595,11 @@ export interface components {
         UsageOut: {
             /** Items */
             items: components["schemas"]["UsageRow"][];
+            /**
+             * Feedback
+             * @default []
+             */
+            feedback: components["schemas"]["FeedbackRow"][];
         };
         /** UsageRow */
         UsageRow: {

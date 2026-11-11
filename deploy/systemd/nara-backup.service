@@ -1,0 +1,15 @@
+# DB 백업 (SPEC §11.5). pg_dump -Fc → age 암호화 → /var/backups/nara. 공개키만 서버에 둔다.
+[Unit]
+Description=nara DB backup
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=nara
+EnvironmentFile=/etc/nara/nara.env
+ExecStart=/opt/nara/app/deploy/backup.sh
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/backups/nara

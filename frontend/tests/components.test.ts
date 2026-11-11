@@ -1,15 +1,17 @@
 // §10.4 도메인·UI 컴포넌트: 카드 XSS(§7.11-5), 마감·점수 배지 색 규칙(§10.1), 칩 입력, 단계 표시, 마크다운 정제.
 import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import BidCard from '@/components/bid/BidCard.vue'
 import DeadlineBadge from '@/components/bid/DeadlineBadge.vue'
 import ProgressSteps from '@/components/bid/ProgressSteps.vue'
 import ScoreBadge from '@/components/bid/ScoreBadge.vue'
+import FeedbackButtons from '@/components/bid/FeedbackButtons.vue'
 import ChipInput from '@/components/ui/ChipInput.vue'
 import MarkdownView from '@/components/ui/MarkdownView.vue'
 import { copy } from '@/copy'
-import { card } from './helpers'
+import { createPinia, setActivePinia } from 'pinia'
+import { card, json, mockApi } from './helpers'
 
 const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:p(.*)*', component: { template: '<div/>' } }] })
 const NOW = new Date('2026-11-10T06:00:00Z')
@@ -127,5 +129,47 @@ describe('MarkdownView', () => {
     expect(html).not.toContain('<script')
     expect(w.get('h2').text()).toBe('제목')
     expect(w.get('a').attributes('rel')).toBe('noopener noreferrer')
+  })
+})
+
+describe('FeedbackButtons (§12.7-1)', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  async function setup() {
+    setActivePinia(createPinia())
+    const api = mockApi({ 'POST /api/v1/feedback': json({ id: 1 }, 201) })
+    const w = mount(FeedbackButtons, { props: { targetType: 'analysis', targetId: 5 } })
+    return { api, w }
+  }
+  const flush = () => new Promise((r) => setTimeout(r, 0))
+
+  it('👎는 사유를 골라야 보낼 수 있고, 사유 코드가 함께 간다', async () => {
+    const { api, w } = await setup()
+    await w.get(`button[aria-label="${copy.feedback.down}"]`).trigger('click')
+    const group = w.get(`[role="radiogroup"][aria-label="${copy.feedback.reasonLabel}"]`)
+    expect(group.text()).toContain(copy.feedback.reasons.too_long)
+    const submit = w.findAll('button').find((b) => b.text() === copy.feedback.submit)!
+    expect(submit.attributes('disabled')).toBeDefined()
+    await w.get('input[type="radio"][value="missing"]').setValue(true)
+    expect(submit.attributes('disabled')).toBeUndefined()
+    await submit.trigger('click')
+    await flush()
+    expect(api.calls.find((c) => c.url.endsWith('/feedback'))?.body).toEqual({
+      target_type: 'analysis',
+      target_id: 5,
+      rating: -1,
+      reason: 'missing',
+      comment: null,
+    })
+    expect(w.text()).toContain(copy.feedback.thanks)
+  })
+
+  it('👍는 사유 없이 보낸다', async () => {
+    const { api, w } = await setup()
+    await w.get(`button[aria-label="${copy.feedback.up}"]`).trigger('click')
+    expect(w.find('[role="radiogroup"]').exists()).toBe(false)
+    await w.findAll('button').find((b) => b.text() === copy.feedback.submit)!.trigger('click')
+    await flush()
+    expect(api.calls.find((c) => c.url.endsWith('/feedback'))?.body).toMatchObject({ rating: 1, reason: null })
   })
 })

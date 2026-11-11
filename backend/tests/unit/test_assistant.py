@@ -159,3 +159,22 @@ async def test_text_before_tool_call_is_streamed_and_kept():
     )
     result, events = await _turn(llm, tools)
     assert _tokens(events) == "찾아볼게요. b6이에요." == result.content
+
+
+def test_tool_registry_is_exactly_six_read_only_tools():
+    """§12.3: 도구 목록에 쓰기 도구가 없다(읽기 전용 6개만). 도구를 더하면 이 테스트를 고친다."""
+    from app.llm.assistant import TOOL_NAMES, TOOLS
+
+    assert TOOL_NAMES == {
+        "search_bids",
+        "get_bid",
+        "analyze_bid",
+        "recommend_bids",
+        "list_bookmarks",
+        "navigate",
+    }
+    assert len(TOOLS) == 6
+    writes = ("create", "update", "delete", "remove", "set_", "put_", "add_", "send", "save")
+    for t in TOOLS:
+        name = t["function"]["name"]
+        assert not any(w in name for w in writes), name

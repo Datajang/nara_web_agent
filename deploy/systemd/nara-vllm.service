@@ -1,0 +1,32 @@
+# vLLM (SPEC §11.3, §8.2). 플래그는 docs/LLM_SETUP.md의 FP8 측정 명령 그대로.
+# 포트 8011: SPEC의 8001은 v1 API가 쓰고 있다(docs/decisions/2026-11-11-p4-ops.md).
+# API 키는 /etc/nara/vllm.env의 VLLM_API_KEY로 준다(인자로 주면 ps에 보인다).
+[Unit]
+Description=vLLM (Qwen3.5-9B FP8)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=nara
+Environment=HF_HOME=/var/lib/hf-cache
+Environment=HF_HUB_OFFLINE=1
+EnvironmentFile=/etc/nara/vllm.env
+ExecStart=/opt/nara/vllm-venv/bin/vllm serve Qwen/Qwen3.5-9B \
+    --served-model-name brain \
+    --quantization fp8 \
+    --max-model-len 32768 \
+    --max-num-seqs 8 \
+    --gpu-memory-utilization 0.90 \
+    --language-model-only \
+    --reasoning-parser qwen3 \
+    --enable-auto-tool-choice \
+    --tool-call-parser qwen3_coder \
+    --default-chat-template-kwargs '{"enable_thinking": false}' \
+    --host 127.0.0.1 --port 8011
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=900
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

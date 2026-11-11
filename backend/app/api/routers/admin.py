@@ -1,4 +1,6 @@
-"""/api/v1/admin (SPEC §6.2, §7.9). 관리자 경로는 users·usage·collector만 (§9.4)."""
+"""/api/v1/admin (SPEC §6.2, §7.9). 관리자 경로는 users·usage·collector만 (§9.4).
+
+피드백 사유 집계(§12.7-2)는 새 경로 대신 usage 응답에 싣는다."""
 
 from __future__ import annotations
 
@@ -18,6 +20,7 @@ from app.api.schemas.admin import (
     CollectorRunList,
     CollectorRunOut,
     CoverageOut,
+    FeedbackRow,
     UsageOut,
     UsageRow,
 )
@@ -25,7 +28,7 @@ from app.auth.admin import list_users, update_user
 from app.collector import runner
 from app.db.models import CollectorCoverage, CollectorRun
 from app.errors import ApiError
-from app.usage.stats import daily_usage
+from app.usage.stats import daily_usage, feedback_counts
 
 log = logging.getLogger(__name__)
 KST = timezone(timedelta(hours=9))
@@ -67,9 +70,12 @@ async def get_usage(
 ) -> UsageOut:
     """§5.8: 일별·이벤트별 요청 수, 캐시 계층별 적중률, G2B 호출, LLM 호출·토큰."""
     start = date_from or (ctx.deps.clock().astimezone(KST).date() - timedelta(days=13))
-    rows = await daily_usage(s, datetime.combine(start, time(), KST))
+    since = datetime.combine(start, time(), KST)
+    until = datetime.combine(date_to + timedelta(days=1), time(), KST) if date_to else None
+    rows = await daily_usage(s, since)
     return UsageOut(
-        items=[UsageRow(**asdict(r)) for r in rows if date_to is None or r.day <= date_to]
+        items=[UsageRow(**asdict(r)) for r in rows if date_to is None or r.day <= date_to],
+        feedback=[FeedbackRow(**asdict(f)) for f in await feedback_counts(s, since, until)],
     )
 
 

@@ -1,0 +1,14 @@
+# §9.5 의존성: Dependabot 켜기. 주 1회, PR은 CI 게이트를 거친다.
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /backend
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }

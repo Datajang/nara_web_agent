@@ -67,3 +67,29 @@ async def daily_usage(session: AsyncSession, since: datetime) -> list[DailyUsage
             )
         )
     return out
+
+
+@dataclass
+class FeedbackCount:
+    target_type: str
+    rating: int
+    reason: str | None
+    count: int
+
+
+async def feedback_counts(
+    session: AsyncSession, since: datetime, until: datetime | None = None
+) -> list[FeedbackCount]:
+    """§12.7-2: 대상·평가·사유별 피드백 수. 많은 순."""
+    from app.db.models import Feedback
+
+    n = func.count().label("n")
+    stmt = select(Feedback.target_type, Feedback.rating, Feedback.reason, n).where(
+        Feedback.created_at >= since
+    )
+    if until is not None:
+        stmt = stmt.where(Feedback.created_at < until)
+    stmt = stmt.group_by(Feedback.target_type, Feedback.rating, Feedback.reason).order_by(
+        n.desc(), Feedback.target_type, Feedback.reason
+    )
+    return [FeedbackCount(t, r, why, int(c)) for t, r, why, c in (await session.execute(stmt))]

@@ -47,3 +47,78 @@ def test_passwords_tokens_and_jwts_masked():
     for secret in ("hunter2-secret", "RAWTOKEN123", "OPAQUE456", jwt, "pw-new-999", "pw-old-888"):
         assert secret not in out
     assert "a@b.c" in out  # 이메일은 남는다(감사용)
+
+
+# ---------- §11.7 JSON 한 줄 로그 ----------
+
+import json  # noqa: E402
+
+from app.logging_setup import JsonFormatter, log_context  # noqa: E402
+
+
+def _json_line(record_fn) -> dict:
+    buf = io.StringIO()
+    handler = logging.StreamHandler(buf)
+    handler.setFormatter(JsonFormatter())
+    handler.addFilter(MaskServiceKey())
+    log = logging.getLogger("test.json")
+    log.addHandler(handler)
+    log.setLevel(logging.INFO)
+    log.propagate = False
+    try:
+        record_fn(log)
+    finally:
+        log.removeHandler(handler)
+    lines = buf.getvalue().splitlines()
+    assert len(lines) == 1, lines  # 한 줄
+    return json.loads(lines[0])
+
+
+def test_json_log_has_spec_fields():
+    with log_context(request_id="r-abc123") as ctx:
+        ctx["user_id"] = 7
+        out = _json_line(
+            lambda log: log.info(
+                "done", extra={"event": "analyze", "bid_key": "R26BK1-000", "duration_ms": 42}
+            )
+        )
+    assert {k: out[k] for k in ("level", "event", "request_id", "user_id", "bid_key")} == {
+        "level": "INFO",
+        "event": "analyze",
+        "request_id": "r-abc123",
+        "user_id": 7,
+        "bid_key": "R26BK1-000",
+    }
+    assert out["duration_ms"] == 42 and out["msg"] == "done"
+    assert out["ts"].endswith("Z") or "+00:00" in out["ts"]
+
+
+def test_json_log_defaults_event_to_logger_and_omits_empty_context():
+    out = _json_line(lambda log: log.warning("hello %s", "x"))
+    assert out["event"] == "test.json" and out["msg"] == "hello x"
+    assert "request_id" not in out and "user_id" not in out
+
+
+def test_json_log_masks_secrets_and_exceptions_stay_on_one_line():
+    def emit(log):
+        try:
+            raise ValueError("boom ServiceKey=SECRET999")
+        except ValueError:
+            log.exception("failed url=http://x/?ServiceKey=SECRET999&a=1")
+
+    out = _json_line(emit)
+    raw = json.dumps(out)
+    assert "SECRET999" not in raw
+    assert "ValueError" in out["exc"]
+
+
+def test_configure_logging_json_from_env(monkeypatch):
+    monkeypatch.setenv("LOG_FORMAT", "json")
+    root = logging.getLogger()
+    saved = root.handlers[:]
+    root.handlers = []
+    try:
+        configure_logging()
+        assert any(isinstance(h.formatter, JsonFormatter) for h in root.handlers)
+    finally:
+        root.handlers = saved

@@ -43,3 +43,7 @@ __screenshots__/
 
 # e2e 스크린샷
 e2e/shots
+
+# Playwright
+playwright-report
+test-results

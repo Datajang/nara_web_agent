@@ -16,6 +16,7 @@ from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.context import AppContext
+from app.api.request_log import RequestLogMiddleware
 from app.api.routers import (
     admin,
     analyze,
@@ -35,6 +36,7 @@ from app.auth.mail import MemoryMailer
 from app.config import check_startup
 from app.errors import ApiError
 from app.llm.base import LLMInvalidOutput, LLMUnavailable
+from app.ops.status import collector_state, last_collector_ok
 
 log = logging.getLogger(__name__)
 
@@ -93,6 +95,7 @@ def create_app(
     app = FastAPI(title="nara-web", version="2.0.0.dev0", lifespan=lifespan)
     app.state.ctx = ctx
     app.add_middleware(OriginCheckMiddleware, origin=settings.app_origin)
+    app.add_middleware(RequestLogMiddleware)  # 가장 바깥: 403·422 응답도 기록한다
     app.add_exception_handler(ApiError, _api_error)
     app.add_exception_handler(RequestValidationError, _validation_error)
     app.add_exception_handler(StarletteHTTPException, _http_error)
@@ -127,7 +130,7 @@ def create_app(
 
     @app.get("/readyz", tags=["health"])
     async def readyz() -> JSONResponse:
-        """DB·LLM 연결 확인 (§6.2). LLM만 불가면 200(검색은 동작), DB 불가면 503."""
+        """DB·LLM·마지막 수집 성공 시각 (§6.2, §11.7). LLM만 불가면 200, DB 불가면 503."""
         db_ok = True
         try:
             async with ctx.deps.db.session() as s:
@@ -136,7 +139,14 @@ def create_app(
             db_ok = False
         llm = ctx.deps.llm
         llm_state = "disabled" if llm is None else ("ok" if await llm.health() else "unavailable")
-        body = {"db": "ok" if db_ok else "error", "llm": llm_state}
+        last_ok = await last_collector_ok(ctx.deps) if db_ok else None
+        body: dict[str, Any] = {
+            "db": "ok" if db_ok else "error",
+            "llm": llm_state,
+            "collector": collector_state(ctx.deps, last_ok),
+            "collector_last_ok_at": last_ok.isoformat() if last_ok else None,
+        }
+        # 수집 지연은 경보(app.ops.check)가 잡는다. DB가 살아 있으면 검색은 되므로 200.
         return JSONResponse(body, status_code=200 if db_ok else 503)
 
     base_openapi = app.openapi

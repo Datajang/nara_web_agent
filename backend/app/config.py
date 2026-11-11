@@ -80,6 +80,13 @@ class Settings(BaseSettings):
     mail_from: str = ""
     service_name: str = "나라장터 도우미"  # §9.6 [가정] 임시 이름
 
+    # 운영 경보 (§11.7 [가정] 기준값). 비우면 메일 대신 로그만 남긴다
+    alert_email: str = ""
+    alert_collector_stale_h: float = 2
+    alert_budget_ratio: float = 0.8
+    alert_disk_ratio: float = 0.8
+    alert_repeat_h: float = 6  # 같은 경보를 다시 보내기까지
+
     @property
     def file_hosts(self) -> frozenset[str]:
         return frozenset(

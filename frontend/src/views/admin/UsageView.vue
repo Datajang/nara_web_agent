@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // 관리자 사용량 (SPEC §7.9, §5.8): 기간 선택 → 지표 카드(G2B 호출, LLM 입력·출력 토큰, 계층별 적중률)와 일별 추이.
+// 👎 사유별 집계(§12.7-2)도 여기서 본다. 파일럿 게이트의 '상위 3개 사유'를 고르는 화면.
 import { useQuery } from '@tanstack/vue-query'
 import {
   CategoryScale,
@@ -35,6 +36,11 @@ const usage = useQuery({
   queryFn: () => opsApi.usage(applied.value.from, applied.value.to),
 })
 const rows = computed<UsageRow[]>(() => usage.data.value?.items ?? [])
+const feedback = computed(() => usage.data.value?.feedback ?? [])
+const downs = computed(() => feedback.value.filter((f) => f.rating === -1).sort((a, b) => b.count - a.count))
+const ups = computed(() => feedback.value.filter((f) => f.rating === 1).reduce((n, f) => n + f.count, 0))
+const reasonLabel = (r: string | null) =>
+  r ? (copy.feedback.reasons as Record<string, string>)[r] ?? r : copy.admin.feedbackNoReason
 const sum = (k: 'requests' | 'g2b_calls' | 'llm_calls' | 'prompt_tokens' | 'completion_tokens') =>
   rows.value.reduce((n, r) => n + r[k], 0)
 const fmt = (n: number) => n.toLocaleString('ko-KR')
@@ -102,5 +108,30 @@ const chart = computed(() => {
         <div class="h-64"><Line :data="chart" :options="{ responsive: true, maintainAspectRatio: false }" /></div>
       </section>
     </template>
+    <section v-if="!usage.isPending.value" class="rounded-card border border-border bg-surface p-4">
+      <h3 class="mb-3 text-lg font-semibold">{{ copy.admin.feedbackTitle }}</h3>
+      <p v-if="!feedback.length" class="text-base text-text-2">{{ copy.admin.feedbackNone }}</p>
+      <template v-else>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-base" :aria-label="copy.admin.feedbackTitle">
+            <thead class="text-sm text-text-2">
+              <tr>
+                <th scope="col" class="py-2 pr-4 font-medium">{{ copy.admin.feedbackReason }}</th>
+                <th scope="col" class="py-2 pr-4 font-medium">{{ copy.admin.feedbackTarget }}</th>
+                <th scope="col" class="py-2 text-right font-medium">{{ copy.admin.feedbackCount }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="f in downs" :key="`${f.target_type}-${f.reason}`" class="border-t border-border">
+                <td class="py-2 pr-4">{{ reasonLabel(f.reason) }}</td>
+                <td class="py-2 pr-4 text-text-2">{{ copy.admin.feedbackTargets[f.target_type] ?? f.target_type }}</td>
+                <td class="py-2 text-right tabular">{{ f.count.toLocaleString('ko-KR') }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-3 text-sm text-text-2">{{ copy.admin.feedbackUp(ups) }}</p>
+      </template>
+    </section>
   </div>
 </template>

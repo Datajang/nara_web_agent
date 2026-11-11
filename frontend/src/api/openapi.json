@@ -1859,7 +1859,7 @@
           "health"
         ],
         "summary": "Readyz",
-        "description": "DB·LLM 연결 확인 (§6.2). LLM만 불가면 200(검색은 동작), DB 불가면 503.",
+        "description": "DB·LLM·마지막 수집 성공 시각 (§6.2, §11.7). LLM만 불가면 200, DB 불가면 503.",
         "operationId": "readyz_readyz_get",
         "responses": {
           "200": {
@@ -3205,6 +3205,24 @@
             ],
             "title": "Rating"
           },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "wrong",
+                  "missing",
+                  "irrelevant",
+                  "too_long",
+                  "other"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
           "comment": {
             "anyOf": [
               {
@@ -3238,6 +3256,41 @@
           "id"
         ],
         "title": "FeedbackOut"
+      },
+      "FeedbackRow": {
+        "properties": {
+          "target_type": {
+            "type": "string",
+            "title": "Target Type"
+          },
+          "rating": {
+            "type": "integer",
+            "title": "Rating"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_type",
+          "rating",
+          "reason",
+          "count"
+        ],
+        "title": "FeedbackRow"
       },
       "FileOut": {
         "properties": {
@@ -4370,6 +4423,14 @@
             },
             "type": "array",
             "title": "Items"
+          },
+          "feedback": {
+            "items": {
+              "$ref": "#/components/schemas/FeedbackRow"
+            },
+            "type": "array",
+            "title": "Feedback",
+            "default": []
           }
         },
         "type": "object",

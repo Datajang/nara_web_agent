@@ -51,7 +51,8 @@ describe('LibraryView', () => {
     expect(text(m.wrapper)).toContain(card().title)
     expect(api.calls.some((c) => c.url.includes('/bids/search'))).toBe(false)
     await m.wrapper.findAll('button').find((b) => b.text() === copy.library.rerun)!.trigger('click')
-    await settle()
+    // /search는 지연 로딩 라우트라 첫 import가 settle()보다 늦을 수 있다: 이동 완료를 기다린다
+    await vi.waitFor(() => expect(m!.router.currentRoute.value.path).toBe('/search'), { timeout: 5000 })
     expect(m.router.currentRoute.value.query).toMatchObject({ q: '클라우드', days: '30' })
   })
 
@@ -188,6 +189,33 @@ describe('Admin', () => {
     expect(t).toContain('10')
     expect(t).toContain('1,200')
     expect(t).toContain('75%')
+  })
+
+  it('사용량: 피드백 사유별 집계(👎 많은 순) (§12.7-2)', async () => {
+    mockApi(
+      {
+        'GET /api/v1/admin/usage': json({
+          items: [
+            { day: '2026-11-09', event: 'analyze', requests: 2, g2b_calls: 0, llm_calls: 3, prompt_tokens: 1, completion_tokens: 1, hit_rate: { bids_db: null, file_text: null, summary: null, analysis: null, score: null } },
+          ],
+          feedback: [
+            { target_type: 'analysis', rating: -1, reason: 'missing', count: 5 },
+            { target_type: 'assistant_message', rating: -1, reason: 'wrong', count: 2 },
+            { target_type: 'analysis', rating: 1, reason: null, count: 9 },
+          ],
+        }),
+      },
+      ADMIN,
+    )
+    m = await mountAt('/admin/usage')
+    const table = m.wrapper.get(`table[aria-label="${copy.admin.feedbackTitle}"]`)
+    const rows = table.findAll('tbody tr').map((r) => r.text())
+    expect(rows[0]).toContain(copy.feedback.reasons.missing)
+    expect(rows[0]).toContain(copy.admin.feedbackTargets.analysis)
+    expect(rows[0]).toContain('5')
+    expect(rows[1]).toContain(copy.feedback.reasons.wrong)
+    expect(rows).toHaveLength(2) // 👍는 표 아래 합계로만
+    expect(text(m.wrapper)).toContain(copy.admin.feedbackUp(9))
   })
 
   it('수집기: 범위·최근 실행, 수동 실행은 확인 후', async () => {

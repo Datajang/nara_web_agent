@@ -197,3 +197,76 @@ async def test_admin_usage_and_collector(full_api, fake_g2b):
     assert started.status_code == 202
     assert any(r["mode"] == "incremental" for r in runs)
     assert forbidden.status_code == 403
+
+
+async def test_feedback_stores_reason_model_and_prompt_version(full_api, fake_g2b):
+    """§12.7-1: 👎 사유 코드와 대상의 model·prompt_version을 함께 저장한다."""
+    from app.db.models import Feedback
+
+    a, ids = await _owner_resources(full_api, fake_g2b)
+    down = await a.post(
+        "/api/v1/feedback",
+        json={
+            "target_type": "analysis",
+            "target_id": ids["aid"],
+            "rating": -1,
+            "reason": "missing",
+        },
+    )
+    run_fb = await a.post(
+        "/api/v1/feedback", json={"target_type": "search_run", "target_id": ids["run"], "rating": 1}
+    )
+    up_with_reason = await a.post(
+        "/api/v1/feedback",
+        json={"target_type": "search_run", "target_id": ids["run"], "rating": 1, "reason": "wrong"},
+    )
+    unknown_reason = await a.post(
+        "/api/v1/feedback",
+        json={"target_type": "search_run", "target_id": ids["run"], "rating": -1, "reason": "spam"},
+    )
+    await a.aclose()
+    assert (down.status_code, run_fb.status_code) == (201, 201)
+    assert (up_with_reason.status_code, unknown_reason.status_code) == (422, 422)
+    async with full_api.db.session() as s:
+        analysis = await s.get(Analysis, ids["aid"])
+        rows = {f.target_type: f for f in (await s.scalars(select(Feedback))).all()}
+    assert analysis is not None
+    fa = rows["analysis"]
+    assert (fa.reason, fa.model, fa.prompt_version) == (
+        "missing",
+        analysis.model_id,
+        analysis.prompt_version,
+    )
+    fr = rows["search_run"]
+    settings = full_api.ctx.deps.settings
+    assert fr.reason is None and fr.model == settings.llm_model_id
+    assert fr.prompt_version == f"v1+{settings.llm_model_id}"
+
+
+async def test_admin_usage_includes_feedback_by_reason(full_api, fake_g2b):
+    """§12.7-2: 운영자가 👎를 사유별로 모아 본다(관리자 사용량 화면)."""
+    a, ids = await _owner_resources(full_api, fake_g2b)
+    for reason in ("missing", "missing", "too_long"):
+        r = await a.post(
+            "/api/v1/feedback",
+            json={
+                "target_type": "analysis",
+                "target_id": ids["aid"],
+                "rating": -1,
+                "reason": reason,
+            },
+        )
+        assert r.status_code == 201
+    await a.post(
+        "/api/v1/feedback", json={"target_type": "search_run", "target_id": ids["run"], "rating": 1}
+    )
+    await a.aclose()
+    admin = await admin_client(full_api)
+    body = (await admin.get("/api/v1/admin/usage")).json()
+    await admin.aclose()
+    fb = {(x["target_type"], x["rating"], x["reason"]): x["count"] for x in body["feedback"]}
+    assert fb == {
+        ("analysis", -1, "missing"): 2,
+        ("analysis", -1, "too_long"): 1,
+        ("search_run", 1, None): 1,
+    }

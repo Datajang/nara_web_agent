@@ -24,6 +24,14 @@ PROFILE_A = "AI 플랫폼 개발팀. 자연어처리·검색 시스템 구축 �
 PROFILE_B = "클라우드 인프라팀. 공공 클라우드 전환 사업 수행."
 
 
+async def _until(cond, timeout_s: float = 10.0) -> None:
+    for _ in range(int(timeout_s / 0.02)):
+        if cond():
+            return
+        await asyncio.sleep(0.02)
+    raise AssertionError("조건이 시간 안에 충족되지 않음")
+
+
 async def _bid_with_rfp(deps, no="R26BK00000001"):
     deps.downloader.files[RFP_URL] = (
         docx_bytes("제안요청서 본문: 과업 범위와 요구사항"),
@@ -89,16 +97,24 @@ async def test_cancelled_caller_does_not_stop_work(deps, fake_llm):
     fake_llm.delay_s = 0.3
     bid_id, _ = await _bid_with_rfp(deps)
     task = asyncio.create_task(get_or_create_summary(deps, bid_id))
-    await asyncio.sleep(0.1)
+    # 고정 대기 대신 LLM 호출이 시작된 뒤 끊는다. 추출 워커 기동(HWPLoader 임포트)이
+    # 1초 넘게 걸릴 수 있어, 그 전에 끊으면 요약 단계에 도달하지 않는다.
+    await _until(lambda: sum(fake_llm.calls.values()) > 0)
     task.cancel()
-    await asyncio.sleep(0.6)
-    async with deps.db.session() as s:
-        assert (
-            await s.scalar(
+
+    async def saved() -> bool:
+        async with deps.db.session() as s:
+            n = await s.scalar(
                 select(func.count()).select_from(BidSummary).where(BidSummary.bid_id == bid_id)
             )
-            == 1
-        )
+        return n == 1
+
+    for _ in range(100):  # 최대 5초
+        if await saved():
+            break
+        await asyncio.sleep(0.05)
+    assert task.cancelled()
+    assert await saved()
 
 
 async def test_changed_content_bumps_revision_and_resummarizes(deps, fake_llm):

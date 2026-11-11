@@ -1,0 +1,12 @@
+# G2B 공고번호 단건 조회 (Q5)
+- 명세 위치: §14 Q5, §6.2 `GET /bids/lookup` (원래 [미확인])
+- 질문: 날짜 구간 없이 공고번호(사전규격 등록번호)만으로 한 건을 받을 수 있는가
+- 방법: `backend/scripts/probe_lookup.py` (G2B 13회 + 필드 비교 2회, 2026-11-12). 최근 하루·60일 전 하루 목록에서 실제 번호를 골라 조회 방식별로 다시 찾음
+- 결과:
+  - 공고: `getBidPblancListInfoServc` + `inqryDiv=2` + `bidNtceNo` → 그 번호 1행(totalCount=1). 60일 전 공고도 날짜 없이 찾음
+  - 검색용 `…ServcPPSSrch` + `inqryDiv=2` → 번호 필터를 무시하고 다른 공고 643건을 돌려줌(쓰면 안 됨)
+  - `inqryDiv=3`: PPSSrch는 resultCode 07, 일반 조회는 08 (지원 안 함)
+  - 사전규격: `getPublicPrcureThngInfoServc`(일반·PPSSrch 둘 다) + `inqryDiv=2` + `bfSpecRgstNo` → 1행
+  - 일반 조회 응답 필드는 PPSSrch와 114개 모두 같고 값도 같음 → 지금 `mapper.to_record`를 그대로 쓸 수 있음
+- 결정(제안, 사용자 승인 대기): lookup이 DB에서 못 찾으면 위 일반 조회로 1회 호출(예산 차감) → 차수 최대 행만 저장(수집기와 같은 경로) → bid_id 반환. 못 찾으면 지금처럼 404
+- 명세 수정 필요: 있음 — §14 Q5 [확인됨], §6.2·§7 lookup의 'DB만'을 'DB → G2B 단건 조회'로 (구현 승인 뒤 Claude Docs 원본에서)

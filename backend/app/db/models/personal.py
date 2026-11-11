@@ -50,10 +50,20 @@ class User(Base):
     role: Mapped[str] = mapped_column(Text, server_default="member")
     status: Mapped[str] = mapped_column(Text, server_default="pending_verification")
     email_verified_at: Mapped[datetime | None] = _ts()
-    failed_login_count: Mapped[int] = mapped_column(Integer, server_default="0")
-    locked_until: Mapped[datetime | None] = _ts()
     last_login_at: Mapped[datetime | None] = _ts()
     created_at: Mapped[datetime] = ts_now()
+
+
+class LoginFailure(Base):
+    """로그인 실패 횟수와 잠금 (§9.2-4). 계정 존재 여부가 응답에 드러나지 않도록
+    users가 아니라 정규화한 이메일의 sha256으로 센다 (P2 결정, users.failed_login_count 대체)."""
+
+    __tablename__ = "login_failures"
+
+    email_hash: Mapped[str] = mapped_column(Text, primary_key=True)
+    failures: Mapped[int] = mapped_column(Integer, server_default="0")
+    locked_until: Mapped[datetime | None] = _ts()
+    updated_at: Mapped[datetime] = ts_now()
 
 
 class EmailToken(Base):

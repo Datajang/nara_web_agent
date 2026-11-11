@@ -8,9 +8,17 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# 개발용 기본 비밀키. ENV=production에서는 시작을 거부한다 (§9.5, v1 dev-secret-key 문제)
+DEFAULT_SECRET_KEY = "dev-insecure-secret-key-change-me"
+
+
+class ConfigError(RuntimeError):
+    """운영 시작 검사 실패 (§9.7 ENV=production)."""
 
 
 class Settings(BaseSettings):
@@ -33,11 +41,77 @@ class Settings(BaseSettings):
     collector_backfill_days: int = 90
     llm_max_concurrency: int = 4
 
+    # 인증 (§9.7)
+    env: Literal["development", "test", "production"] = "development"
+    secret_key: SecretStr = SecretStr(DEFAULT_SECRET_KEY)
+    app_origin: str = "http://localhost:5173"
+    cookie_secure: bool = True
+    access_token_minutes: int = 15
+    refresh_token_days: int = 14
+    allowed_email_domains: str = ""  # 쉼표 구분
+    require_admin_approval: bool | None = None  # None이면 도메인 정책으로 결정
+    password_min_length: int = 10
+    login_max_failures: int = 5
+    login_lock_minutes: int = 15
+    verify_token_hours: int = 24
+    reset_token_minutes: int = 60
+    rate_limit_enabled: bool = True  # §6.1 인메모리 토큰 버킷(단일 워커)
+
+    # 메일 (§9.2-8). memory는 테스트·개발 전용(P2 지시)
+    mail_backend: Literal["console", "smtp", "memory"] = "console"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: SecretStr = SecretStr("")
+    mail_from: str = ""
+    service_name: str = "나라장터 도우미"  # §9.6 [가정] 임시 이름
+
     @property
     def file_hosts(self) -> frozenset[str]:
         return frozenset(
             h.strip().lower() for h in self.g2b_file_host_allowlist.split(",") if h.strip()
         )
+
+    @property
+    def email_domains(self) -> frozenset[str]:
+        return frozenset(
+            d.strip().lower().lstrip("@")
+            for d in self.allowed_email_domains.split(",")
+            if d.strip()
+        )
+
+    @property
+    def approval_required(self) -> bool:
+        """§9.1: 허용 도메인이 없으면 승인을 강제하고, 있으면 기본 false."""
+        if not self.email_domains:
+            return True
+        return bool(self.require_admin_approval)
+
+
+def check_startup(settings: Settings) -> list[str]:
+    """시작 검사. 운영에서 위험한 설정이면 ConfigError, 경고는 문자열 목록으로 돌려준다."""
+    warnings: list[str] = []
+    if not settings.email_domains:
+        warnings.append(
+            "ALLOWED_EMAIL_DOMAINS가 비어 있어 누구나 가입할 수 있다: 관리자 승인을 강제한다"
+        )
+    if settings.env != "production":
+        return warnings
+    errors: list[str] = []
+    secret = settings.secret_key.get_secret_value()
+    if secret == DEFAULT_SECRET_KEY or len(secret.encode()) < 32:
+        errors.append("SECRET_KEY가 기본값이거나 32바이트 미만")
+    if settings.mail_backend != "smtp":
+        errors.append(f"MAIL_BACKEND={settings.mail_backend}는 개발 전용")
+    elif not (settings.smtp_host and settings.mail_from):
+        errors.append("MAIL_BACKEND=smtp에는 SMTP_HOST·MAIL_FROM이 필요")
+    if not settings.app_origin.startswith("https://"):
+        errors.append("APP_ORIGIN은 https여야 한다")
+    if not settings.cookie_secure:
+        errors.append("COOKIE_SECURE=false는 개발 전용")
+    if errors:
+        raise ConfigError("; ".join(errors))
+    return warnings
 
 
 @lru_cache

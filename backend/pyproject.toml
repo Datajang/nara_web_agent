@@ -20,6 +20,9 @@ dependencies = [
     "asyncpg>=0.29",
     "alembic>=1.13",
     "python-dotenv>=1.0",
+    "pwdlib[argon2,bcrypt]>=0.3",
+    "pyjwt>=2.10",
+    "aiosmtplib>=4.0",
 ]
 
 [dependency-groups]

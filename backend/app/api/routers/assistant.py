@@ -77,7 +77,9 @@ async def create_conversation(
 async def rename_conversation(
     conversation_id: int, body: ConversationPatch, user: ActiveUser, s: DbSession, ctx: Ctx
 ) -> ConversationOut:
-    c = await repo.rename(s, user.id, conversation_id, body.title, ctx.deps.clock())
+    c = await repo.update(
+        s, user.id, conversation_id, body.model_dump(exclude_unset=True), ctx.deps.clock()
+    )
     return ConversationOut.model_validate(c)
 
 

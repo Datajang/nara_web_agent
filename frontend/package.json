@@ -13,12 +13,17 @@
     "gen:api": "openapi-typescript src/api/openapi.json -o src/api/schema.d.ts"
   },
   "dependencies": {
+    "@tanstack/vue-query": "^5.107.1",
     "@vueuse/core": "^15.0.0",
+    "chart.js": "^4.6.1",
+    "dompurify": "^3.4.17",
     "lucide-vue-next": "^1.0.0",
+    "marked": "^18.2.0",
     "pinia": "^4.1.0",
     "pretendard": "^1.3.9",
     "reka-ui": "^2.11.0",
     "vue": "^3.5.42",
+    "vue-chartjs": "^5.3.4",
     "vue-router": "^5.5.0"
   },
   "devDependencies": {

@@ -18,7 +18,10 @@ class ConversationIn(BaseModel):
 
 
 class ConversationPatch(BaseModel):
-    title: Title
+    """주지 않은 필드는 그대로. profile_id: null이면 프로필 연결 해제 (§7.6)."""
+
+    title: Title | None = None
+    profile_id: int | None = None
 
 
 class ConversationOut(BaseModel):

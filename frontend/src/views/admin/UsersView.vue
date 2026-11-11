@@ -3,6 +3,8 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { adminApi, type AdminUser, type UserStatus } from '@/api/auth'
+import SubNav from '@/components/layout/SubNav.vue'
+import { ADMIN_NAV } from '@/components/layout/subnavs'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
@@ -114,6 +116,7 @@ async function apply() {
 
 <template>
   <section class="flex flex-col gap-4">
+    <SubNav :label="copy.nav.adminLabel" :items="ADMIN_NAV" />
     <UiTabs v-model="tab" :items="TABS" :label="copy.admin.tabsLabel" />
     <p class="text-sm text-text-3 tabular" aria-live="polite">{{ copy.admin.total(total) }}</p>
 

@@ -56,11 +56,15 @@ async def get(s: AsyncSession, user_id: int, conversation_id: int) -> Conversati
     return c
 
 
-async def rename(
-    s: AsyncSession, user_id: int, conversation_id: int, title: str, now: datetime
+async def update(
+    s: AsyncSession, user_id: int, conversation_id: int, fields: dict[str, Any], now: datetime
 ) -> Conversation:
     c = await get(s, user_id, conversation_id)
-    c.title = title
+    if "profile_id" in fields:
+        await _own_profile(s, user_id, fields["profile_id"])
+        c.profile_id = fields["profile_id"]
+    if fields.get("title") is not None:
+        c.title = fields["title"]
     c.updated_at = now
     await s.commit()
     await s.refresh(c)

@@ -1,0 +1,183 @@
+// §7.5 공고 상세·분석: 헤더·첨부·요약, SSE 분석 단계와 결과 순서, 경고 배너, 공고번호로 열기, 기록 열기.
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { copy } from '@/copy'
+import { card, json, mockApi, mountAt, profile, settle, sse, text, type Mounted } from './helpers'
+
+let m: Mounted | null = null
+beforeEach(() => {
+  document.body.innerHTML = ''
+})
+afterEach(() => {
+  m?.wrapper.unmount()
+  m = null
+  vi.unstubAllGlobals()
+})
+
+const DETAIL = {
+  ...card({ revision: 2 }),
+  prespec_reg_no: 'R26BD00000077',
+  related_bid_id: 'b300',
+  files: [
+    { file_id: 11, name: '제안요청서.hwp', kind: 'rfp', status: 'ok' },
+    { file_id: 12, name: '과업지시서.pdf', kind: 'spec', status: 'failed' },
+  ],
+  summary: null,
+  my_analysis_id: null,
+}
+
+const ANALYSIS = {
+  overview: '민원 데이터를 분석하는 시스템을 구축한다.',
+  requirements: [{ text: '형태소 분석', kind: 'technical', evidence: null, source: '제안요청서.hwp' }],
+  evaluation: { method: '협상에 의한 계약', items: [{ name: '기술', points: 90, note: null }] },
+  schedule: [{ label: '제안서 제출', date: '2026-11-20', raw: null }],
+  budget_contract: { budget_text: '1.2억원', contract_method: null, payment_terms: null, period: '6개월' },
+  risks: [{ text: '일정이 촉박', severity: 'high', source: null }],
+  fit: { score: 82, verdict: 'strong', strengths: ['검색 경험'], gaps: ['공공 실적'], reasoning: '주력 일치' },
+  next_actions: ['참가자격 확인'],
+  warnings: ['첨부 문서를 읽지 못함'],
+}
+
+function base(extra: Record<string, unknown> = {}) {
+  return {
+    'GET /api/v1/bids/b101': json(DETAIL),
+    'GET /api/v1/profiles': json({ items: [profile()] }),
+    ...extra,
+  }
+}
+
+describe('BidDetailView', () => {
+  it('헤더·배지·관련 사전규격·첨부 상태·요약 안내', async () => {
+    mockApi(base())
+    m = await mountAt('/bids/b101')
+    const t = text(m.wrapper)
+    expect(t).toContain(DETAIL.title)
+    expect(t).toContain(copy.bid.revised)
+    expect(t).toContain(copy.detail.fileStatus.ok)
+    expect(t).toContain(copy.detail.fileStatus.failed)
+    expect(t).toContain(copy.detail.summaryHint)
+    expect(m.wrapper.get('a[href="/bids/b300"]').text()).toContain(copy.bid.relatedPrespec)
+  })
+
+  it('첨부를 누르면 본문 일부를 드로어로 보여 준다', async () => {
+    mockApi(
+      base({
+        'GET /api/v1/bids/b101/files/11/text': json({
+          file_id: 11,
+          name: '제안요청서.hwp',
+          text: '제1조 목적',
+          char_count: 50000,
+          truncated: true,
+        }),
+      }),
+    )
+    m = await mountAt('/bids/b101')
+    await m.wrapper.get(`button[aria-label="${copy.detail.previewOpen('제안요청서.hwp')}"]`).trigger('click')
+    await settle()
+    expect(document.body.textContent).toContain('제1조 목적')
+    expect(document.body.textContent).toContain(copy.detail.previewTruncated)
+  })
+
+  it('분석하기: 단계 표시 → 결과를 §7.5 순서로, 경고 배너, 피드백', async () => {
+    const api = mockApi(
+      base({
+        'POST /api/v1/bids/b101/analyze': sse([
+          { type: 'status', stage: 'files', message: '', cache: true },
+          { type: 'status', stage: 'summarize', message: '', cache: false },
+          { type: 'status', stage: 'analyze', message: '', cache: false },
+          { type: 'result', analysis_id: 5, analysis: ANALYSIS, markdown: '## 사업 개요', from_cache: false },
+          { type: 'done', usage: { llm_calls: 3, g2b_calls: 0, cache: {} } },
+        ]),
+      }),
+    )
+    m = await mountAt('/bids/b101')
+    await m.wrapper.findAll('button').find((b) => b.text() === copy.detail.analyzeSubmit)!.trigger('click')
+    await settle(10)
+    expect(api.calls.find((c) => c.url.endsWith('/analyze'))?.body).toEqual({ profile_id: 7 })
+    const headings = m.wrapper.findAll('h3').map((h) => h.text())
+    const order: string[] = [
+      copy.analysis.overview,
+      copy.analysis.requirements,
+      copy.analysis.evaluation,
+      copy.analysis.schedule,
+      copy.analysis.budget,
+      copy.analysis.risks,
+      copy.analysis.fit,
+      copy.analysis.nextActions,
+    ]
+    expect(headings.filter((h) => order.includes(h))).toEqual(order)
+    const t = text(m.wrapper)
+    expect(t).toContain(copy.analyze.noText)
+    expect(t).toContain(copy.analysis.source('제안요청서.hwp'))
+    expect(t).toContain(copy.analysis.verdict.strong)
+    expect(t).toContain(copy.feedback.label)
+  })
+
+  it('다른 요청이 처리 중이면 안내를 보여 준다', async () => {
+    mockApi(
+      base({
+        'POST /api/v1/bids/b101/analyze': sse([
+          { type: 'status', stage: 'summarize', message: '다른 요청이 처리 중입니다' },
+          { type: 'error', code: 'in_progress', message: 'x' },
+          { type: 'done', usage: { llm_calls: 0, g2b_calls: 0, cache: {} } },
+        ]),
+      }),
+    )
+    m = await mountAt('/bids/b101')
+    await m.wrapper.findAll('button').find((b) => b.text() === copy.detail.analyzeSubmit)!.trigger('click')
+    await settle(10)
+    expect(text(m.wrapper)).toContain(copy.analyze.inProgress)
+  })
+
+  it('프로필이 없으면 만들기 안내', async () => {
+    mockApi(base({ 'GET /api/v1/profiles': json({ items: [] }) }))
+    m = await mountAt('/bids/b101')
+    expect(text(m.wrapper)).toContain(copy.detail.profileRequired)
+    expect(m.wrapper.find('a[href="/settings/profiles"]').exists()).toBe(true)
+  })
+
+  it('?analysis=로 내 분석 기록을 바로 연다', async () => {
+    mockApi(
+      base({
+        'GET /api/v1/analyses/5': json({
+          analysis_id: 5,
+          bid_id: 'b101',
+          profile_id: 7,
+          analysis: { ...ANALYSIS, warnings: [] },
+          markdown: '## 사업 개요',
+          created_at: '2026-11-09T00:00:00Z',
+        }),
+      }),
+    )
+    m = await mountAt('/bids/b101?analysis=5')
+    expect(text(m.wrapper)).toContain(ANALYSIS.overview)
+  })
+
+  it('공고번호로 열기: 찾으면 이동, 없으면 안내', async () => {
+    mockApi(
+      base({
+        'GET /api/v1/bids/lookup': (_init: RequestInit, url: string) =>
+          url.includes('R26BK00000202')
+            ? json({ bid_id: 'b202' })
+            : json({ error: { code: 'not_found', message: '' } }, 404),
+        'GET /api/v1/bids/b202': json({ ...DETAIL, bid_id: 'b202', title: '두 번째 공고' }),
+      }),
+    )
+    m = await mountAt('/bids/b101')
+    const input = m.wrapper.get('input[name="bid_no"]')
+    await input.setValue('R26BK00000999')
+    const form = (input.element as HTMLInputElement).form!
+    form.dispatchEvent(new Event('submit'))
+    await settle()
+    expect(text(m.wrapper)).toContain(copy.detail.lookupNotFound)
+    await input.setValue('R26BK00000202')
+    form.dispatchEvent(new Event('submit'))
+    await settle()
+    expect(m.router.currentRoute.value.path).toBe('/bids/b202')
+  })
+
+  it('없는 공고는 안내', async () => {
+    mockApi({ 'GET /api/v1/profiles': json({ items: [] }) })
+    m = await mountAt('/bids/b999')
+    expect(text(m.wrapper)).toContain(copy.detail.notFound)
+  })
+})

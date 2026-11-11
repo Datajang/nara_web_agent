@@ -66,7 +66,7 @@ const money = [8500, 45000000, 120000000, 1500000000, null]
     </section>
     <section class="rounded-card border border-border bg-surface">
       <h2 class="px-4 pt-4 text-lg font-semibold">{{ copy.dev.empty }}</h2>
-      <EmptyState :title="copy.page.comingSoonTitle" :description="copy.search.empty">
+      <EmptyState :title="copy.search.empty" :description="copy.search.keywordsHint">
         <template #action><UiButton variant="secondary">{{ copy.common.retry }}</UiButton></template>
       </EmptyState>
     </section>

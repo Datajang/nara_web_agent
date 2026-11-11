@@ -10,6 +10,7 @@ export type AdminUserList = S['AdminUserList']
 
 export const authApi = {
   me: () => api.get<Me>('/me', { silent: true }),
+  updateMe: (body: S['MePatch']) => api.patch<Me>('/me', body),
   login: (email: string, password: string) =>
     api.post<Me>('/auth/login', { email, password } satisfies S['LoginIn']),
   logout: () => api.post<void>('/auth/logout'),

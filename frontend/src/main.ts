@@ -1,6 +1,7 @@
 import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css'
 import './styles/base.css'
 
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import { clientHooks } from '@/api/client'
@@ -15,6 +16,10 @@ const pinia = createPinia()
 app.use(pinia)
 const router = createAppRouter()
 app.use(router)
+// 서버 데이터 캐시 (§10.6). 오류는 화면이 보여 주므로 자동 재시도는 한 번만.
+app.use(VueQueryPlugin, {
+  queryClient: new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } }),
+})
 
 // 세션 만료: 스토어를 비우고 로그인 화면으로 (§10.7)
 clientHooks.onUnauthorized = () => {

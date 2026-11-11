@@ -1,13 +1,14 @@
 <script setup lang="ts">
 // 사이드바 (SPEC §10.3): 1024 이상 232px, 768~1023 아이콘만 64px, 768 미만은 숨기고 하단 탭바.
 import { computed } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import { copy } from '@/copy'
 import { useAuthStore } from '@/stores/auth'
 import { NAV_ITEMS } from './nav'
 import UserMenu from './UserMenu.vue'
 
 const auth = useAuthStore()
+const route = useRoute()
 const emit = defineEmits<{ logout: [] }>()
 const items = computed(() => NAV_ITEMS.filter((i) => !i.adminOnly || auth.isAdmin))
 </script>
@@ -32,7 +33,8 @@ const items = computed(() => NAV_ITEMS.filter((i) => !i.adminOnly || auth.isAdmi
           <RouterLink
             :to="item.to"
             class="flex h-10 items-center gap-3 rounded-control px-3 text-base text-text-2 hover:bg-surface-2 hover:text-text"
-            active-class="!bg-primary-soft !text-primary-hover font-medium"
+            :class="route.path.startsWith(item.match) ? '!bg-primary-soft !text-primary-hover font-medium' : ''"
+            :aria-current="route.path.startsWith(item.match) ? 'page' : undefined"
           >
             <component :is="item.icon" class="size-5 shrink-0" aria-hidden="true" />
             <span class="sr-only lg:not-sr-only">{{ item.label }}</span>

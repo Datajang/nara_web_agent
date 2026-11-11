@@ -3015,16 +3015,32 @@
       "ConversationPatch": {
         "properties": {
           "title": {
-            "type": "string",
-            "maxLength": 100,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Title"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Id"
           }
         },
         "type": "object",
-        "required": [
-          "title"
-        ],
-        "title": "ConversationPatch"
+        "title": "ConversationPatch",
+        "description": "주지 않은 필드는 그대로. profile_id: null이면 프로필 연결 해제 (§7.6)."
       },
       "Coverage": {
         "properties": {
@@ -4773,7 +4789,16 @@
           }
         ],
         "discriminator": {
-          "propertyName": "type"
+          "propertyName": "type",
+          "mapping": {
+            "status": "#/components/schemas/StatusEvent",
+            "token": "#/components/schemas/TokenEvent",
+            "cards": "#/components/schemas/CardsEvent",
+            "result": "#/components/schemas/ResultEvent",
+            "action": "#/components/schemas/ActionEvent",
+            "error": "#/components/schemas/ErrorEvent",
+            "done": "#/components/schemas/DoneEvent"
+          }
         }
       }
     }

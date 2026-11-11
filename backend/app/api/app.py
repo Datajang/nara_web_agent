@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Iterator
 from contextlib import AbstractAsyncContextManager
-from typing import Any
+from typing import Any, get_args
 
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -153,7 +153,15 @@ def create_app(
             comps.update(defs.get("$defs", {}))
             comps["SseEvent"] = {
                 "oneOf": [{"$ref": f"#/components/schemas/{m.__name__}"} for m in EVENT_MODELS],
-                "discriminator": {"propertyName": "type"},
+                "discriminator": {
+                    "propertyName": "type",
+                    "mapping": {
+                        get_args(m.model_fields["type"].annotation)[0]: (
+                            f"#/components/schemas/{m.__name__}"
+                        )
+                        for m in EVENT_MODELS
+                    },
+                },
             }
         return schema
 

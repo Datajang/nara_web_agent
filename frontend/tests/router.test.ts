@@ -37,7 +37,7 @@ describe('router guard', () => {
   })
 
   it('회원이 관리자 화면에 가면 검색으로', async () => {
-    expect((await go('/admin/users', MEMBER)).path).toBe('/search')
+    expect((await go('/admin/users', MEMBER)).path).toBe('/admin/users') // 403 화면은 AppShell이 표시
     expect((await go('/admin/users', ADMIN)).path).toBe('/admin/users')
   })
 

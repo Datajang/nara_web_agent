@@ -1042,10 +1042,15 @@ export interface components {
              */
             updated_at: string;
         };
-        /** ConversationPatch */
+        /**
+         * ConversationPatch
+         * @description 주지 않은 필드는 그대로. profile_id: null이면 프로필 연결 해제 (§7.6).
+         */
         ConversationPatch: {
             /** Title */
-            title: string;
+            title?: string | null;
+            /** Profile Id */
+            profile_id?: number | null;
         };
         /** Coverage */
         Coverage: {
@@ -1629,7 +1634,7 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "ActionEvent";
+            type: "action";
             /**
              * Name
              * @enum {string}
@@ -1646,7 +1651,7 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "CardsEvent";
+            type: "cards";
             /** Items */
             items: components["schemas"]["BidCard"][];
             /**
@@ -1661,7 +1666,7 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "DoneEvent";
+            type: "done";
             /**
              * Message Id
              * @default null
@@ -1675,7 +1680,7 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "ErrorEvent";
+            type: "error";
             /** Code */
             code: string;
             /** Message */
@@ -1694,7 +1699,7 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "ResultEvent";
+            type: "result";
             /** Analysis Id */
             analysis_id: number;
             analysis: components["schemas"]["AnalysisResult"];
@@ -1709,7 +1714,7 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "StatusEvent";
+            type: "status";
             /**
              * Stage
              * @enum {string}
@@ -1731,7 +1736,7 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "TokenEvent";
+            type: "token";
             /** Text */
             text: string;
         };

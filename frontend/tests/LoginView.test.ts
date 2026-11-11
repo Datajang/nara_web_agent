@@ -1,5 +1,6 @@
 // §13.4 게이트: 로그인 화면이 키보드만으로 조작되고 접근성 위반이 없다. 실패 문구는 하나로 통일.
 import axe from 'axe-core'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, type Router } from 'vue-router'
@@ -27,7 +28,10 @@ async function mountLogin(loginResponse: () => Response) {
   setActivePinia(createPinia())
   router = createAppRouter(createMemoryHistory())
   await router.push('/login?next=/library')
-  wrapper = mount(App, { global: { plugins: [router] }, attachTo: document.body })
+  wrapper = mount(App, {
+    global: { plugins: [router, [VueQueryPlugin, { queryClient: new QueryClient() }]] },
+    attachTo: document.body,
+  })
   await flushPromises()
   return wrapper
 }

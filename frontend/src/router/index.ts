@@ -12,8 +12,6 @@ declare module 'vue-router' {
   }
 }
 
-const ComingSoon = () => import('@/views/ComingSoonView.vue')
-
 const routes: RouteRecordRaw[] = [
   { path: '/', redirect: '/search' },
   {
@@ -56,15 +54,48 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/components/layout/AppShell.vue'),
     meta: { requiresAuth: true },
     children: [
-      { path: 'search', component: ComingSoon, meta: { title: copy.nav.search } },
-      { path: 'recommend', component: ComingSoon, meta: { title: copy.nav.recommend } },
-      { path: 'assistant', component: ComingSoon, meta: { title: copy.nav.assistant } },
-      { path: 'library', component: ComingSoon, meta: { title: copy.nav.library } },
-      { path: 'settings', component: ComingSoon, meta: { title: copy.nav.settings } },
+      { path: 'search', component: () => import('@/views/SearchView.vue'), meta: { title: copy.nav.search } },
+      {
+        path: 'recommend',
+        component: () => import('@/views/RecommendView.vue'),
+        meta: { title: copy.nav.recommend },
+      },
+      {
+        path: 'bids/:bidId',
+        component: () => import('@/views/BidDetailView.vue'),
+        meta: { title: copy.detail.analyzeTitle },
+      },
+      {
+        path: 'assistant/:conversationId?',
+        component: () => import('@/views/AssistantView.vue'),
+        meta: { title: copy.nav.assistant },
+      },
+      { path: 'library', component: () => import('@/views/LibraryView.vue'), meta: { title: copy.nav.library } },
+      { path: 'settings', redirect: '/settings/profiles' },
+      {
+        path: 'settings/profiles',
+        component: () => import('@/views/settings/ProfilesView.vue'),
+        meta: { title: copy.profile.title },
+      },
+      {
+        path: 'settings/account',
+        component: () => import('@/views/settings/AccountView.vue'),
+        meta: { title: copy.account.title },
+      },
       {
         path: 'admin/users',
         component: () => import('@/views/admin/UsersView.vue'),
         meta: { requiresAdmin: true, title: copy.admin.usersTitle },
+      },
+      {
+        path: 'admin/usage',
+        component: () => import('@/views/admin/UsageView.vue'),
+        meta: { requiresAdmin: true, title: copy.admin.usageTitle },
+      },
+      {
+        path: 'admin/collector',
+        component: () => import('@/views/admin/CollectorView.vue'),
+        meta: { requiresAdmin: true, title: copy.admin.collectorTitle },
       },
       ...(import.meta.env.DEV
         ? [
@@ -99,7 +130,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
     await auth.ensureLoaded()
     const needsAuth = to.matched.some((r) => r.meta.requiresAuth)
     if (needsAuth && !auth.me) return { path: '/login', query: { next: to.fullPath } }
-    if (to.matched.some((r) => r.meta.requiresAdmin) && !auth.isAdmin) return '/search'
+    // 관리자 경로의 비관리자는 주소를 유지한 채 403 화면(AppShell이 표시, §7.11-9)
     if (to.meta.guestOnly && auth.me) return '/search'
     return true
   })

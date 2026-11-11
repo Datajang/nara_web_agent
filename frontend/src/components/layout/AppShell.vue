@@ -3,6 +3,7 @@
 import { computed } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { copy } from '@/copy'
+import ForbiddenView from '@/views/ForbiddenView.vue'
 import { useAuthStore } from '@/stores/auth'
 import MobileTabBar from './MobileTabBar.vue'
 import SidebarNav from './SidebarNav.vue'
@@ -12,6 +13,9 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const title = computed(() => route.meta.title ?? copy.app.name)
+const forbidden = computed(
+  () => route.matched.some((r) => r.meta.requiresAdmin) && !auth.isAdmin,
+)
 
 async function logout() {
   await auth.logout()
@@ -29,7 +33,8 @@ async function logout() {
     <div class="flex min-w-0 flex-1 flex-col">
       <TopBar :title="title" />
       <main id="main" tabindex="-1" class="mx-auto w-full max-w-[1200px] flex-1 p-4 pb-24 md:p-6">
-        <RouterView />
+        <ForbiddenView v-if="forbidden" />
+        <RouterView v-else />
       </main>
     </div>
     <MobileTabBar @logout="logout" />

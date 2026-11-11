@@ -17,5 +17,6 @@ export function generalMessage(err: unknown): string {
   if (!(err instanceof ApiError)) return copy.common.networkError
   if (err.status === 429) return copy.common.rateLimited(err.retryAfter ?? 60)
   if (err.status === 422) return copy.auth.invalidInput
+  if (err.code === 'llm_unavailable') return copy.llm.unavailable
   return copy.common.unknownError
 }

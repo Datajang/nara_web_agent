@@ -115,3 +115,21 @@ async def test_message_validation_and_conversation_crud(full_api, fake_g2b):
     assert (long.status_code, empty.status_code) == (422, 422)
     assert renamed.json()["title"] == "새 이름" and deleted.status_code == 204
     assert gone.status_code == 404
+
+
+async def test_conversation_profile_can_be_changed_only_to_own(full_api, fake_g2b):
+    """§7.6 대화별 프로필 선택 (P3b 사용자 결정으로 PATCH에 profile_id 추가)."""
+    c, cid = await _setup(full_api, fake_g2b)
+    other = await make_profile(c, "클라우드 인프라팀")
+    changed = await c.patch(f"/api/v1/conversations/{cid}", json={"profile_id": other})
+    cleared = await c.patch(f"/api/v1/conversations/{cid}", json={"profile_id": None})
+    b = await member(full_api, "b@corp.example")
+    foreign = await make_profile(b)
+    stolen = await c.patch(f"/api/v1/conversations/{cid}", json={"profile_id": foreign})
+    title_kept = (await c.get("/api/v1/conversations")).json()["items"][0]["title"]
+    await c.aclose()
+    await b.aclose()
+    assert changed.json()["profile_id"] == other
+    assert cleared.json()["profile_id"] is None
+    assert stolen.status_code == 404
+    assert title_kept == ""  # 제목을 주지 않으면 그대로

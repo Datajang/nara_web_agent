@@ -39,7 +39,21 @@ class Settings(BaseSettings):
     file_max_mb: int = 50
 
     collector_backfill_days: int = 90
+    search_fill_wait_s: float = (
+        5  # 커버리지 밖 검색: 이만큼만 기다리고 '수집 중'으로 응답 (P3a 결정)
+    )
+
+    # LLM (§8.1·§8.2, docs/LLM_SETUP.md). fake는 개발 화면용(운영 금지), none은 LLM 없이 기동
+    llm_backend: Literal["vllm", "fake", "none"] = "vllm"
+    llm_base_url: str = "http://127.0.0.1:8011/v1"
+    llm_model: str = "brain"  # vLLM --served-model-name
+    llm_model_id: str = "q35-9b"  # PROMPT_VERSION 접미사 (예: v1+q35-9b)
+    llm_api_key: SecretStr = SecretStr("")
+    llm_timeout_s: float = 180
     llm_max_concurrency: int = 4
+    llm_tokenizer_path: str = ""  # Qwen tokenizer.json. 비우면 글자 수 × 1.2 (§8.3-1)
+    llm_lock_wait_s: float = 120  # single-flight 대기 상한 (§5.5)
+    summary_max_chunks: int = 12  # §8.3-4
 
     # 인증 (§9.7)
     env: Literal["development", "test", "production"] = "development"
@@ -109,6 +123,8 @@ def check_startup(settings: Settings) -> list[str]:
         errors.append("APP_ORIGIN은 https여야 한다")
     if not settings.cookie_secure:
         errors.append("COOKIE_SECURE=false는 개발 전용")
+    if settings.llm_backend == "fake":
+        errors.append("LLM_BACKEND=fake는 개발 전용")
     if errors:
         raise ConfigError("; ".join(errors))
     return warnings

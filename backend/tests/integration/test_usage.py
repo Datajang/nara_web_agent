@@ -36,7 +36,7 @@ async def test_daily_usage_hit_rates(db):
         "analysis": 0.0,
         "score": None,
     }
-    assert rows["analyze"].tokens == 15
+    assert (rows["analyze"].prompt_tokens, rows["analyze"].completion_tokens) == (10, 5)
 
 
 async def test_budget_counts_logged_and_pending_calls(db):

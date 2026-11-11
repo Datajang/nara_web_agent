@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, field
 
 from app.api.ratelimit import RateLimiter
 from app.auth.mail import Mailer
@@ -14,3 +15,4 @@ class AppContext:
     deps: Deps
     mailer: Mailer
     limiter: RateLimiter
+    closers: list[Callable[[], Awaitable[None]]] = field(default_factory=list)  # 종료 시 정리

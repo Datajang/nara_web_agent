@@ -79,3 +79,42 @@ async def admin_client(api: Any, email: str = "admin@corp.example") -> Any:
     r = await login(c, email)
     assert r.status_code == 200, r.text
     return c
+
+
+# ---------- P3a: SSE·회원·프로필 헬퍼 ----------
+
+
+def parse_sse(body: str) -> list[dict[str, Any]]:
+    """`data: {json}` 이벤트만 (ping 주석 제외). 이벤트 사이는 빈 줄."""
+    import json
+
+    out = []
+    for block in body.split("\n\n"):
+        if block.startswith("data: "):
+            out.append(json.loads(block.removeprefix("data: ")))
+    return out
+
+
+async def sse(client: Any, path: str, body: dict[str, Any]) -> list[dict[str, Any]]:
+    r = await client.post(path, json=body, headers={"Accept": "text/event-stream"})
+    assert r.status_code == 200, r.text
+    assert r.headers["content-type"].startswith("text/event-stream")
+    return parse_sse(r.text)
+
+
+async def member(api: Any, email: str) -> Any:
+    """로그인된 일반 회원 클라이언트(호출자가 aclose)."""
+    await create_user(api.db, email)
+    c = api.client()
+    r = await login(c, email)
+    assert r.status_code == 200, r.text
+    return c
+
+
+async def make_profile(
+    client: Any, description: str = "AI 플랫폼 개발팀. 자연어처리 검색 구축 경험.", **kw: Any
+) -> int:
+    body = {"name": "우리 팀", "description": description, "keywords": ["AI"], **kw}
+    r = await client.post("/api/v1/profiles", json=body)
+    assert r.status_code == 201, r.text
+    return int(r.json()["id"])

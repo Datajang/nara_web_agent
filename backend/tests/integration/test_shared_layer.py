@@ -4,6 +4,7 @@ LLM·다운로더는 호출 수를 세는 가짜. P1은 캐시 계약만 검증�
 """
 
 import asyncio
+import re
 from datetime import timedelta
 
 from sqlalchemy import func, select
@@ -44,7 +45,7 @@ async def test_second_user_same_bid_reuses_download_extract_and_summary(
 
     assert (hit1, hit2) == (False, True)
     assert first.id == second.id
-    assert fake_llm.calls["summary"] == 1
+    assert fake_llm.calls["summarize_bid"] == 1
     assert len(fake_downloader.calls) == 1
     async with deps.db.session() as s:
         assert await s.scalar(select(func.count()).select_from(FileText)) == 1
@@ -59,7 +60,7 @@ async def test_same_profile_text_shares_analysis(deps, fake_llm):
     )
     assert (hit_a, hit_b) == (False, True)
     assert a.id == b.id
-    assert fake_llm.calls == {"summary": 1, "analysis": 1}
+    assert fake_llm.calls == {"summarize_file": 1, "summarize_bid": 1, "analyze_bid": 1}
 
 
 async def test_different_profile_reuses_summary_but_new_analysis(deps, fake_llm):
@@ -68,7 +69,7 @@ async def test_different_profile_reuses_summary_but_new_analysis(deps, fake_llm)
     await get_or_create_analysis(deps, bid_id, PROFILE_A)
     _, hit = await get_or_create_analysis(deps, bid_id, PROFILE_B)
     assert hit is False
-    assert fake_llm.calls == {"summary": 1, "analysis": 2}
+    assert fake_llm.calls == {"summarize_file": 1, "summarize_bid": 1, "analyze_bid": 2}
 
 
 async def test_ten_concurrent_analyses_call_llm_once(deps, fake_llm, fake_downloader):
@@ -79,7 +80,7 @@ async def test_ten_concurrent_analyses_call_llm_once(deps, fake_llm, fake_downlo
         *(get_or_create_analysis(deps, bid_id, PROFILE_A) for _ in range(10))
     )
     assert {r.id for r, _ in results} == {results[0][0].id}
-    assert fake_llm.calls == {"summary": 1, "analysis": 1}
+    assert fake_llm.calls == {"summarize_file": 1, "summarize_bid": 1, "analyze_bid": 1}
     assert len(fake_downloader.calls) == 1
 
 
@@ -108,7 +109,7 @@ async def test_changed_content_bumps_revision_and_resummarizes(deps, fake_llm):
 
     await seed(deps, "regular", item)  # 같은 내용 재수집
     _, hit = await get_or_create_summary(deps, bid_id)
-    assert hit is True and fake_llm.calls["summary"] == 1
+    assert hit is True and fake_llm.calls["summarize_bid"] == 1
 
     changed = regular_item(
         "R26BK00000002",
@@ -121,7 +122,7 @@ async def test_changed_content_bumps_revision_and_resummarizes(deps, fake_llm):
     async with deps.db.session() as s:
         assert (await s.get(Bid, bid_id)).revision == 2
     _, hit = await get_or_create_summary(deps, bid_id)
-    assert hit is False and fake_llm.calls["summary"] == 2
+    assert hit is False and fake_llm.calls["summarize_bid"] == 2
 
 
 async def test_prompt_version_change_does_not_reuse_cache(deps, fake_llm):
@@ -148,14 +149,16 @@ async def test_scores_shared_by_profile_hash_and_keywords_excluded(deps, fake_ll
     first = await get_or_create_scores(deps, ids, PROFILE_A)
     second = await get_or_create_scores(deps, ids, PROFILE_A)
     assert set(first) == set(second) == set(ids)
-    assert fake_llm.calls["score"] == 1
+    assert fake_llm.calls["score_bids"] == 1
 
     # 공고 내용이 바뀌면 그 공고만 stale로 재평가
     await seed(deps, "regular", regular_item("R26BK00000100", NOW, ord="001", title="변경됨"))
     await get_or_create_scores(deps, ids, PROFILE_A)
-    assert fake_llm.calls["score"] == 2
+    assert fake_llm.calls["score_bids"] == 2
     # LLM에는 짧은 ID(b123)만 간다 (규칙 6)
-    assert [b["bid_id"] for b in fake_llm.payloads[-1][1]["bids"]] == [f"b{ids[0]}"]
+    sent = fake_llm.payloads[-1][1][1]["content"]
+    assert re.findall(r"\[(b\d+)\]", sent) == [f"b{ids[0]}"]
+    assert "http" not in sent
 
 
 async def test_shared_rows_carry_no_user_identity(deps):

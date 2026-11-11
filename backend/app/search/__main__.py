@@ -32,7 +32,7 @@ async def main(argv: list[str] | None = None) -> int:
         days=args.days,
         source=args.source,
         status="open" if args.open else "all",
-        top_n=args.top,
+        limit=min(args.top, 100),
     )
     async with real_deps() as deps:
         res = await search_bids(deps, None, q)

@@ -12,7 +12,8 @@ from app.files.download import DownloadRejected, DownloadResult
 def docx_bytes(text: str) -> bytes:
     buf = io.BytesIO()
     d = docx.Document()
-    d.add_paragraph(text)
+    for line in text.split("\n"):  # 줄마다 문단 (추출 결과도 줄 단위)
+        d.add_paragraph(line)
     d.save(buf)
     return buf.getvalue()
 

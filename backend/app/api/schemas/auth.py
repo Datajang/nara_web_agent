@@ -1,4 +1,4 @@
-"""API 요청·응답 모델 (SPEC §6.2). 프론트 타입은 이 스키마에서 생성된다."""
+"""인증·회원·프로필 요청·응답 모델 (SPEC §6.2, §9)."""
 
 from __future__ import annotations
 

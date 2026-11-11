@@ -24,7 +24,7 @@ RETRY_AFTER = timedelta(hours=24)
 MAX_ATTEMPTS = 3
 
 
-def _needs_work(f: BidFile, deps: Deps) -> bool:
+def needs_work(f: BidFile, deps: Deps) -> bool:
     if f.status == "new":
         return True
     if f.status != "failed" or f.attempts >= MAX_ATTEMPTS:
@@ -115,13 +115,13 @@ async def ensure_bid_files(deps: Deps, bid_id: int) -> list[BidFile]:
         )
     out: list[BidFile] = []
     for f in files:
-        if not _needs_work(f, deps):
+        if not needs_work(f, deps):
             out.append(f)
             continue
 
         async def check(file_id: int = f.id) -> BidFile | None:
             row = await _load(deps, file_id)
-            return None if _needs_work(row, deps) else row
+            return None if needs_work(row, deps) else row
 
         async def compute(row: BidFile = f) -> BidFile:
             return await _process(deps, await _load(deps, row.id))

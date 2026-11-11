@@ -1,11 +1,14 @@
-"""/api/v1/profiles (SPEC §6.2). suggest-keywords(LLM)는 P3."""
+"""/api/v1/profiles (SPEC §6.2). suggest-keywords는 LLM 제안만 하고 저장하지 않는다 (§8.5)."""
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Response, status
 
+from app.api.common import require_llm
 from app.api.deps import ActiveUser, Ctx, DbSession
 from app.api.schemas import ProfileIn, ProfileList, ProfileOut, ProfilePatch
+from app.api.schemas.history import KeywordsIn, KeywordsOut
+from app.pipeline.keywords import suggest_keywords
 from app.profiles import repo
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])
@@ -21,6 +24,13 @@ async def list_profiles(user: ActiveUser, s: DbSession) -> ProfileList:
 async def create_profile(body: ProfileIn, user: ActiveUser, s: DbSession, ctx: Ctx) -> ProfileOut:
     p = await repo.create_profile(s, user.id, body.model_dump(), ctx.deps.clock())
     return ProfileOut.model_validate(p)
+
+
+@router.post("/suggest-keywords")
+async def post_suggest_keywords(body: KeywordsIn, user: ActiveUser, ctx: Ctx) -> KeywordsOut:
+    ctx.limiter.hit(f"keywords:{user.id}", 10, 60)
+    require_llm(ctx.deps)
+    return KeywordsOut(keywords=await suggest_keywords(ctx.deps, body.description))
 
 
 @router.get("/{profile_id}")

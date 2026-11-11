@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import copy
 import json
 from datetime import datetime, timedelta, timezone
@@ -94,6 +95,7 @@ class FakeG2B:
         self.items: dict[str, list[dict[str, Any]]] = {"regular": [], "prespec": []}
         self.requests: list[httpx.Request] = []
         self.fail_queue: list[httpx.Response] = []
+        self.delay_s = 0.0  # 느린 G2B ('수집 중' 시험)
 
     @property
     def calls(self) -> int:
@@ -141,5 +143,10 @@ class FakeG2B:
             json={"response": {"header": {"resultCode": "00", "resultMsg": "정상"}, "body": body}},
         )
 
+    async def _async_handler(self, request: httpx.Request) -> httpx.Response:
+        if self.delay_s:
+            await asyncio.sleep(self.delay_s)
+        return self.handler(request)
+
     def http_client(self) -> httpx.AsyncClient:
-        return httpx.AsyncClient(transport=httpx.MockTransport(self.handler))
+        return httpx.AsyncClient(transport=httpx.MockTransport(self._async_handler))

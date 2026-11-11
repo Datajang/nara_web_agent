@@ -64,3 +64,19 @@ def test_create_app_refuses_bad_production_config(db_url):
 
     with pytest.raises(ConfigError):
         build_api(Database(db_url), prod(secret_key=SecretStr(DEFAULT_SECRET_KEY)))
+
+
+def test_production_rejects_fake_llm():
+    with pytest.raises(ConfigError):
+        check_startup(prod(llm_backend="fake"))
+
+
+def test_llm_backend_selection():
+    from app.llm.client import OpenAICompatLLM
+    from app.llm.fake import FakeLLM
+    from app.main import build_llm
+
+    assert build_llm(Settings(llm_backend="none")) is None
+    assert isinstance(build_llm(Settings(llm_backend="fake")), FakeLLM)
+    real = build_llm(Settings(llm_backend="vllm", llm_model_id="q35-9b"))
+    assert isinstance(real, OpenAICompatLLM) and real.model_id == "q35-9b"

@@ -22,7 +22,8 @@ class DailyUsage:
     requests: int
     g2b_calls: int
     llm_calls: int
-    tokens: int
+    prompt_tokens: int
+    completion_tokens: int
     hit_rate: dict[str, float | None]
 
 
@@ -42,7 +43,8 @@ async def daily_usage(session: AsyncSession, since: datetime) -> list[DailyUsage
             func.count().label("requests"),
             func.sum(UsageLog.g2b_calls),
             func.sum(UsageLog.llm_calls),
-            func.sum(UsageLog.prompt_tokens + UsageLog.completion_tokens),
+            func.sum(UsageLog.prompt_tokens),
+            func.sum(UsageLog.completion_tokens),
             *(rate(layer) for layer in LAYERS),
         )
         .where(UsageLog.created_at >= since)
@@ -51,7 +53,7 @@ async def daily_usage(session: AsyncSession, since: datetime) -> list[DailyUsage
     )
     out = []
     for row in (await session.execute(stmt)).all():
-        d, event, req, g2b, llm, tok, *rates = row
+        d, event, req, g2b, llm, p_tok, c_tok, *rates = row
         out.append(
             DailyUsage(
                 d,
@@ -59,7 +61,8 @@ async def daily_usage(session: AsyncSession, since: datetime) -> list[DailyUsage
                 req,
                 int(g2b or 0),
                 int(llm or 0),
-                int(tok or 0),
+                int(p_tok or 0),
+                int(c_tok or 0),
                 dict(zip(LAYERS, rates, strict=True)),
             )
         )

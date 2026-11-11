@@ -31,9 +31,9 @@ from app.config import Settings
 from app.db.session import Database
 from app.deps import Deps
 from app.g2b.client import G2BClient
+from app.llm.fake import FakeLLM
 from tests.fakes.downloader import FakeDownloader
 from tests.fakes.g2b import FakeG2B
-from tests.fakes.llm import FakeLLM
 
 BACKEND = Path(__file__).resolve().parents[1]
 TEST_KEYS = {"regular": "TEST-SERVICE-KEY-REGULAR-1234", "prespec": "TEST-SERVICE-KEY-PRESPEC-5678"}
@@ -177,10 +177,18 @@ class Api:
         )
 
 
-def build_api(db: Database, settings: Settings, clock: Clock | None = None) -> Api:
+def build_api(
+    db: Database,
+    settings: Settings,
+    clock: Clock | None = None,
+    *,
+    llm: FakeLLM | None = None,
+    g2b: G2BClient | None = None,
+    downloader: FakeDownloader | None = None,
+) -> Api:
     clock = clock or Clock()
     mailer = MemoryMailer()
-    deps = Deps(db=db, g2b=None, llm=None, downloader=None, settings=settings, clock=clock)
+    deps = Deps(db=db, g2b=g2b, llm=llm, downloader=downloader, settings=settings, clock=clock)
     ctx = AppContext(
         deps=deps, mailer=mailer, limiter=RateLimiter(clock, settings.rate_limit_enabled)
     )
@@ -201,3 +209,22 @@ def api(db: Database, clock: Clock) -> Api:
 async def client(api: Api) -> AsyncIterator[httpx.AsyncClient]:
     async with api.client() as c:
         yield c
+
+
+# ---------- P3a: LLM·G2B·다운로더까지 연결한 API (모두 가짜) ----------
+
+
+@pytest.fixture
+async def full_api(
+    db: Database,
+    clock: Clock,
+    fake_llm: FakeLLM,
+    fake_g2b: FakeG2B,
+    fake_downloader: FakeDownloader,
+) -> AsyncIterator[Api]:
+    http = fake_g2b.http_client()
+    g2b = G2BClient(http, TEST_KEYS, page_size=100, retry_delays=(0, 0, 0))
+    yield build_api(
+        db, make_auth_settings(), clock, llm=fake_llm, g2b=g2b, downloader=fake_downloader
+    )
+    await http.aclose()

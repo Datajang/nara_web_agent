@@ -11,14 +11,22 @@ import os
 import subprocess
 import sys
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import httpx
 import pytest
 from dotenv import dotenv_values
+from fastapi import FastAPI
+from pydantic import SecretStr
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from app.api.app import create_app
+from app.api.context import AppContext
+from app.api.ratelimit import RateLimiter
+from app.auth.mail import MemoryMailer
 from app.config import Settings
 from app.db.session import Database
 from app.deps import Deps
@@ -30,6 +38,8 @@ from tests.fakes.llm import FakeLLM
 BACKEND = Path(__file__).resolve().parents[1]
 TEST_KEYS = {"regular": "TEST-SERVICE-KEY-REGULAR-1234", "prespec": "TEST-SERVICE-KEY-PRESPEC-5678"}
 NOW = datetime(2026, 11, 10, 6, 0, tzinfo=UTC)  # KST 15:00
+ORIGIN = "https://testserver"
+TEST_SECRET = "test-secret-key-0123456789-abcdefghijklmnop"
 
 
 def _test_db_url() -> str | None:
@@ -117,3 +127,77 @@ async def deps(
         clock=lambda: NOW,
     )
     await http.aclose()
+
+
+# ---------- P2: API·인증 ----------
+
+
+class Clock:
+    """테스트가 앞으로 돌릴 수 있는 시계 (토큰 만료·잠금 해제)."""
+
+    def __init__(self, now: datetime = NOW) -> None:
+        self.now = now
+
+    def __call__(self) -> datetime:
+        return self.now
+
+    def advance(self, **kw: float) -> None:
+        self.now += timedelta(**kw)
+
+
+def make_auth_settings(**overrides: object) -> Settings:
+    base: dict[str, object] = {
+        "env": "test",
+        "secret_key": SecretStr(TEST_SECRET),
+        "app_origin": ORIGIN,
+        "cookie_secure": True,
+        "mail_backend": "memory",
+        "allowed_email_domains": "",
+        "rate_limit_enabled": False,
+        "g2b_daily_call_budget": 10_000,
+    }
+    base.update(overrides)
+    return Settings(**base)  # type: ignore[arg-type]
+
+
+@dataclass
+class Api:
+    app: FastAPI
+    ctx: AppContext
+    mailer: MemoryMailer
+    clock: Clock
+    db: Database
+
+    def client(self, origin: str | None = ORIGIN) -> httpx.AsyncClient:
+        headers = {"Origin": origin} if origin else {}
+        return httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=self.app),
+            base_url=ORIGIN,
+            headers=headers,
+        )
+
+
+def build_api(db: Database, settings: Settings, clock: Clock | None = None) -> Api:
+    clock = clock or Clock()
+    mailer = MemoryMailer()
+    deps = Deps(db=db, g2b=None, llm=None, downloader=None, settings=settings, clock=clock)
+    ctx = AppContext(
+        deps=deps, mailer=mailer, limiter=RateLimiter(clock, settings.rate_limit_enabled)
+    )
+    return Api(app=create_app(ctx), ctx=ctx, mailer=mailer, clock=clock, db=db)
+
+
+@pytest.fixture
+def clock() -> Clock:
+    return Clock()
+
+
+@pytest.fixture
+def api(db: Database, clock: Clock) -> Api:
+    return build_api(db, make_auth_settings(), clock)
+
+
+@pytest.fixture
+async def client(api: Api) -> AsyncIterator[httpx.AsyncClient]:
+    async with api.client() as c:
+        yield c

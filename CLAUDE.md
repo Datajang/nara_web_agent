@@ -29,7 +29,7 @@ cd frontend && npm ci && npm run lint && npm run typecheck && npm run test && np
 - 저장소 루트 `.env`(서비스키)는 테스트가 읽지 않는다. CLI는 `NARA_ENV_FILE=../.env,.env uv run python -m app.collector incremental` 처럼 명시한다.
 - 마이그레이션: `uv run alembic -x url=$DATABASE_URL upgrade head`
 - API 스키마를 바꾸면: `cd backend && uv run python -m scripts.export_openapi && cd ../frontend && npm run gen:api` (pytest·CI가 최신 여부를 검사)
-- 개발 실행: 백엔드 `NARA_ENV_FILE=.env ENV=development MAIL_BACKEND=memory APP_ORIGIN=http://localhost:5173 COOKIE_SECURE=false uv run uvicorn app.main:app --port 8020`, 프론트 `VITE_API_TARGET=http://127.0.0.1:8020 npm run dev`. 메일은 `GET /api/v1/_dev/mail`. 첫 관리자는 `uv run python -m app.cli create-admin --email <주소>`
+- 개발 실행: 백엔드 `NARA_ENV_FILE=.env ENV=development MAIL_BACKEND=memory LLM_BACKEND=fake APP_ORIGIN=http://localhost:5173 COOKIE_SECURE=false uv run uvicorn app.main:app --port 8020`(실제 vLLM은 `LLM_BACKEND=vllm`), 프론트 `VITE_API_TARGET=http://127.0.0.1:8020 npm run dev`. 메일은 `GET /api/v1/_dev/mail`. 첫 관리자는 `uv run python -m app.cli create-admin --email <주소>`
 - v1 코드 참조: `git show 61519ad:<경로>` (v2 브랜치에서는 삭제됨).
 
 ## 문서 지도 — 해당 작업을 할 때만 읽는다

@@ -75,8 +75,8 @@ jobs:
         run: npm run build
 
   # §9.5 의존성 점검. npm 운영 의존성은 high 이상이면 실패.
-  # pip-audit는 HWP 추출용 langchain 계열 알려진 항목 때문에 지금은 보고만 한다
-  # (docs/decisions/2026-11-11-p4-ops.md). 정리되면 continue-on-error를 지운다.
+  # pip-audit는 backend/security/pip-audit-accepted.txt(HWPLoader 때문에 올릴 수 없는 langchain 계열,
+  # 미사용 기능)만 제외하고, 그 밖의 취약점이 하나라도 있으면 실패한다.
   audit:
     runs-on: ubuntu-latest
     steps:
@@ -90,10 +90,10 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
       - name: pip-audit
         working-directory: backend
-        continue-on-error: true
         run: |
           uv export --locked --no-dev --no-emit-project --format requirements-txt > /tmp/req.txt
-          uvx pip-audit -r /tmp/req.txt --disable-pip --progress-spinner off
+          uvx pip-audit -r /tmp/req.txt --disable-pip --progress-spinner off \
+            $(sed -n 's/^\([A-Z][A-Z0-9-]*\) .*/--ignore-vuln \1/p' security/pip-audit-accepted.txt)
 
   # §12.8 main 병합: 로그인 → 검색 → 상세 → 분석 → 내 기록 (가짜 LLM, 외부 호출 없음)
   e2e:

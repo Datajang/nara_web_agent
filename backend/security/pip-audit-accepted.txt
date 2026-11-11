@@ -1,0 +1,15 @@
+# pip-audit 수용 목록 (P4, docs/decisions/2026-11-11-p4-ops.md). 형식: ID  # 패키지: 이유
+# langchain-teddynote 0.5.4(HWPLoader, 필수)가 langchain 0.x에만 동작하고, 아래 수정 버전은 모두
+# langchain-core 1.x를 요구해 함께 올릴 수 없다. 앱은 HWPLoader만 import한다(test_hwp_dependency_guard).
+# CI는 이 목록 밖의 취약점이 나오면 실패한다. teddynote가 langchain 1.x를 지원하면 목록을 지운다.
+PYSEC-2026-2192  # langchain: 파일 검색 에이전트 미들웨어 등 경로 제한 — 에이전트·파일 검색 미사용
+PYSEC-2026-2193  # langchain-core: prompts.loading이 설정 dict의 경로를 읽음 — 프롬프트 로딩 미사용
+PYSEC-2026-2562  # langchain-core: ChatOpenAI 이미지 토큰 계산 SSRF — ChatOpenAI 미사용(LLM은 openai SDK)
+PYSEC-2026-76  # langchain-openai: _url_to_size SSRF — langchain-openai 미사용
+PYSEC-2026-77  # langchain-text-splitters: HTMLHeaderTextSplitter URL 리다이렉트 — 미사용
+PYSEC-2026-83  # langgraph: 체크포인트 역직렬화 — langgraph 미사용
+PYSEC-2026-2573  # langgraph-checkpoint: JsonPlusSerializer 역직렬화 — 미사용
+PYSEC-2026-2574  # langgraph-checkpoint: 캐시 계층 RCE(CachePolicy) — 미사용
+PYSEC-2026-2194  # langgraph-sdk: 식별자 경로 삽입 — 미사용
+PYSEC-2026-2575  # langgraph-sdk: 식별자 경로 삽입 — 미사용
+PYSEC-2026-4240  # langgraph-sdk: 인가 데코레이터 actions 적용 오류 — 미사용

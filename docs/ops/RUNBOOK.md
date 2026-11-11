@@ -12,7 +12,7 @@
 
 - 메일은 `ALERT_EMAIL`로 간다(비우면 로그만). 같은 경보는 6시간(`ALERT_REPEAT_H`)에 한 번, 해소되면 초기화.
 - 상태 파일 `/var/lib/nara/alert-state.json`. 경보가 있으면 유닛이 failed로 보인다: `systemctl --failed`.
-- 외부 감시: GCP Uptime Check로 `https://<도메인>/login` 5분 간격 [가정] (콘솔에서 운영자가 설정).
+- 외부 감시: GCP Uptime Check로 `https://<접속 주소>/login` 5분 간격 [가정] (콘솔에서 운영자가 설정).
 
 ## 백업
 매일 03:30 KST `nara-backup.timer` → `/var/backups/nara/nara-YYYY-MM-DD.dump.age` (일 14개, 주 4개).

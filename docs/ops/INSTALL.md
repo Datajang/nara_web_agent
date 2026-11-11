@@ -48,17 +48,21 @@ age-keygen -o nara-backup-key.txt      # 운영자 PC에서. 출력된 public ke
 echo "age1..." | sudo install -o root -g nara -m 0644 /dev/stdin /etc/nara/backup.pub
 ```
 
-## 6. nginx·HTTPS (도메인 확정 후)
+## 6. 외부 접속·HTTPS (도메인 전에는 임시 주소)
+운영 설정은 HTTPS·Secure 쿠키를 강제한다. 도메인이 없으면 외부 IP로 만든 `<IP를 -로>.sslip.io`
+(공개 DNS 서비스, 예: 34-0-113-5.sslip.io)에 Let's Encrypt 인증서를 받는다. 결정: `docs/decisions/2026-11-11-p4-ops.md`.
 ```bash
-sudo apt install -y nginx certbot
-sudo certbot certonly --standalone -d <도메인> \
-  --pre-hook "systemctl stop nginx" --post-hook "systemctl start nginx"
-sudo sed "s/nara.example.com/<도메인>/g" /opt/nara/app/deploy/nginx/nara.conf | sudo tee /etc/nginx/sites-available/nara >/dev/null
-sudo cp /opt/nara/app/deploy/nginx/snippets/nara-security.conf /etc/nginx/snippets/
-sudo ln -s /etc/nginx/sites-available/nara /etc/nginx/sites-enabled/nara
-sudo nginx -t && sudo systemctl reload nginx
+# (gcloud 권한이 있는 PC에서) 외부 IP 고정 → 80·443 열기. VM 서비스 계정은 권한이 없다
+gcloud compute addresses create nara-ip --addresses=<외부IP> --region=<리전>
+gcloud compute instances add-tags <인스턴스> --zone=<존> --tags=nara-web
+gcloud compute firewall-rules create nara-web-https --allow=tcp:80,tcp:443 \
+  --target-tags=nara-web --source-ranges=0.0.0.0/0     # 사내만이면 사내 IP 대역으로
+# (서버에서)
+sudo apt install -y nginx certbot && sudo rm -f /etc/nginx/sites-enabled/default
+sudo CERTBOT_EMAIL=<운영 메일> /opt/nara/app/deploy/set-host.sh <IP를 -로>.sslip.io
 ```
-방화벽: GCP에서 80·443만 열고 SSH는 IAP 터널(§11.1). 파일럿 동안은 사내 IP 대역으로 제한 권장.
+도메인이 정해지면 DNS A 레코드를 같은 IP로 두고 `set-host.sh <도메인>`만 다시 실행한다(전원 재로그인).
+인증서 갱신은 certbot 타이머가 한다(갱신 때 nginx가 몇 초 멈춤): `sudo certbot renew --dry-run`.
 
 ## 7. 첫 배포와 타이머
 ```bash

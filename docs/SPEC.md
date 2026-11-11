@@ -1,10 +1,12 @@
 # nara-web v2 구현 명세서 (Claude Code용)
 
-작성: 2026-11-09 · 이 파일은 Claude Docs 명세서를 내보낸 사본이며, 수정은 원본에서 한 뒤 다시 내보낸다.
+작성: 2026-11-09 · 개정: 2026-11-11 · 이 파일은 Claude Docs 명세서를 내보낸 사본이며, 수정은 원본에서 한 뒤 다시 내보낸다.
+
+**개정 2026-11-11**: P0\~P4 구현에서 확인·결정한 내용을 반영했습니다. 근거는 저장소 `docs/decisions/`의 결정 기록이며, 바뀐 문장에는 \[확인됨\] 또는 \[결정\]과 단계를 붙였습니다.
 
 ## 0. 이 문서 사용법
 
-이 문서는 nara-web v2를 Claude Code로 구현할 때 기준이 되는 단일 명세서입니다. 코드 작업 전에 §0\~§3을 읽고, 이후에는 지금 하는 단계(§13)가 가리키는 섹션만 읽으세요.
+이 문서는 nara-web v2를 Claude Code(Opus)로 구현할 때 기준이 되는 단일 명세서입니다. 코드 작업 전에 §0\~§3을 읽고, 이후에는 지금 하는 단계(§13)가 가리키는 섹션만 읽으세요.
 
 **읽는 순서**: §1 목표 → §2 현재 코드 → §3 아키텍처 → (단계별) §4\~§12 → §13 로드맵. §14에는 구현 전에 사용자에게 확인할 질문이 있습니다.
 
@@ -89,6 +91,7 @@ v1(`nara_web_agent`)은 FastAPI + SQLite + 바닐라 JS로 동작하는 MVP이�
 | `app/pipeline/orchestrator.py` | 정규식 의도 판별 + 3단계 고정 흐름 | 폐기 후 재작성 (§8) |
 | `app/pipeline/g2b_search.py` | BidResult, e발주·사전규격 교차 첨부 보충 | 로직만 참고, 재작성 (§5) |
 | `app/pipeline/section_extractor.py` | 추정 5,500토큰 문서 압축 | 폴백으로 유지 (§8) |
+| `app/pipeline/file_extract.py` | extract\_text\_from\_url + compress\_document를 잇는 7줄 연결 코드 | 삭제: v2는 app/files/store.py가 다운로드·추출·캐시를 맡음 \[확인됨: P0-a\] |
 | `app/llm/client.py` | AsyncOpenAI, api\_key `unused` 하드코딩 | 확장 (§8) |
 | `nara_server/g2b_api.py` (129줄), `file_extractor.py` (529줄) | MCP 서버 코드 복사본 | g2b는 재작성, file\_extractor는 `backend/app/files/`로 이동해 재사용 |
 | `frontend/` (`app.js` 455줄) | 바닐라 SPA | 폐기, SSE 파싱 로직만 참고 (§10) |
@@ -116,7 +119,7 @@ v1(`nara_web_agent`)은 FastAPI + SQLite + 바닐라 JS로 동작하는 MVP이�
 
 | 테스트 | 원인 | 조치 |
 | --- | --- | --- |
-| `test_file_extractor::test_extract_docx` | 외부 URL 다운로드에 의존(샌드박스에서 HTTP 405) | 네트워크 mock으로 교체 |
+| `test_file_extractor::test_extract_docx` | 구현은 curl 서브프로세스로 받는데 테스트는 httpx를 mock해서 mock이 먹지 않음(샌드박스에서 HTTP 405) \[확인됨: P0-a\] | 다운로드 경계(`download_file`)를 가짜로 교체 |
 | `test_g2b_search::test_is_bid_open_empty` | 구현(True)과 테스트(False) 불일치 | §4 의미 결정 후 테스트 수정 |
 | `test_orchestrator` × 6 | 구 구조의 `chat_complete`·`_get_current_step`·인자 2개짜리 `is_search_intent`를 참조 | 삭제 후 새 에이전트 테스트로 대체 |
 
@@ -147,7 +150,7 @@ v2는 ‘수집기가 공고를 DB에 채우고, API 서버가 DB를 읽어 답�
 
 | 영역 | 선택 | 이유 |
 | --- | --- | --- |
-| 백엔드 | Python 3.11+, FastAPI, SQLAlchemy 2 async, httpx, Pydantic v2, `uv` | v1과 같은 스택 \[확인됨: v1이 FastAPI·SQLAlchemy async·httpx·uv 사용\] |
+| 백엔드 | Python 3.11+(실행·CI는 3.12, `backend/.python-version`), FastAPI, SQLAlchemy 2 async, httpx, Pydantic v2, `uv` | v1과 같은 스택 \[확인됨: v1이 FastAPI·SQLAlchemy async·httpx·uv 사용\] |
 | 마이그레이션 | Alembic | 공유 캐시 스키마를 반복 수정하므로 필수 \[가정\] |
 | DB | PostgreSQL 16 | 수집기와 사용자의 동시 쓰기, advisory lock, 부분 문자열 검색(`pg_trgm`) \[가정\]. SQLite는 쓰지 않음 |
 | 프론트 | Vue 3 + TypeScript + Vite + Pinia + Vue Router + Tailwind CSS | 사용자의 Vue 경험 활용, 정적 파일로 nginx 서빙 \[가정\] |
@@ -210,8 +213,8 @@ nara_web_agent/
 
 | 테이블 | 핵심 컬럼 | 키·인덱스·규칙 |
 | --- | --- | --- |
-| `bids` | `bid_key` text, `source` ('regular'\|'prespec'), `bid_no` text, `revision` int, `prespec_reg_no` text null, `title` text, `org_name` text null, `budget` bigint null, `deadline_at` timestamptz null, `notice_at` timestamptz null, `detail_url` text null, `files` jsonb, `content_hash` text, `raw` jsonb, `first_seen_at`, `last_seen_at`, `updated_at` | UNIQUE(`bid_key`); GIN(`title` gin\_trgm\_ops); (`source`, `notice_at` DESC); (`deadline_at`); (`prespec_reg_no`) WHERE NOT NULL. `budget`은 일반공고는 `bdgtAmt` 또는 `presmptPrce`, 사전규격은 `asignBdgtAmt`에서 파싱하고 실패하면 NULL. 0은 그대로 저장하고 화면에서 ‘미공개’로 표시. `content_hash`는 메타·파일 목록의 정규화 JSON의 sha256 |
-| `bid_files` | `bid_id` FK, `url` text, `url_hash` text, `name` text, `kind` ('rfp'\|'spec'\|'other'), `origin` ('notice'\|'eorder'\|'prespec'), `status` ('new'\|'ok'\|'failed'\|'unsupported'), `error` text null, `sha256` text null, `size_bytes` int null, `downloaded_at` | UNIQUE(`bid_id`, `url_hash`). `kind`는 파일명에 ‘제안요청’·‘과업지시’가 있으면 rfp, 사전규격 문서면 spec |
+| `bids` | `bid_key` text, `source` ('regular'\|'prespec'), `bid_no` text, `revision` int, `prespec_reg_no` text null, `title` text, `org_name` text null, `budget` bigint null, `deadline_at` timestamptz null, `notice_at` timestamptz null, `detail_url` text null, `files` jsonb, `content_hash` text, `raw` jsonb, `first_seen_at`, `last_seen_at`, `updated_at` | UNIQUE(`bid_key`); GIN(`title` gin\_trgm\_ops); (`source`, `notice_at` DESC); (`deadline_at`); (`prespec_reg_no`) WHERE NOT NULL. `budget`은 일반공고는 `bdgtAmt` 또는 `presmptPrce`, 사전규격은 `asignBdgtAmt`에서 파싱하고 실패하면 NULL. 0은 그대로 저장하고 화면에서 ‘미공개’로 표시. `content_hash`는 메타·파일 목록의 정규화 JSON의 sha256. 같은 `bid_key`는 차수(`bidNtceOrd`)가 가장 큰 행만 반영하고 낮은 차수는 무시 \[확인됨: P1\]. 취소공고는 별도 열 없이 `raw->>'ntceKindNm' = '취소공고'`로 판정해 API 카드의 `cancelled`로 내보내며, 검색·진행중 필터에서 빼지 않음 \[결정: P1·P3a\] |
+| `bid_files` | `bid_id` FK, `url` text, `url_hash` text, `name` text, `kind` ('rfp'\|'spec'\|'other'), `origin` ('notice'\|'eorder'\|'prespec'), `status` ('new'\|'ok'\|'failed'\|'unsupported'), `error` text null, `sha256` text null, `size_bytes` int null, `downloaded_at`, `attempts` int (실패 재시도 횟수, §5.1의 24시간·최대 3회) \[결정: P1\] | UNIQUE(`bid_id`, `url_hash`). `kind`는 파일명에 ‘제안요청’·‘과업지시’가 있으면 rfp, 사전규격 문서면 spec |
 | `file_texts` | `sha256` text PK, `text` text, `char_count` int, `extractor_version` text, `extracted_at` | 파일 내용 기반 저장이라 같은 파일이 여러 공고에 붙어 있어도 한 번만 추출. 본문이 커서 목록 조회에서는 절대 함께 SELECT하지 않음 |
 | `bid_summaries` | `bid_id` FK, `source_hash` text, `prompt_version` text, `model_id` text, `summary` jsonb, `input_tokens` int, `output_tokens` int, `created_at` | UNIQUE(`bid_id`, `source_hash`, `prompt_version`). `source_hash` = 입력으로 쓴 파일들의 sha256을 정렬해 이어 붙인 값의 sha256. 프로필과 무관한 공통 요약 (스키마 §8) |
 | `bid_scores` | `bid_id` FK, `profile_hash` text, `prompt_version` text, `bid_content_hash` text, `model_id` text, `score` smallint, `reason` text, `created_at` | UNIQUE(`bid_id`, `profile_hash`, `prompt_version`). `bid_content_hash`가 `bids.content_hash`와 다르면 stale로 보고 재평가. 추천 탭의 점수 캐시 |
@@ -223,7 +226,8 @@ nara_web_agent/
 
 | 테이블 | 핵심 컬럼 | 키·인덱스·규칙 |
 | --- | --- | --- |
-| `users` | `email` citext, `password_hash`, `display_name`, `role` ('member'\|'admin'), `status` ('pending\_verification'\|'pending\_approval'\|'active'\|'disabled'), `email_verified_at`, `failed_login_count` int, `locked_until`, `last_login_at`, `created_at` | UNIQUE(`email`) |
+| `users` | `email` citext, `password_hash`, `display_name`, `role` ('member'\|'admin'), `status` ('pending\_verification'\|'pending\_approval'\|'active'\|'disabled'), `email_verified_at`, `last_login_at`, `created_at` | UNIQUE(`email`) |
+| `login_failures` | `email_hash` text PK(정규화 이메일의 sha256), `failures` int, `locked_until` null, `updated_at` | 로그인 잠금(§9.2-4). 없는 이메일도 같은 횟수에서 잠겨 응답으로 계정 존재를 알 수 없음(§9.8-3). users의 실패 횟수·잠금 열을 대신함 \[결정: P2\] |
 | `email_tokens` | `user_id` FK, `purpose` ('verify'\|'reset'), `token_hash`, `expires_at`, `used_at` | 토큰 원문은 저장하지 않고 해시만 저장 |
 | refresh\_tokens | user\_id FK, token\_hash, family\_id uuid, expires\_at, rotated\_at, revoked\_at, created\_at, user\_agent | UNIQUE(token\_hash). 회전·재사용 감지 규칙은 §9.3 |
 | `profiles` | `user_id` FK, `name`, `description` text, `keywords` jsonb(기본 빈 배열), `profile_hash`, `is_default` bool, `created_at`, `updated_at` | v1의 `projects`를 대체. 사용자당 여러 개(예: ‘AI팀’, ‘클라우드팀’). keywords는 추천의 후보 검색에만 쓰이고 사용자가 직접 확인·수정하며 profile\_hash에 포함하지 않음(§7.8). 수정 시 `profile_hash` 재계산 |
@@ -234,7 +238,7 @@ nara_web_agent/
 | `conversations` | `user_id` FK, `profile_id` FK null, `title`, `created_at`, `updated_at` | (`user_id`, `updated_at` DESC) |
 | `messages` | `conversation_id` FK, `role` ('user'\|'assistant'\|'tool'), `content` text, `parts` jsonb null, `created_at` | (`conversation_id`, `id`). `parts`에 tool\_calls, 공고 ID 목록, 분석 참조를 담음(v1의 `step`·`metadata_` 대체) |
 | `usage_logs` | `user_id` FK null, `event` ('search'\|'recommend'\|'analyze'\|'assistant\_turn'\|'collector'), `cache` jsonb, `g2b_calls` int, `llm_calls` int, `prompt_tokens` int, `completion_tokens` int, `duration_ms` int, `created_at` | (`created_at`). `cache` = {"bids\_db": bool, "file\_text": bool, "summary": bool, "analysis": bool, "score": bool}. R4 절감 효과 측정의 근거 |
-| `feedback` | `user_id` FK, `target_type` ('analysis'\|'assistant\_message'\|'search\_run'), `target_id`, `rating` smallint (-1\|1), `comment` text null, `created_at` | §12 평가 루프에 사용 |
+| `feedback` | `user_id` FK, `target_type` ('analysis'\|'assistant\_message'\|'search\_run'), `target_id`, `rating` smallint (-1\|1), `reason` text null ('wrong'\|'missing'\|'irrelevant'\|'too\_long'\|'other', 👎일 때만), `comment` text null, `model` text null, `prompt_version` text null, `created_at` | §12.7 평가 루프에 사용. `model`·`prompt_version`은 서버가 채움(분석은 그 분석의 값, 나머지는 현재 설정). 사유 집계는 `GET /admin/usage`의 `feedback` \[결정: P4\] |
 
 ### v1 데이터 이전 \[가정\]
 
@@ -262,12 +266,12 @@ v1 SQLite 데이터는 양이 적다고 가정하고 이전은 선택 작업(P5)
 v1 `g2b_api.py`의 엔드포인트·요청 파라미터·응답 필드 매핑을 그대로 옮기고 아래만 바꿉니다. 엔드포인트 URL과 필드명을 새로 지어내지 말고 반드시 v1 코드와 첫 실제 응답으로 확인합니다.
 
 - `httpx.AsyncClient` 하나를 앱 lifespan에서 만들어 재사용합니다. 타임아웃은 connect 5초, read 30초입니다.
-- **페이지네이션**: `pageNo`를 1부터 올리며 `totalCount`를 채울 때까지 반복합니다(v1은 첫 페이지만 읽어 결과가 잘렸습니다). `numOfRows` 기본값은 100이고 허용 최대값은 \[미확인\] P1에서 첫 호출로 확인합니다.
+- **페이지네이션**: `pageNo`를 1부터 올리며 `totalCount`를 채울 때까지 반복합니다(v1은 첫 페이지만 읽어 결과가 잘렸습니다). `numOfRows`는 999를 씁니다(허용 확인, 하루치 일반공고 846건이 한 번에 옴). 키워드 없이 날짜 구간만으로 전체 조회가 됩니다 \[확인됨: P1\].
 - **재시도**: 네트워크 오류·5xx·타임아웃은 1초, 2초, 4초 백오프로 최대 3회. 4xx와 응답 코드가 정상이 아닌 경우는 재시도 없이 `G2BError`를 올립니다.
 - **예외를 삼키지 않습니다.** v1의 `except` 뒤 빈 리스트 반환 패턴을 금지하고, 호출자가 실패와 ‘결과 0건’을 구분하게 합니다.
 - 서비스키는 로그·예외 메시지·`collector_runs.error`에서 마스킹합니다.
 - **호출 예산**: 일일 호출 수를 세어 `G2B_DAILY_CALL_BUDGET`(환경변수)을 넘기면 fill 모드를 중단하고 DB 결과만 반환합니다. 공공데이터포털의 실제 일일 한도는 \[미확인\] 계정 화면에서 확인해 설정값에 반영합니다.
-- 응답은 Pydantic 모델 `BidRecord`(`bid_key`, `title`, `org_name`, `budget`, `deadline_at`, `notice_at`, `detail_url`, `files`, `raw`)로 정규화합니다. 날짜는 ‘YYYY-MM-DD HH:MM:SS’와 ‘YYYYMMDDHHMM’ 두 형식을 받고 KST를 UTC로 변환합니다. 파싱에 실패하면 NULL로 두고 경고 로그를 남깁니다.
+- 응답은 Pydantic 모델 `BidRecord`(`bid_key`, `title`, `org_name`, `budget`, `deadline_at`, `notice_at`, `detail_url`, `files`, `raw`)로 정규화합니다. 날짜는 ‘YYYYMMDD’, ‘YYYYMMDDHHMM’, ‘YYYY-MM-DD HH:MM:SS’, ‘YYYY-MM-DD HH:MM’ 네 형식을 받고(‘YYYYMMDD’를 먼저 시도: 반대 순서면 ‘20261116’이 2026-01-01 01:06으로 읽힘 \[확인됨: P1\]) KST를 UTC로 변환합니다. 파싱에 실패하면 NULL로 두고 경고 로그를 남깁니다.
 
 ### 5.3 수집기 (`backend/app/collector/`)
 
@@ -302,7 +306,7 @@ WHERE bids.content_hash IS DISTINCT FROM EXCLUDED.content_hash;
 
 내용이 바뀐 공고(정정공고)는 새 첨부를 `bid_files`에 추가하기만 하면 됩니다. 요약은 `source_hash`가 달라져 다음 요청 때 자연스럽게 새로 만들어지고, 점수는 `bid_content_hash` 불일치로 stale 처리됩니다.
 
-**fill 한도**: 한 요청에서 보충하는 창은 최대 31일, G2B 호출은 최대 40회입니다. 넘으면 가진 데이터만으로 응답하고 `incomplete: true`와 `data_as_of`를 함께 내려보냅니다. 화면에는 ‘일부 기간은 수집 중’ 배지를 띄우고 `backfill`이 나머지를 채웁니다.
+**fill 한도**: 한 요청에서 보충하는 창은 최대 31일, G2B 호출은 최대 40회입니다. 넘으면 가진 데이터만으로 응답하고 `incomplete: true`와 `data_as_of`를 함께 내려보냅니다. 화면에는 ‘일부 기간은 수집 중’ 배지를 띄우고 `backfill`이 나머지를 채웁니다. 커버리지 판정에는 1시간 여유를 둡니다 \[가정\]. 실측으로 커버리지 밖 10일 보충에 71초가 걸려, 검색은 `SEARCH_FILL_WAIT_S`(기본 5초)만 기다린 뒤 `collecting: true`로 응답하고 보충은 뒤에서 마칩니다. 늦게 끝난 G2B 호출은 `usage_logs(event=collector)`로 기록합니다 \[확인됨·결정: P1·P3a\].
 
 ### 5.4 DB-first 검색 흐름
 
@@ -346,7 +350,7 @@ async def single_flight(key: str, check, compute, *, wait_s: int = 120):
 | 구간 보충 | `fill:{source}:{from}:{to}` |
 | 파일 처리 | `file:{bid_id}:{url_hash}` |
 | 공고 요약 | `summary:{bid_id}:{source_hash}:{prompt_version}` |
-| 점수 | `score:{bid_id}:{profile_hash}:{prompt_version}` |
+| 점수 | `score:{bid_id}:{profile_hash}:{prompt_version}` — 구현은 락을 걸지 않음: 배치 upsert가 경쟁을 흡수하고 최악은 중복 LLM 호출 1회 \[결정: P1\] |
 | 상세 분석 | `analysis:{bid_id}:{summary_id}:{profile_hash}:{prompt_version}` |
 
 - 락 번호는 `hashtextextended(key, 0)`으로 만듭니다.
@@ -442,7 +446,7 @@ LLM과 G2B는 호출 횟수를 세는 가짜 객체로 바꿔 검증합니다.
 | 409 | `conflict` | 이메일 중복 등 |
 | 422 | `validation_error` | Pydantic 검증 실패 |
 | 429 | `rate_limited` | `Retry-After` 헤더 포함 |
-| 502 | `g2b_error` | G2B API 실패. DB에 있는 결과가 있으면 그 결과와 함께 `incomplete: true`로 응답하고, 하나도 없을 때만 오류 |
+| 502 | `g2b_error` | 쓰지 않음 \[결정: P3a\]. G2B 보충이 실패하거나 상한에 닿아도 DB 결과와 `incomplete: true`(기다리는 중이면 `collecting: true`)로 200 응답 |
 | 503 | `llm_unavailable` | LLM 서버 불가. 캐시된 결과가 있으면 정상 응답 |
 
 **속도 제한** (단일 서버 인메모리 토큰 버킷 \[가정\], 사용자 기준. 로그인만 IP와 이메일 기준)
@@ -454,6 +458,8 @@ LLM과 G2B는 호출 횟수를 세는 가짜 객체로 바꿔 검증합니다.
 | `POST /bids/search` | 분당 30회 |
 | `POST /bids/{bid_id}/analyze`, `POST /recommend` | 분당 10회 |
 | `POST /conversations/{id}/messages` | 분당 20회 |
+| POST /profiles/suggest-keywords | 분당 10회 \[결정: P3a\] |
+| POST /auth/verify-email/resend | 시간당 5회(IP) \[결정: P2\] |
 
 ### 6.2 엔드포인트 목록
 
@@ -463,17 +469,18 @@ LLM과 G2B는 호출 횟수를 세는 가짜 객체로 바꿔 검증합니다.
 | --- | --- | --- | --- |
 | `POST /auth/register` | 공개 | email, password, display\_name | 201, 인증 메일 발송. 계정 존재 여부를 노출하지 않도록 이미 있어도 같은 응답 |
 | `POST /auth/verify-email` | 공개 | token | 200, 계정 상태 전이(§9) |
+| POST /auth/verify-email/resend | 공개 | email | 202. 계정 유무와 무관한 같은 응답. §7.10 재전송 버튼용 \[결정: P2\] |
 | `POST /auth/login` | 공개 | email, password | 200, 쿠키 설정 + `me` |
-| `POST /auth/refresh` | 공개 | (쿠키) | 200, 쿠키 재발급 |
-| `POST /auth/logout` | 회원 |  | 204, 쿠키 삭제 |
+| `POST /auth/refresh` | 공개 | (쿠키) | 200, 쿠키 재발급 + `me` |
+| `POST /auth/logout` | 회원 |  | 204, 쿠키 삭제. refresh 쿠키만으로 동작해 access가 만료돼도 로그아웃됨(실제 권한은 공개) \[결정: P2\] |
 | `POST /auth/password/forgot` · `/reset` | 공개 | email 또는 token+새 비밀번호 | 202 / 204 |
 | `GET /me` · `PATCH /me` | 회원 | display\_name, 비밀번호 변경 | me |
 | `GET /profiles` · `POST /profiles` | 회원 | name, description, keywords, is\_default | 목록 / 생성(201) |
 | `GET·PATCH·DELETE /profiles/{id}` | 회원 |  | 프로필. 수정 시 `profile_hash` 재계산 |
-| POST /profiles/suggest-keywords | 회원 | description | keywords 배열(LLM 제안, 저장하지 않음). 8.5의 suggest\_keywords |
+| POST /profiles/suggest-keywords | 회원 | description | keywords 배열(LLM 제안, 저장하지 않음). 8.5의 suggest\_keywords. 분당 10회 |
 | `POST /bids/search` | 회원 | SearchQuery(6.3) | SearchResult, 스냅샷 저장 |
 | `GET /bids/{bid_id}` | 회원 |  | 메타 + 첨부 목록 + 요약(캐시에 있을 때). LLM·G2B 호출 없음 |
-| GET /bids/lookup | 회원 | bid\_no | 공고 번호로 DB 조회, 없으면 G2B 단건 조회 후 upsert하고 bid\_id 반환. 없으면 404. 라우트는 /bids/{bid\_id}보다 먼저 선언. G2B 단건 조회 가능 여부 \[미확인\] |
+| GET /bids/lookup | 회원 | bid\_no | 공고 번호 또는 사전규격 등록번호로 **DB만** 조회해 bid\_id 반환, 없으면 404 \[결정: P3a\]. G2B 단건 조회는 확인 스크립트 뒤에 추가. 라우트는 /bids/{bid\_id}보다 먼저 선언. G2B 단건 조회 가능 여부 \[미확인\] |
 | `GET /bids/{bid_id}/files/{file_id}/text` | 회원 | `max_chars`(기본 20000) | 추출된 본문 일부 |
 | `POST /bids/{bid_id}/analyze` | 회원 | profile\_id | **SSE** (6.4) |
 | `POST /recommend` | 회원 | profile\_id, days, source, top\_n, keywords(선택) | **SSE** (6.4) |
@@ -485,12 +492,12 @@ LLM과 G2B는 호출 횟수를 세는 가짜 객체로 바꿔 검증합니다.
 | `GET /conversations` · `POST /conversations` | 회원 | title(선택), profile\_id | 목록 / 생성 |
 | `GET /conversations/{id}/messages` | 회원 |  | 메시지 목록 |
 | `POST /conversations/{id}/messages` | 회원 | content | **SSE** (6.4) |
-| `PATCH·DELETE /conversations/{id}` | 회원 | title | 이름 변경 / 삭제 |
-| `POST /feedback` | 회원 | target\_type, target\_id, rating, comment | 201 |
+| `PATCH·DELETE /conversations/{id}` | 회원 | title | 이름·프로필 변경(`title`, `profile_id`: 내 프로필만, 남의 것은 404) / 삭제 \[결정: P3b\] |
+| `POST /feedback` | 회원 | target\_type, target\_id, rating, reason(👎만: wrong·missing·irrelevant·too\_long·other), comment | 201 |
 | `GET /admin/users` · `PATCH /admin/users/{id}` | 관리자 | status, role | 사용자 관리·승인 |
-| `GET /admin/usage` | 관리자 | `from`, `to`, `group=day` | 캐시 적중률, G2B 호출 수, 토큰 수(5.8) |
-| `GET /admin/collector/runs` · `POST /admin/collector/run` | 관리자 | mode, source, days | 수집 이력 / 수동 실행 |
-| `GET /healthz` · `GET /readyz` | 공개 |  | 프로세스 생존 / DB·LLM 연결 확인 |
+| `GET /admin/usage` | 관리자 | `from`, `to`, `group=day` | 캐시 적중률, G2B 호출 수, 입력·출력 토큰 수(5.8) + `feedback`(대상·평가·사유별 건수, §12.7) \[결정: P3a·P4\] |
+| `GET /admin/collector/runs` · `POST /admin/collector/run` | 관리자 | mode, source, days | 수집 이력(+소스별 `coverage`) / 수동 실행(202) |
+| `GET /healthz` · `GET /readyz` | 공개 |  | 프로세스 생존 / DB·LLM·수집 상태. DB 불가만 503, 본문 `{db, llm, collector(ok\|stale\|never), collector_last_ok_at}`. 루트 경로(`/api/v1` 밖)이고 nginx가 외부에서 막음 \[결정: P3a·P4\] |
 
 ### 6.3 핵심 요청·응답
 
@@ -533,8 +540,9 @@ LLM과 G2B는 호출 횟수를 세는 가짜 객체로 바꿔 검증합니다.
 - `total`은 스냅샷에 저장된 건수이며 스냅샷은 최대 500건 \[가정\]입니다. 더 많이 매칭되면 `truncated: true`로 표시하고, 다음 페이지는 `GET /search-runs/{run_id}?offset=50`으로 읽습니다.
 - `status`는 `deadline_at`에서 계산한 값입니다. `deadline_at`이 null이면 `open`이며 화면에는 ‘마감 미정’으로 표시합니다(§4 규칙).
 - `from_cache`는 G2B 호출 없이 DB만으로 답했는지를 뜻합니다.
+- 구현에서 더한 필드 \[결정: P3a\]: 응답 `collecting`(커버리지 밖 보충이 `SEARCH_FILL_WAIT_S` 안에 끝나지 않음, 화면은 ‘수집 중’), 카드 `cancelled`(취소공고)·`revision`(정정 배지)·`score`·`reason`(추천에서만). 요청은 알 수 없는 필드 422, 빈 문자열 키워드 422, 빈 목록 허용(최근 공고 보기), `limit` ≤ 100.
 
-**`GET /bids/{bid_id}`**: `{bid_id, source, ..., files: [{file_id, name, kind, status}], summary: {...} | null, bookmarked, my_analysis_id}`. `summary`는 캐시에 있을 때만 채우고, 조회가 요약 생성을 일으키지 않습니다.
+**`GET /bids/{bid_id}`**: `{bid_id, source, ..., files: [{file_id, name, kind, status}], summary: {...} | null, bookmarked, my_analysis_id, prespec_reg_no, related_bid_id}`. `summary`는 캐시에 있을 때만 채우고, 조회가 요약 생성을 일으키지 않습니다.
 
 ### 6.4 SSE 규약
 
@@ -639,7 +647,7 @@ MCP 서버의 세 도구를 웹 탭으로 옮기고, 어시스턴트·기록·�
 | 최근 검색 | 입력창 아래에 최근 조건 5개를 칩으로 보여 주고(`GET /search-runs?kind=search&limit=5`) 클릭하면 조건을 채웁니다 |
 | 카드 | 제목, 기관, 예산, D-day, 구분 배지(일반 / 사전규격), ‘정정’ 배지(`revision`>1), ‘요약 있음’ 배지, 북마크 토글, \[분석\] 버튼(→ `/bids/:bidId`), \[원문\] 링크(`detail_url`) |
 | 보기 전환 | 카드 / 표. 표는 제목·기관·예산·마감·구분 열. CSV 내보내기는 선택 기능으로 P4에 둡니다 \[제안\] |
-| 빈·오류 | 결과 0건이면 조건 완화 제안, `incomplete`이면 배지, 502이면 DB 결과가 있을 때 그것을 보여 줍니다 |
+| 빈·오류 | 결과 0건이면 조건 완화 제안, `incomplete`이면 배지, `collecting`이면 ‘수집 중’ 배지를 띄우고 4초 간격으로 최대 5번 다시 조회합니다 \[결정: P3b\] |
 
 ### 7.4 맞춤 추천 (`/recommend`)
 
@@ -666,7 +674,7 @@ MCP 서버의 세 도구를 웹 탭으로 옮기고, 어시스턴트·기록·�
    - 각 항목에 근거가 된 파일명을 표시합니다. 본문 추출이 실패했거나 너무 짧으면 ‘첨부 문서를 읽지 못해 공고 정보만으로 분석했어요’ 경고 배너를 맨 위에 둡니다.
 6. **보조 기능**: 결과 마크다운 복사, 👍·👎 피드백(`POST /feedback`).
 
-상단에는 ‘공고번호로 열기’ 입력창이 있어, 번호를 입력하면 DB에서 찾아 이동하고 없으면 G2B에서 한 건을 가져온 뒤 이동합니다(`GET /bids/lookup?bid_no=`, 6.2에 추가 필요). 찾지 못하면 ‘공고를 찾지 못했어요’를 보여 줍니다.
+상단에는 ‘공고번호로 열기’ 입력창이 있어, 번호를 입력하면 DB에서 찾아 이동합니다(`GET /bids/lookup?bid_no=`, 지금은 DB만 조회 \[결정: P3a\]). 찾지 못하면 ‘공고를 찾지 못했어요’를 보여 줍니다.
 
 ### 7.6 AI 어시스턴트 (`/assistant`)
 
@@ -676,7 +684,7 @@ MCP 서버의 세 도구를 웹 탭으로 옮기고, 어시스턴트·기록·�
 | 입력 | Enter 전송, Shift+Enter 줄바꿈, 4,000자 제한과 글자 수 표시, 전송 중에는 \[중지\] 버튼으로 바뀜 |
 | 빈 대화 | 추천 질문 칩 3개(예: ‘이번 주 AI 관련 공고 찾아줘’, ‘우리 팀에 맞는 공고 추천해줘’, ‘b123 분석해줘’) |
 | 응답 표시 | 토큰 스트리밍 텍스트 + 인라인 공고 카드(`cards`). 카드를 누르면 상세로 이동 |
-| 액션 | `action`이 오면 클라이언트가 처리합니다. `open_tab`은 해당 탭으로 이동하며 조건을 채우고, `prefill_search`는 검색 조건만 채웁니다. 자동 실행은 하지 않고 이동만 합니다 |
+| 액션 | `action`이 오면 클라이언트가 처리합니다. 자동으로 이동하지 않고 말풍선 아래 버튼으로 보여 줍니다. `open_tab` 버튼을 누르면 해당 탭으로 이동해 조건만 채우고(`?prefill=1`) 검색은 실행하지 않습니다 \[결정: P3b\] |
 | 중지 | 스트림을 abort합니다. 서버 계산은 끝까지 진행되어 캐시에 남습니다(§6.4) |
 | 오류 | 말풍선 아래 ‘다시 시도’ 버튼으로 마지막 사용자 메시지를 다시 보냅니다 |
 | 대화 관리 | 이름은 첫 질문 앞 30자로 자동 생성, 수정·삭제 가능. 대화당 메시지 200개를 넘으면 새 대화를 안내합니다 \[가정\] |
@@ -696,7 +704,7 @@ MCP 서버의 세 도구를 웹 탭으로 옮기고, 어시스턴트·기록·�
 
 - 이름은 50자 이하, 설명은 4,000자 이하이고 글자 수를 표시합니다.
 - 설명 입력창 placeholder에 작성 예시를 넣습니다(예: ‘우리 팀은 ○○를 주로 수행합니다. 강점 분야는 …, 수행 실적은 …, 제외하고 싶은 분야는 …’).
-- 키워드 칩 입력과 \[키워드 제안\] 버튼을 둡니다. 버튼은 설명에서 키워드를 LLM으로 뽑아 주고(`POST /profiles/suggest-keywords`, 6.2에 추가 필요), 사용자가 확인·수정한 뒤 저장합니다. 키워드는 추천의 후보 선정에만 쓰이고 점수 계산에는 쓰이지 않으므로 `profile_hash`에 포함하지 않습니다.
+- 키워드 칩 입력과 \[키워드 제안\] 버튼을 둡니다. 버튼은 설명에서 키워드를 LLM으로 뽑아 주고(`POST /profiles/suggest-keywords`), 사용자가 확인·수정한 뒤 저장합니다. 키워드는 추천의 후보 선정에만 쓰이고 점수 계산에는 쓰이지 않으므로 `profile_hash`에 포함하지 않습니다.
 - 설명을 바꿔 저장할 때는 ‘이전 점수·분석은 새 설명으로 다시 계산돼요’라고 알립니다.
 - 삭제 시 확인 모달을 띄웁니다. 과거 기록은 유지하고 `profile_id`만 null이 됩니다.
 - ‘기본 프로필’은 사용자당 하나이고, 지정하면 다른 프로필의 기본 표시가 풀립니다.
@@ -726,7 +734,7 @@ Playwright E2E와 Vue 컴포넌트 테스트로 검증합니다.
 6. 분석 도중 탭을 닫았다가 다시 열면 같은 분석이 캐시에서 즉시 나옵니다.
 7. 각 화면에 로딩·빈 상태·오류 상태가 있습니다.
 8. 375px 너비에서 검색 → 카드 → 상세 이동이 가능하고 가로 스크롤이 생기지 않습니다.
-9. 관리자가 아닌 계정이 `/admin/*`에 접근하면 403 화면이 나옵니다.
+9. 관리자가 아닌 계정이 `/admin/*`에 접근하면 주소는 그대로 두고 403 화면이 나옵니다(리다이렉트하지 않음) \[결정: P3b\].
 10. axe 접근성 검사에서 critical 위반이 0건입니다 \[가정\].
 
 ### 7.12 Claude Code 구현 순서 (프론트엔드)
@@ -768,7 +776,7 @@ LLM은 ‘문서를 읽고 구조화하는 일’과 ‘대화에서 도구를 �
 
 ### 8.2 모델 서빙 (GCP L4 24GB)
 
-**기본 모델은 Qwen/Qwen3.5-9B를 vLLM에서 FP8로 서빙하는 구성입니다.** vLLM 공식 레시피에 따르면 Qwen3.5 9B는 vLLM 0.17.0 이상이 필요하고, 24GB GPU 한 장(L4 포함)을 대상 하드웨어로 적고 있습니다. 레시피의 권장 플래그는 `--reasoning-parser qwen3`, `--enable-auto-tool-choice`, `--tool-call-parser qwen3_coder`이고, 생각 모드는 `--default-chat-template-kwargs`로 끕니다.
+**기본 모델은 Qwen/Qwen3.5-9B를 vLLM에서 FP8로 서빙하는 구성입니다.** vLLM 공식 레시피에 따르면 Qwen3.5 9B는 vLLM 0.17.0 이상이 필요하고(이 VM은 드라이버 550이라 **0.19.1로 고정**, 0.20 이상은 드라이버 580 이상과 glibc 2.35 필요 \[확인됨: P0-b\]), 24GB GPU 한 장(L4 포함)을 대상 하드웨어로 적고 있습니다. 레시피의 권장 플래그는 `--reasoning-parser qwen3`, `--enable-auto-tool-choice`, `--tool-call-parser qwen3_coder`이고, 생각 모드는 `--default-chat-template-kwargs`로 끕니다.
 
 ```bash
 vllm serve Qwen/Qwen3.5-9B \
@@ -781,15 +789,15 @@ vllm serve Qwen/Qwen3.5-9B \
   --reasoning-parser qwen3 \
   --enable-auto-tool-choice --tool-call-parser qwen3_coder \
   --default-chat-template-kwargs '{"enable_thinking": false}' \
-  --api-key "$LLM_API_KEY" --host 127.0.0.1 --port 8001
+  --api-key "$LLM_API_KEY" --host 127.0.0.1 --port 8011
 ```
 
 - 레시피에서 확인한 플래그: `--reasoning-parser qwen3`, `--enable-auto-tool-choice`, `--tool-call-parser qwen3_coder`, `--default-chat-template-kwargs`. \[확인됨\]
-- 이 모델과 L4 조합으로 직접 돌려 보지 않았거나 레시피에서 9B 예시로 확인하지 못한 항목은 `--quantization fp8`(온라인 FP8 양자화), `--language-model-only`(비전 인코더 제외), `--max-num-seqs 8`, `--max-model-len 32768`입니다. \[미확인\] P0 스모크 테스트에서 하나씩 검증하고, 실패하는 플래그는 빼고 결과를 `docs/LLM_SETUP.md`에 기록합니다.
-- 도구 호출이 깨지거나 긴 입력에서 출력이 망가지면 `--tool-call-parser qwen3_xml`로 바꿔 다시 시험합니다. 커뮤니티에서 두 파서의 동작이 모델·입력에 따라 다르다는 보고가 있습니다. \[미확인\]
+- 이 모델과 L4 조합으로 직접 돌려 보지 않았거나 레시피에서 9B 예시로 확인하지 못한 항목은 `--quantization fp8`(온라인 FP8 양자화), `--language-model-only`(비전 인코더 제외), `--max-num-seqs 8`, `--max-model-len 32768`입니다. P0-b에서 모두 동작을 확인했습니다(FP8 가중치 10.36 GiB, 32K에서 동시 8요청) \[확인됨: P0-b, `docs/LLM_SETUP.md`\]. BF16으로 되돌리면 32K 기동에 `--gpu-memory-utilization 0.95`가 필요합니다.
+- 도구 호출이 깨지거나 긴 입력에서 출력이 망가지면 `--tool-call-parser qwen3_xml`로 바꿔 다시 시험합니다. 커뮤니티에서 두 파서의 동작이 모델·입력에 따라 다르다는 보고가 있습니다. P0-b에서는 `qwen3_coder`로 도구 호출·인자가 정상이라 바꾸지 않았습니다 \[확인됨\].
 - MTP 추론 가속(`--speculative-config '{"method": "mtp", "num_speculative_tokens": 1}'`)은 레시피에 있는 선택 옵션입니다. 기본 구성이 안정된 뒤 P0 벤치마크로 이득을 확인하고 켭니다.
 - 접두 캐시(prefix caching)는 이 모델 계열에서 실험 단계로 표기되어 있어 기본으로 켜지 않습니다. \[미확인\]
-- 속도 가늠: 디코드는 메모리 대역폭에 묶이므로 이론 상한은 약 300GB/s ÷ 가중치 크기입니다. BF16(약 18GB)은 초당 16토큰 안팎, FP8(약 9GB)은 초당 30토큰 안팎이 상한입니다. 배치로 합계 처리량은 올라가지만 한 요청당 속도는 이보다 낮습니다. \[가정\] 실측은 P0에서 합니다.
+- 속도 가늠: 디코드는 메모리 대역폭에 묶이므로 이론 상한은 약 300GB/s ÷ 가중치 크기입니다. BF16(약 18GB)은 초당 16토큰 안팎, FP8(약 9GB)은 초당 30토큰 안팎이 상한입니다. 배치로 합계 처리량은 올라가지만 한 요청당 속도는 이보다 낮습니다. 실측(P0-b, FP8): 단일 요청 초당 24.5토큰, 동시 8요청 합계 초당 177토큰 \[확인됨\].
 
 **클라이언트 호출 규칙** (`llm/client.py`)
 
@@ -805,9 +813,9 @@ resp = await client.chat.completions.create(
 )
 ```
 
-- 환경변수: `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`(v1의 `api_key="unused"`를 실제 키로 교체하고 vLLM `--api-key`와 맞춤), `LLM_TIMEOUT_S`(읽기 180), `LLM_MAX_CONCURRENCY`(5.5).
+- 환경변수: `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`(v1의 `api_key="unused"`를 실제 키로 교체하고 vLLM `--api-key`와 맞춤), `LLM_TIMEOUT_S`(읽기 180), `LLM_MAX_CONCURRENCY`(5.5), `LLM_BACKEND`(vllm|fake|none, fake는 운영에서 시작 거부), `LLM_MODEL_ID`(PROMPT\_VERSION 접미사, 예: v1+q35-9b), `LLM_TOKENIZER_PATH`, `LLM_LOCK_WAIT_S`, `SUMMARY_MAX_CHUNKS` \[결정: P3a\].
 - 재시도는 5xx와 타임아웃에 한해 2회, 400(컨텍스트 초과)은 청크를 절반으로 줄여 1회만 다시 시도합니다.
-- `/readyz`는 `GET {LLM_BASE_URL}/models`로 연결을 확인합니다.
+- `/readyz`는 `GET {LLM_BASE_URL}/models`로 연결을 확인합니다. LLM만 불가면 200 + `llm: unavailable`(검색은 동작), DB 불가면 503 \[결정: P3a\].
 
 **모델 대안과 전환** (`LLM_PROFILE` 설정으로 선택, 평가는 §12)
 
@@ -826,7 +834,7 @@ resp = await client.chat.completions.create(
 v1은 문서를 약 5,500토큰(한글 1글자당 1.5토큰으로 추정)에서 잘라 뒷부분을 버렸습니다. v2는 문서를 모두 읽되, 길면 중요한 부분을 먼저 읽습니다.
 
 1. **토큰 계산**: `tokenizers` 라이브러리로 Qwen3.5 토크나이저를 불러 실제 토큰 수를 셉니다(`llm/tokens.py`). 불러오지 못하면 글자 수 × 1.2로 대체합니다. \[가정\]
-2. **예산**: 컨텍스트 32,768 중 입력 24,000, 출력 4,000, 여유 4,768을 둡니다. 한 파일이 입력 예산 이하이면 map 없이 한 번에 처리합니다.
+2. **예산**: 컨텍스트 32,768 중 입력 24,000, 출력 4,000, 여유 4,768을 둡니다. 공고 전체 입력이 예산 이하이면 나누지 않고 한 청크로 처리합니다(첨부 1개 공고 = map 1 + reduce 1 + 분석 1). 청크는 공고당 최대 12개(`SUMMARY_MAX_CHUNKS`) \[결정: P3a\].
 3. **분할**: 목표 청크 12,000토큰, 겹침 500토큰입니다. 경계는 ‘제N조’, ‘N.’ 같은 번호 제목, 빈 줄 순서로 우선하고 표는 가능하면 쪼개지 않습니다.
 4. **우선순위**: 청크가 `SUMMARY_MAX_CHUNKS`(기본 12)를 넘으면 키워드 점수로 상위 청크만 읽습니다. 점수에 쓰는 단어는 평가, 배점, 제안요청, 과업, 사업기간, 추정금액, 사업비, 계약, 입찰참가자격, 제출, 일정, 기술평가, 가격평가입니다. \[가정\] 읽지 못한 청크가 있으면 `coverage.truncated=true`로 표시합니다.
 5. **map**: 선택된 청크마다 `FileFacts`를 추출합니다. 호출은 5.5의 전역 세마포어 안에서 병렬로 실행합니다.
@@ -1115,11 +1123,11 @@ R1(회원가입)과 내부 서비스에 필요한 보안 수준을 정합니다.
 1. **가입** `POST /auth/register`: 이메일은 소문자로 정규화합니다. 비밀번호는 10\~128자이고, 너무 흔한 비밀번호 목록(상위 1만 개 \[가정\])에 있으면 거부합니다. 구성 규칙(대소문자·특수문자 강제)은 요구하지 않습니다. 해시는 argon2id로 만듭니다(`pwdlib[argon2,bcrypt]` \[가정\]).
 2. **열거 방지**: 이미 가입된 이메일이어도 응답은 똑같이 201입니다. 대신 그 주소로 ‘이미 가입된 계정입니다’ 안내 메일을 보냅니다.
 3. **인증 메일**: 토큰은 32바이트 난수(urlsafe)이고 DB에는 sha256 해시만 저장합니다(`email_tokens`). 인증 토큰은 24시간, 재설정 토큰은 1시간 유효하며 한 번만 쓸 수 있습니다. 같은 용도의 새 토큰을 발급하면 이전 토큰은 무효가 됩니다.
-4. **로그인** `POST /auth/login`: 이메일이 없을 때도 더미 해시를 검증해 응답 시간 차이를 줄입니다. 실패는 모두 401 `invalid_credentials` 하나로 통일합니다. 연속 5회 실패하면 `locked_until`을 15분 뒤로 설정합니다. 비밀번호가 맞은 뒤에만 계정 상태를 검사해 위 표의 코드를 돌려줍니다.
+4. **로그인** `POST /auth/login`: 이메일이 없을 때도 더미 해시를 검증해 응답 시간 차이를 줄입니다. 실패는 모두 401 `invalid_credentials` 하나로 통일합니다. 연속 5회 실패하면 `login_failures`(이메일 sha256 기준, §4)에 15분 잠금을 기록합니다. 없는 이메일도 똑같이 잠기고, 5번째 실패는 401, 그다음부터 잠긴 동안은 비밀번호를 검사하지 않고 429 `account_locked` + `Retry-After` \[결정: P2\]. 비밀번호가 맞은 뒤에만 계정 상태를 검사해 위 표의 코드를 돌려줍니다.
 5. **해시 이전**: v1에서 이전한 bcrypt 해시도 검증을 통과하면 argon2id로 다시 저장합니다.
 6. **로그아웃** `POST /auth/logout`: 현재 refresh 토큰을 폐기하고 쿠키를 지웁니다.
 7. **비밀번호 변경·재설정**: 성공하면 그 사용자의 모든 refresh 토큰을 폐기합니다.
-8. **메일 전송**: `MAIL_BACKEND=smtp`이면 `aiosmtplib`로 보내고, 개발에서는 `console`로 콘솔에 링크를 출력합니다.
+8. **메일 전송**: `MAIL_BACKEND=smtp`이면 `aiosmtplib`로 보내고, 개발에서는 `console`로 콘솔에 링크를 출력합니다. 테스트·화면 확인용 `memory`는 보낸 메일을 메모리에 쌓고, `ENV=development`일 때만 `GET /api/v1/_dev/mail`로 보여 줍니다 \[결정: P2\].
 
 ### 9.3 토큰과 쿠키
 
@@ -1173,7 +1181,7 @@ R1(회원가입)과 내부 서비스에 필요한 보안 수준을 정합니다.
 | 속도 제한 | §6.1 표 |
 | 비밀 관리 | `.env`는 권한 600이고 git 제외. GCP Secret Manager 사용은 선택 \[제안\] |
 | 로그 | 비밀번호·토큰·`NARA_API_KEY`·`NARA_PRESPEC_API_KEY`는 마스킹. 프로필·질문 본문은 로그에 남기지 않고 길이만 기록 |
-| 의존성 | CI에서 `pip-audit`와 `npm audit`, Dependabot 켜기 |
+| 의존성 | CI에서 `pip-audit`와 `npm audit`, Dependabot 켜기. pip-audit는 수용 목록(`backend/security/pip-audit-accepted.txt`: HWPLoader 때문에 올릴 수 없는 langchain 계열의 미사용 기능) 밖의 취약점이 있으면 실패 \[결정: P4\] |
 | LLM 데이터 | 기본 구성(자체 vLLM)은 프로필·질문이 외부로 나가지 않음. 외부 API(§8.2)를 쓰려면 별도 승인 후 `LLM_PROFILE`로 전환 |
 | 백업 | DB 덤프는 암호화하여 보관 (§11) |
 
@@ -1203,7 +1211,7 @@ R1(회원가입)과 내부 서비스에 필요한 보안 수준을 정합니다.
 | `REQUIRE_ADMIN_APPROVAL` | 도메인 설정 시 `false`, 아니면 `true` |  |
 | `PASSWORD_MIN_LENGTH` | `10` |  |
 | `LOGIN_MAX_FAILURES` / `LOGIN_LOCK_MINUTES` | `5` / `15` |  |
-| `MAIL_BACKEND` | `console` | `smtp` 또는 `console` |
+| `MAIL_BACKEND` | `console` | `smtp`, `console`, `memory`(테스트·개발). 운영은 smtp만 허용 |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM` | (없음) | `MAIL_BACKEND=smtp`일 때 필수 |
 
 ### 9.8 수용 기준
@@ -1286,7 +1294,7 @@ CSS 변수는 `src/styles/tokens.css`에서 한 번만 정의하고, Tailwind �
 
 ### 10.2 타이포그래피·간격·모양
 
-- **폰트**: Pretendard Variable(SIL OFL)을 `public/fonts/`에 woff2로 자체 호스팅합니다(CSP `default-src 'self'`와 맞음). `font-display: swap`, 대체 폰트는 `system-ui, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif`. 숫자·날짜·금액에는 `font-variant-numeric: tabular-nums`를 씁니다.
+- **폰트**: Pretendard Variable(SIL OFL)을 npm `pretendard` 패키지의 dynamic-subset으로 Vite가 묶어 같은 출처에서 제공합니다(P2 결정, CSP `default-src 'self'`와 맞음). `font-display: swap`, 대체 폰트는 `system-ui, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif`. 숫자·날짜·금액에는 `font-variant-numeric: tabular-nums`를 씁니다.
 - **크기**
 
 | 이름 | 크기 / 줄높이 | 용도 |
@@ -1365,7 +1373,7 @@ UI 기본 컴포넌트는 `components/ui/`에 두고 접근성이 어려운 동�
 | `MarkdownView` | source | marked로 변환 후 DOMPurify. 이 컴포넌트만 `v-html`을 허용(lint 예외 1곳) |
 | `ChatMessage` | message, streaming | 사용자는 우측 말풍선, 어시스턴트는 좌측 평탄 배경. 스트리밍 중에는 커서 표시 |
 | `ChatComposer` | disabled, maxLength | Enter 전송, Shift+Enter 줄바꿈, 전송 중 \[중지\] |
-| `FeedbackButtons` | targetType, targetId | §6 `POST /feedback`. 선택 후 코멘트 입력 선택 |
+| `FeedbackButtons` | targetType, targetId | §6 `POST /feedback`. 👎는 사유 코드를 골라야 보낼 수 있고 코멘트는 선택 \[결정: P4\] |
 
 ### 10.5 포맷 규칙 (`utils/format.ts`)
 
@@ -1496,11 +1504,11 @@ interface SseState<E> {
 | 항목 | 결정 |
 | --- | --- |
 | VM | GCP `g2-standard-8` (8 vCPU, 32GB, L4 1장) \[가정\]. 지금 쓰는 L4 VM이 있으면 그대로 재사용 |
-| OS | Ubuntu 22.04 또는 24.04 LTS \[가정\]. NVIDIA 드라이버와 CUDA는 현재 VM에 있는 것을 유지 |
+| OS | Debian 11(bullseye), NVIDIA 드라이버 550 — 지금 VM \[확인됨: P4\]. NVIDIA 드라이버와 CUDA는 현재 VM에 있는 것을 유지 |
 | 디스크 | SSD 200GB \[가정\]. 모델 캐시 약 20GB, DB와 파일 텍스트가 늘어남 |
-| DB | VM 안의 PostgreSQL 16 (`127.0.0.1`만 바인드). Cloud SQL 전환은 §14의 열린 질문 |
-| 네트워크 | 외부는 443(과 80 리다이렉트)만 허용. SSH는 IAP 터널. vLLM(8001)과 API(8000)는 `127.0.0.1`만 바인드 |
-| 도메인·TLS | 도메인은 미정(§14). certbot(Let's Encrypt) 또는 GCP 로드밸런서 인증서 중 택1 |
+| DB | VM 안의 PostgreSQL 16 (`127.0.0.1`만 바인드). PGDG 패키지, 포트 **5434**(5432는 시스템 PG13, 5433은 개발 Docker) \[결정: P4\]. Cloud SQL 전환은 §14의 열린 질문 |
+| 네트워크 | 외부는 443(과 80 리다이렉트)만 허용. SSH는 IAP 터널. vLLM(**8011**)과 API(**8010**)는 `127.0.0.1`만 바인드. 8000은 다른 프로세스, 8001은 v1 API가 쓴다 \[결정: P4\] |
+| 도메인·TLS | 도메인은 미정(§14). 운영은 HTTPS·Secure 쿠키를 강제하므로, 도메인 전에는 고정 외부 IP로 만든 임시 주소 `<IP를 -로>.sslip.io`에 certbot(--standalone) 인증서를 받아 외부에서 접속한다. 도메인이 정해지면 `deploy/set-host.sh <도메인>` 한 번으로 nginx·인증서·`APP_ORIGIN`을 바꾼다 \[결정: P4\] |
 | 서비스 계정 | 리눅스 사용자 `nara`(로그인 불가). 앱과 collector는 이 사용자로 실행 |
 
 ### 11.2 디렉터리 배치
@@ -1517,7 +1525,7 @@ interface SseState<E> {
 
 ### 11.3 systemd 유닛
 
-`deploy/systemd/`에 아래 유닛을 두고 `deploy.sh`가 `/etc/systemd/system/`으로 복사합니다.
+`deploy/systemd/`에 아래 유닛을 두고 `deploy.sh`가 `/etc/systemd/system/`으로 복사합니다. **실제 값은 저장소 `deploy/systemd/`가 기준**이고 아래 코드는 골격입니다(차이: 포트 8010·8011, vLLM은 §8.2 FP8 명령 그대로이고 키는 `/etc/nara/vllm.env`의 `VLLM_API_KEY`, 앱 유닛은 `PrivateTmp`·`TMPDIR=/var/lib/nara/tmp`·`--no-access-log`) \[결정: P4\]. v1도 같은 이름(`nara-api`·`nara-vllm`)을 쓰므로 전환 전에 v1 유닛을 `nara-v1-*`로 보존합니다(`docs/ops/CUTOVER.md`) \[확인됨: P4\].
 
 **nara-vllm.service** — 플래그는 §8.2를 따릅니다. 확인된 플래그만 기본으로 두고, `--max-model-len`과 `--max-num-seqs`는 P0 스모크 결과로 조정합니다. \[미확인\]
 
@@ -1529,7 +1537,7 @@ After=network-online.target
 [Service]
 User=nara
 Environment=HF_HOME=/var/lib/hf-cache
-ExecStart=/opt/nara/vllm-venv/bin/vllm serve Qwen/Qwen3.5-9B --host 127.0.0.1 --port 8001 --reasoning-parser qwen3 --enable-auto-tool-choice --tool-call-parser qwen3_coder --default-chat-template-kwargs '{"enable_thinking": false}' --max-model-len 32768 --max-num-seqs 8
+ExecStart=/opt/nara/vllm-venv/bin/vllm serve Qwen/Qwen3.5-9B --host 127.0.0.1 --port 8011 --reasoning-parser qwen3 --enable-auto-tool-choice --tool-call-parser qwen3_coder --default-chat-template-kwargs '{"enable_thinking": false}' --max-model-len 32768 --max-num-seqs 8
 Restart=on-failure
 RestartSec=10
 TimeoutStartSec=900
@@ -1550,7 +1558,7 @@ Wants=nara-vllm.service
 User=nara
 WorkingDirectory=/opt/nara/app/backend
 EnvironmentFile=/etc/nara/nara.env
-ExecStart=/opt/nara/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
+ExecStart=/opt/nara/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8010 --workers 1 --no-access-log
 Restart=always
 RestartSec=3
 NoNewPrivileges=true
@@ -1562,9 +1570,9 @@ WantedBy=multi-user.target
 ```
 
 - `--workers 1`로 시작합니다. §5의 단일 비행(advisory lock)은 DB 기반이라 워커를 늘려도 안전하지만, §6.1의 in-process 속도 제한은 워커마다 따로 세므로 1개로 고정합니다. \[가정\]
-- **nara-collector.service** (oneshot)는 `python -m app.collector incremental`을 실행하고, **nara-collector.timer**가 §5.3의 주기로 호출합니다. 기본 `OnCalendar=*:0/30` 같은 30분 간격 \[가정\], `Persistent=true`, `RandomizedDelaySec=60`.
+- **nara-collector.service** (oneshot)는 `python -m app.collector incremental`을 실행하고, **nara-collector.timer**가 §5.3의 주기로 호출합니다. §5.3 주기(평일 07\~19시 10분, 그 외 1시간) \[결정: P1\], `Persistent=true`, `RandomizedDelaySec=60`.
 - 최초 1회와 장애 복구 때는 `python -m app.collector backfill --days 90`을 수동 실행합니다. `COLLECTOR_BACKFILL_DAYS` 기본값과 맞춥니다.
-- **nara-backup.service/timer**는 매일 03:30에 §11.5의 백업 스크립트를 실행합니다.
+- **nara-backup.service/timer**는 매일 03:30 KST에 §11.5의 백업 스크립트를 실행합니다. **nara-alert.service/timer**는 10분마다 `python -m app.ops.check`로 §11.7 경보를 점검합니다 \[결정: P4\].
 
 ### 11.4 nginx
 
@@ -1581,10 +1589,10 @@ server {
 
   location /api/ {
     include snippets/nara-security.conf;
-    proxy_pass http://127.0.0.1:8000;
+    proxy_pass http://127.0.0.1:8010;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-For $remote_addr;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Connection "";
     proxy_buffering off;
@@ -1605,38 +1613,38 @@ server { listen 80; server_name nara.example.com; return 301 https://$host$reque
 
 - `/api/` 아래에 §6의 모든 API 경로(/api/v1 이하)가 들어갑니다. 접두사가 바뀌면 이 블록만 고칩니다.
 - `/assets/`에서 `add_header`를 쓰므로 그 위치에도 보안 헤더 include가 필요합니다(위 코드에 반영).
-- 클라이언트 IP는 `X-Forwarded-For`의 첫 값을 신뢰합니다. 앱이 `127.0.0.1`에서 온 요청만 이 헤더를 믿도록 구현합니다(§6.1 속도 제한과 §9.2 로그인 잠금이 IP를 쓰기 때문).
+- 클라이언트 IP: nginx는 `X-Forwarded-For`를 접속 IP(`$remote_addr`)로 **덮어쓰고**, 앱은 `127.0.0.1`·`::1`에서 온 요청의 **마지막 값**만 믿습니다. `$proxy_add_x_forwarded_for` + 첫 값을 믿으면 클라이언트가 보낸 값이 첫 값이 되어 IP를 위조할 수 있습니다 \[결정: P4\]. `/healthz`·`/readyz`는 nginx에서 `return 404`로 막고, 모든 server에 `server_tokens off`. 클라이언트 IP는 §6.1 속도 제한과 §9.2 로그인 잠금이 씁니다.
 
 ### 11.5 PostgreSQL 운영
 
 - 연결: 앱 풀과 advisory lock 전용 소형 풀(§5.5)을 합쳐 `max_connections`에 여유를 둡니다. 기본 100이면 충분합니다.
 - 백업: `deploy/backup.sh`가 `pg_dump -Fc`로 덤프를 만들고 `age`로 암호화해 `/var/backups/nara`에 저장합니다(§9.5). 키는 서버에 공개키만 두고, 개인키는 운영자가 따로 보관합니다. 최근 14일치와 주간 4개를 유지합니다. \[가정\]
-- 외부 보관: 같은 암호화 파일을 GCS 버킷에 복사합니다. 버킷은 버전 관리를 켜고 서비스 계정에 쓰기 권한만 줍니다. \[가정\]
+- 외부 보관: 같은 암호화 파일을 GCS 버킷에 복사합니다. 버킷은 버전 관리를 켜고 서비스 계정에 쓰기 권한만 줍니다. \[가정\] 버킷이 정해지면 `BACKUP_GCS_URI`로 켭니다(P4 기준 미정). 백업은 PG16의 `pg_dump`(`/usr/lib/postgresql/16/bin`)를 쓰고 비밀번호는 `PGPASSWORD`로만 넘깁니다.
 - 복원 연습: 분기마다 별도 DB에 복원해 `alembic current`와 주요 테이블 행 수를 확인합니다. 복원해 본 적 없는 백업은 백업으로 치지 않습니다.
 - 마이그레이션: 한 릴리스 안에서는 이전 버전 코드와 호환되게 씁니다(컬럼 추가 → 코드 배포 → 다음 릴리스에서 정리). 그래야 코드만 롤백해도 DB와 맞습니다.
 
 ### 11.6 배포 절차
 
-**P0\~P3는 수동 배포**(`deploy/deploy.sh`), **P4에서 GitHub Actions로 자동화**합니다. SSH가 IAP 터널뿐이라 GitHub 러너에서 직접 접속할 수 없으므로 자동화에는 Workload Identity Federation과 `gcloud compute ssh --tunnel-through-iap`가 필요합니다. \[가정\]
+**배포는 수동 `deploy/deploy.sh <태그>`로 합니다. GitHub Actions 자동 배포는 미룹니다**(수동으로 충분, 아래 설정이 필요) \[결정: P4\]. SSH가 IAP 터널뿐이라 GitHub 러너에서 직접 접속할 수 없으므로 자동화에는 Workload Identity Federation과 `gcloud compute ssh --tunnel-through-iap`가 필요합니다. \[가정\]
 
 `deploy.sh <git-tag>`의 순서:
 
 1. `git fetch --tags` 후 해당 태그를 체크아웃하고, 직전 태그를 `/opt/nara/.prev`에 기록
-2. 백엔드 의존성 설치 (`pip install -r requirements.txt`, 락 파일 기준)
+2. 백엔드 의존성 설치 (`uv sync --locked --no-dev`, `uv.lock` 기준)
 3. 프런트엔드 빌드 (`npm ci && npm run build`) 후 `dist`를 원자적으로 교체 (새 디렉터리에 만들고 심볼릭 링크 전환)
 4. `alembic upgrade head`
 5. `systemctl restart nara-api` (vLLM은 모델이나 플래그가 바뀐 릴리스에서만 재시작)
-6. `curl -fsS http://127.0.0.1:8000/healthz` 를 30초까지 재시도. 실패하면 `.prev` 태그로 자동 복귀
+6. `curl -fsS http://127.0.0.1:8010/healthz` 를 30초까지 재시도. 실패하면 `.prev` 태그로 자동 복귀(한 번만, `.prev`는 그대로). 없는 태그면 아무것도 바꾸지 않고 종료. 스크립트는 가짜 명령으로 실제 실행해 시험 (`backend/tests/deploy/`)
 
-GitHub Actions 워크플로(`deploy.yml`)는 `main` 푸시 시 `test` 잡(pytest, Vitest, 린트, 타입체크, §12의 CI 게이트)이 통과한 뒤에만 `deploy` 잡을 실행합니다. `deploy` 잡은 환경 보호 규칙으로 수동 승인을 요구합니다.
+(미룸, 나중에 만들 때의 기준) GitHub Actions 워크플로(`deploy.yml`)는 `main` 푸시 시 `test` 잡(pytest, Vitest, 린트, 타입체크, §12의 CI 게이트)이 통과한 뒤에만 `deploy` 잡을 실행합니다. `deploy` 잡은 환경 보호 규칙으로 수동 승인을 요구합니다.
 
 ### 11.7 로깅 · 모니터링
 
-- 로그: 앱은 JSON 한 줄 로그를 stdout으로 내고 journald가 수집합니다. 필드는 `ts, level, event, request_id, user_id, bid_key, duration_ms`. 비밀번호·토큰·이메일 본문·공고 원문은 남기지 않습니다(§9.5). `journald`는 `SystemMaxUse=2G`로 제한합니다.
-- 엔드포인트: `/healthz`(프로세스 생존)와 `/readyz`(DB 연결 + 마지막 collector 성공 시각 + vLLM 응답). `/readyz` 실패 사유는 본문에 짧게 적습니다. 두 경로 모두 인증 없이 `127.0.0.1`에서만 접근하도록 nginx에서 외부 노출을 막습니다.
+- 로그: 앱은 JSON 한 줄 로그를 stdout으로 내고 journald가 수집합니다. 필드는 `ts, level, event, request_id, user_id, bid_key, duration_ms`. `LOG_FORMAT=json`으로 켜고, 요청 ID는 `X-Request-ID`로 주고받으며 경로만 기록합니다(쿼리스트링 제외) \[결정: P4\]. 비밀번호·토큰·이메일 본문·공고 원문은 남기지 않습니다(§9.5). `journald`는 `SystemMaxUse=2G`로 제한합니다.
+- 엔드포인트: `/healthz`(프로세스 생존)와 `/readyz`(DB 연결 + 마지막 collector 성공 시각 + vLLM 응답). `/readyz` 상태는 본문에 짧게 적고, DB가 살아 있으면 200입니다(수집 지연은 경보가 잡음) \[결정: P4\]. 두 경로 모두 인증 없이 `127.0.0.1`에서만 접근하도록 nginx에서 외부 노출을 막습니다.
 - 외부 감시: GCP Uptime Check가 도메인의 로그인 화면을 5분 간격으로 확인하고, 실패 시 운영자 이메일로 알립니다. \[가정\]
 - 내부 지표(관리자 화면 또는 SQL 뷰로 확인): `collector_runs`의 최근 성공·실패, G2B 일일 호출 수와 `G2B_DAILY_CALL_BUDGET` 대비 사용률, 요약·분석 대기열 길이와 평균 소요 시간, LLM 실패율, `usage_logs` 기준 사용자별 호출 수.
-- 알림 기준 \[가정\]: collector가 2시간 넘게 성공하지 못함 / G2B 호출이 예산의 80% 초과 / 디스크 사용률 80% 초과 / `/readyz` 3회 연속 실패.
+- 알림 기준 \[가정\]: collector가 2시간 넘게 성공하지 못함 / G2B 호출이 예산의 80% 초과 / 디스크 사용률 80% 초과 / `/readyz` 3회 연속 실패. `app.ops.check`(`nara-alert.timer`, 10분)가 판정해 `ALERT_EMAIL`로 보내고, 같은 경보는 6시간에 한 번(`ALERT_REPEAT_H`), 해소되면 초기화 \[결정: P4\].
 
 ### 11.8 런북
 
@@ -1644,7 +1652,7 @@ GitHub Actions 워크플로(`deploy.yml`)는 `main` 푸시 시 `test` 잡(pytest
 | --- | --- | --- |
 | 화면이 안 열림 | `systemctl status nginx nara-api`, `journalctl -u nara-api -n 100` | 서비스 재시작. DB 연결 오류면 `postgresql` 상태 확인 |
 | 새 공고가 안 들어옴 | `collector_runs` 최근 행, `journalctl -u nara-collector` | 서비스키 만료·일일 한도 초과면 키와 예산 확인 후 `python -m app.collector incremental` 수동 실행 |
-| 요약·분석이 계속 실패 | `curl 127.0.0.1:8001/v1/models`, `nvidia-smi` | vLLM 재시작. 메모리 부족이면 `--max-num-seqs`를 낮춤. 그동안 앱은 캐시된 결과만 보여줌 |
+| 요약·분석이 계속 실패 | `curl 127.0.0.1:8011/v1/models`, `nvidia-smi` | vLLM 재시작. 메모리 부족이면 `--max-num-seqs`를 낮춤. 그동안 앱은 캐시된 결과만 보여줌 |
 | 채팅 응답이 도중에 끊김 | nginx `error.log`의 upstream timeout, 프런트 `done` 이벤트 유무 | `proxy_read_timeout`·`proxy_buffering` 설정 확인. 하트비트(`: ping`)가 오는지 확인 |
 | 로그인 불가(관리자 포함) | `users` 상태, 잠금 시각 | 서버에서 `python -m app.cli create-admin`으로 관리자 재생성. 잠금은 만료까지 기다리거나 DB에서 해제 |
 | 디스크 부족 | `du -sh /var/lib/hf-cache /var/backups/nara /var/lib/postgresql` | 오래된 백업·로그 정리. 필요 시 디스크 증설 |
@@ -1784,8 +1792,8 @@ GitHub Actions 워크플로(`deploy.yml`)는 `main` 푸시 시 `test` 잡(pytest
 
 | 단계 | 내용 | 실패 시 |
 | --- | --- | --- |
-| PR | `ruff`, `mypy`(또는 `pyright`), `pytest`(단위+통합+API), `eslint`, `vue-tsc`, `vitest`, 프런트 빌드 | 병합 불가 |
-| main 병합 | 위 항목 + Playwright E2E 스모크(가짜 LLM) | 배포 중단 |
+| PR | `ruff`, `mypy`(또는 `pyright`), `pytest`(단위+통합+API), `eslint`, `vue-tsc`, vitest, 프런트 빌드, `audit` 잡(`npm audit --omit=dev` high 이상, `pip-audit` 수용 목록 밖) \[결정: P4\] | 병합 불가 |
+| main 병합 | 위 항목 + Playwright E2E 스모크(가짜 LLM). CI `e2e` 잡: `scripts/seed_e2e` → vite preview → `npx playwright test` \[결정: P4\] | 배포 중단 |
 | 프롬프트·스키마 변경 PR | `eval/results/`의 전후 비교 결과를 PR 설명에 첨부(체크리스트 항목) | 리뷰어가 반려 |
 
 - 핵심 모듈(`pipeline`, `auth`, `collector`, `search`)의 라인 커버리지 80% 이상을 목표로 하되, 숫자를 채우려는 테스트는 쓰지 않는다. \[가정\]
@@ -1963,19 +1971,19 @@ v1에 이어서 쓸 사용자·검색 기록이 실제로 있을 때만 합니�
 
 | # | 질문 | 왜 중요한가 | 기본 가정 | 필요 시점 |
 | --- | --- | --- | --- | --- |
-| Q1 | 회사 메일 도메인과 SMTP(또는 메일 발송 서비스)는? | 가입 인증 메일을 보내야 하고 `ALLOWED_EMAIL_DOMAINS`를 정해야 함 | 개발 중에는 `MAIL_BACKEND=console`, 도메인은 환경변수로만 둠 | P2 시작 전 |
+| Q1 | 회사 메일 도메인과 SMTP(또는 메일 발송 서비스)는? | 가입 인증 메일을 보내야 하고 `ALLOWED_EMAIL_DOMAINS`를 정해야 함 | 개발 중에는 `MAIL_BACKEND=console`(또는 memory), 도메인은 환경변수로만 둠. P4 현재 SMTP 미정 — 운영 시작 전 필요(`ENV=production`은 smtp 없으면 시작 거부) | P2 시작 전 |
 | Q2 | 직원들에게 Claude Team/Enterprise 계정이 있는가? | 있으면 일부 직원은 원격 MCP 커넥터(Track A)만으로 충분할 수 있음. 이 문서는 **사내 LLM 웹앱(Track B)** 을 전제로 함 | 확정: 직원 계정 없음, Track B(사내 LLM)로 진행 | 답 받음(11월 9일) |
 | Q3 | K-EXAONE 2.5 API의 도구 호출 지원, 약관(데이터 보관·학습 이용), 사내 데이터 외부 전송 허용 여부는? | 모델 후보에 넣을지, 어떤 데이터로 평가할지 결정 | \[미확인\]. 공개 공고만으로 평가하고 사용자 데이터는 보내지 않음 | P4 모델 A/B 전 |
-| Q4 | G2B `numOfRows` 최대값과 일일 호출 한도는? | 수집 주기, `G2B_DAILY_CALL_BUDGET`, fill 한도 | \[미확인\]. P1 초반에 실측하고 `docs/DECISIONS.md`에 기록 | P1 시작 전 |
-| Q5 | G2B에서 공고 번호로 단건 조회가 되는가? | §6.2 `lookup` 엔드포인트가 의존. 안 되면 기간 검색 후 필터로 대체 | \[미확인\]. 되는 것으로 가정하되 실측 후 확정 | P1 |
-| Q6 | `pg_trgm`이 한국어 공고명 검색에 충분한가? | 검색 속도·정확도 | \[미확인\]. 부족하면 `LIKE` + 키워드 분리로 시작 | P1 |
+| Q4 | G2B `numOfRows` 최대값과 일일 호출 한도는? | 수집 주기, `G2B_DAILY_CALL_BUDGET`, fill 한도 | 답: `numOfRows` 999 허용, 포털 일일 한도 1000회 → `G2B_DAILY_CALL_BUDGET` 1000 \[확인됨: P1\] | P1 시작 전 |
+| Q5 | G2B에서 공고 번호로 단건 조회가 되는가? | §6.2 `lookup` 엔드포인트가 의존. 안 되면 기간 검색 후 필터로 대체 | \[미확인\]. P3a는 DB만 조회로 구현, 확인 스크립트는 후속 | P1 |
+| Q6 | `pg_trgm`이 한국어 공고명 검색에 충분한가? | 검색 속도·정확도 | 답: en\_US.utf8 로케일에서 `ILIKE '%민원분석%'`가 trigram 인덱스를 탐 \[확인됨: P1\] | P1 |
 | Q7 | 스캔본(이미지) 공고의 비율이 얼마나 되는가? OCR이 필요한가? | R3 대응 범위 | 이번 범위 밖(OCR 없음) | P3 이후 측정 |
 | Q8 | 사용자가 ‘다시 분석’을 요청할 수 있어야 하는가? | 공유 캐시 무효화 정책과 충돌 가능 | 이번 범위 밖. 필요하면 관리자만 | P3 이후 |
 | Q9 | 서버가 여러 대로 늘어날 가능성이 있는가? | 속도 제한(§6.1)은 프로세스 메모리 기반이라 단일 서버만 정확함 | 단일 서버. 늘면 DB 또는 Redis 기반으로 교체 | P4 이후 |
-| Q10 | v1에 이어서 쓸 사용자·기록이 있는가? | P5 필요 여부 | 없다고 가정(P5 생략) | P4 전 |
+| Q10 | v1에 이어서 쓸 사용자·기록이 있는가? | P5 필요 여부 | 확정: 이전하지 않고 새로 가입(P5 생략) \[결정: P4\] | P4 전 |
 | Q11 | 서비스 이름은? | 화면·메일 문안 | 임시 이름 ‘나라장터 도우미’. `copy.ts` 한 곳에서 바꿈 | P4 전 |
-| Q12 | 도메인, TLS 방식(Let’s Encrypt/로드밸런서), DB를 VM에 둘지 Cloud SQL로 갈지는? | §11 구성 | 도메인 미정, certbot, VM 내 PostgreSQL | P4 전 |
-| Q13 | 현재 L4 VM을 그대로 쓰는가, 새로 만드는가? vLLM과 DB·API가 같은 VM에서 메모리가 충분한가? | §11.1 | 같은 VM에 모두 둠 | P0 |
+| Q12 | 도메인, TLS 방식(Let’s Encrypt/로드밸런서), DB를 VM에 둘지 Cloud SQL로 갈지는? | §11 구성 | 도메인 미정 → 임시로 `<IP>.sslip.io` + certbot(외부 접속 가능), 정해지면 `set-host.sh`로 교체. VM 내 PostgreSQL 16(5434) \[결정: P4\] | P4 전 |
+| Q13 | 현재 L4 VM을 그대로 쓰는가, 새로 만드는가? vLLM과 DB·API가 같은 VM에서 메모리가 충분한가? | §11.1 | 같은 VM에 모두 둠 \[확인됨: P0-b, FP8 vLLM이 GPU 약 19GB\] | P0 |
 
 ### 14.3 결정이 필요한 시점
 
@@ -2018,13 +2026,22 @@ v1에 이어서 쓸 사용자·검색 기록이 실제로 있을 때만 합니�
 | `FILE_MAX_MB` | 첨부파일 최대 크기 | §5.10 |
 | `COLLECTOR_BACKFILL_DAYS` | backfill 기본 일수(예: 90) | §5.3, §5.10 |
 | `LLM_MAX_CONCURRENCY` | 동시 LLM 호출 상한 | §5.10, §8 |
-| `LLM_BASE_URL` | vLLM의 OpenAI 호환 주소(예: `http://127.0.0.1:8001/v1`) | §8.2, §11.3 |
-| `LLM_MODEL` | 모델 이름(예: `Qwen/Qwen3.5-9B`) | §8.2 |
+| `LLM_BASE_URL` | vLLM의 OpenAI 호환 주소(예: `http://127.0.0.1:8011/v1`) | §8.2, §11.3 |
+| `LLM_MODEL` | vLLM `--served-model-name`(기본 `brain`) | §8.2 |
 | `LLM_API_KEY` | LLM 서버 키(로컬이면 더미 값) | §8.2 |
 | `LLM_TIMEOUT_S` | LLM 호출 타임아웃(초) | §8.2 |
 | `LLM_PROFILE` | 모델별 프롬프트·샘플링 프로필 선택 | §8.2 |
 | `SUMMARY_MAX_CHUNKS` | 요약에 쓰는 최대 청크 수(기본 12) | §8.3 |
 | `HF_HOME` | Hugging Face 캐시 위치(vLLM 유닛에서 설정) | §11.3 |
+| `LLM_BACKEND` | vllm / fake(개발 전용) / none | §8.2 |
+| `LLM_MODEL_ID` | PROMPT\_VERSION 모델 접미사(기본 q35-9b) | §8.2 |
+| `LLM_TOKENIZER_PATH, LLM_LOCK_WAIT_S` | 토큰 계산용 tokenizer.json, single-flight 대기 상한 | §8.3, §5.5 |
+| `SEARCH_FILL_WAIT_S` | 커버리지 밖 검색이 보충을 기다리는 초(기본 5) | §5.3 |
+| `LOG_FORMAT` | json이면 한 줄 JSON 로그(운영) | §11.7 |
+| `ALERT_EMAIL, ALERT_*` | 경보 받는 주소와 기준(수집 2시간·예산 80%·디스크 80%·재발송 6시간) | §11.7 |
+| `BACKUP_GCS_URI` | 백업 외부 보관 위치(비면 서버 안만) | §11.5 |
+| `HTTPS_PROXY` | G2B 접속용 프록시(v1 유닛에 있던 값, 필요할 때만) | §5.2, §11 |
+| `VLLM_API_KEY` | /etc/nara/vllm.env, LLM\_API\_KEY와 같은 값 | §11.3 |
 
 ### B. 용어집
 

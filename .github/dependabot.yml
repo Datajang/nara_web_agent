@@ -5,6 +5,12 @@ updates:
     directory: /backend
     schedule: { interval: weekly }
     open-pull-requests-limit: 5
+    # langchain-teddynote(HWPLoader)가 langchain 0.x에만 동작한다 (backend/security/pip-audit-accepted.txt)
+    ignore:
+      - dependency-name: "langchain"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "langchain-core"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: npm
     directory: /frontend
     schedule: { interval: weekly }

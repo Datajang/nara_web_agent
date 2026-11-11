@@ -37,3 +37,9 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
+
+# rtk vitest 보고서
+.vitest
+
+# e2e 스크린샷
+e2e/shots

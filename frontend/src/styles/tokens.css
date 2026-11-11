@@ -1,0 +1,26 @@
+/* 색상 토큰 정본 (SPEC §10.1). 화면 코드에는 16진수 색을 직접 쓰지 않는다.
+   바꾸면 tests/contrast.test.ts를 통과해야 한다. */
+:root {
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --surface-2: #f1f3f6;
+  --border: #e3e7ec;
+  --border-input: #8590a0;
+  --text: #14181f;
+  --text-2: #4a5565;
+  --text-3: #667085;
+  --primary: #2f5bea;
+  --primary-hover: #2449c4;
+  --primary-soft: #eaf0ff;
+  --success-fg: #0f6b4d;
+  --success-bg: #e6f6ef;
+  --warning-fg: #8a4b08;
+  --warning-bg: #fef0c7;
+  --danger-fg: #b42318;
+  --danger-bg: #fee4e2;
+  --neutral-fg: #475467;
+  --neutral-bg: #f2f4f7;
+
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --shadow-pop: 0 8px 24px rgba(16, 24, 40, 0.12);
+}

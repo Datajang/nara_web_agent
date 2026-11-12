@@ -757,6 +757,51 @@
         }
       }
     },
+    "/api/v1/bids/{bid_id}/files/{file_id}/download": {
+      "get": {
+        "tags": [
+          "bids"
+        ],
+        "summary": "File Download",
+        "description": "첨부 원본. 저장해 두지 않으므로 허용 호스트 검사·크기 제한을 거쳐 다시 받아 그대로 넘긴다.\n\n브라우저가 열지 않고 저장하도록 octet-stream + attachment로 보낸다(받은 HTML이 우리 출처에서\n실행되지 않게). 첨부 URL은 응답·오류 어디에도 싣지 않는다.",
+        "operationId": "file_download_api_v1_bids__bid_id__files__file_id__download_get",
+        "parameters": [
+          {
+            "name": "bid_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Bid Id"
+            }
+          },
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "File Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/bids/{bid_id}/analyze": {
       "post": {
         "tags": [

@@ -74,7 +74,8 @@ describe('SummaryFacts', () => {
     expect(details.get('summary').text()).toBe(copy.detail.moreRequirements(3))
     expect(details.text()).toContain('요구사항 6')
     const shown = w.findAll('li').filter((li) => !details.element.contains(li.element))
-    expect(shown.map((li) => li.text())).toEqual(['요구사항 1', '요구사항 2', '요구사항 3', '요구사항 4', '요구사항 5'])
+    const k = copy.analysis.kind.technical
+    expect(shown.map((li) => li.text())).toEqual([1, 2, 3, 4, 5].map((n) => `${k}요구사항 ${n}`))
   })
 
   it('문서에서 나온 글자는 HTML로 실행되지 않는다 (§7.11-5)', () => {
@@ -82,5 +83,54 @@ describe('SummaryFacts', () => {
     const w = mount(SummaryFacts, { props: { summary: summary({ schedule: [{ label: evil, date: null, raw: null }] }) } })
     expect(w.find('img').exists()).toBe(false)
     expect(w.text()).toContain(evil)
+  })
+})
+
+describe('요약·분석 공용 시각 요소', () => {
+  it('배점은 비율 막대로: 폭은 배점 비율, 가격 항목은 따로 표시하고 범례에 합계를 적는다', async () => {
+    const { default: EvaluationBars } = await import('@/components/bid/EvaluationBars.vue')
+    const w = mount(EvaluationBars, {
+      props: {
+        evaluation: {
+          method: null,
+          items: [
+            { name: '기술능력평가', points: 60, note: null },
+            { name: '사업 이해도', points: 20, note: null },
+            { name: '입찰가격', points: 20, note: null },
+            { name: '배점 없음', points: null, note: null },
+          ],
+        },
+      },
+    })
+    const segs = w.findAll('[data-seg]')
+    expect(segs.map((s) => [s.attributes('data-seg'), s.attributes('style')])).toEqual([
+      ['tech', 'width: 60%;'],
+      ['tech', 'width: 20%;'],
+      ['price', 'width: 20%;'],
+    ])
+    const t = w.text()
+    expect(t).toContain(`${copy.analysis.techScore} ${copy.analysis.points(80)}`)
+    expect(t).toContain(`${copy.analysis.priceScore} ${copy.analysis.points(20)}`)
+    expect(t).toContain('배점 없음') // 배점 없는 항목도 목록에는 남는다
+  })
+
+  it('일정은 순서대로, 이름에 마감이 있으면 마감 배지', async () => {
+    const { default: ScheduleTimeline } = await import('@/components/bid/ScheduleTimeline.vue')
+    const w = mount(ScheduleTimeline, {
+      props: {
+        items: [
+          { label: '공고', date: '2026-11-10', raw: null },
+          { label: '제안서 제출 마감', date: '2026-11-30', raw: null },
+        ],
+      },
+    })
+    const rows = w.findAll('li')
+    expect(rows.map((r) => r.text())).toEqual(['공고2026-11-10', `제안서 제출 마감${copy.analysis.deadline}2026-11-30`])
+  })
+
+  it('요구사항마다 종류 배지', async () => {
+    const { default: RequirementList } = await import('@/components/bid/RequirementList.vue')
+    const w = mount(RequirementList, { props: { items: req(1) } })
+    expect(w.text()).toContain(copy.analysis.kind.technical)
   })
 })

@@ -3,6 +3,9 @@
 import type { AnalysisResult } from '@/api/types'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import { copy } from '@/copy'
+import EvaluationBars from './EvaluationBars.vue'
+import RequirementList from './RequirementList.vue'
+import ScheduleTimeline from './ScheduleTimeline.vue'
 import ScoreBadge from './ScoreBadge.vue'
 
 defineProps<{ analysis: AnalysisResult }>()
@@ -10,7 +13,7 @@ const sevTone = { high: 'danger', mid: 'warning', low: 'neutral' } as const
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
+  <div class="flex flex-col gap-6 [&>section+section]:border-t [&>section+section]:border-border [&>section+section]:pt-6">
     <section>
       <h3 class="mb-2 text-lg font-semibold">{{ copy.analysis.overview }}</h3>
       <p class="whitespace-pre-line text-base text-text">{{ analysis.overview }}</p>
@@ -19,43 +22,26 @@ const sevTone = { high: 'danger', mid: 'warning', low: 'neutral' } as const
     <section>
       <h3 class="mb-2 text-lg font-semibold">{{ copy.analysis.requirements }}</h3>
       <p v-if="!analysis.requirements.length" class="text-text-3">{{ copy.analysis.none }}</p>
-      <ul v-else class="flex flex-col gap-2">
-        <li v-for="(r, i) in analysis.requirements" :key="i" class="text-base">
-          {{ r.text }}
-          <span v-if="r.source" class="ml-1 text-sm text-text-3">{{ copy.analysis.source(r.source) }}</span>
-          <q v-if="r.evidence" class="mt-1 block text-sm text-text-2">{{ r.evidence }}</q>
-        </li>
-      </ul>
+      <RequirementList v-else :items="analysis.requirements" detailed />
     </section>
 
     <section>
       <h3 class="mb-2 text-lg font-semibold">{{ copy.analysis.evaluation }}</h3>
-      <p v-if="analysis.evaluation.method" class="mb-2 text-sm text-text-2">
-        {{ copy.analysis.method }}: {{ analysis.evaluation.method }}
+      <p v-if="!analysis.evaluation.method && !analysis.evaluation.items?.length" class="text-text-3">
+        {{ copy.analysis.none }}
       </p>
-      <p v-if="!analysis.evaluation.items?.length" class="text-text-3">{{ copy.analysis.none }}</p>
-      <ul v-else class="flex flex-col gap-1">
-        <li v-for="(e, i) in analysis.evaluation.items" :key="i" class="flex justify-between gap-4">
-          <span>{{ e.name }}<span v-if="e.note" class="text-sm text-text-3"> — {{ e.note }}</span></span>
-          <span v-if="e.points != null" class="tabular">{{ copy.analysis.points(e.points) }}</span>
-        </li>
-      </ul>
+      <EvaluationBars v-else :evaluation="analysis.evaluation" />
     </section>
 
     <section>
       <h3 class="mb-2 text-lg font-semibold">{{ copy.analysis.schedule }}</h3>
       <p v-if="!analysis.schedule.length" class="text-text-3">{{ copy.analysis.none }}</p>
-      <ul v-else class="flex flex-col gap-1">
-        <li v-for="(s, i) in analysis.schedule" :key="i" class="flex justify-between gap-4">
-          <span>{{ s.label }}</span>
-          <span class="tabular text-text-2">{{ s.date || s.raw || copy.format.noDeadline }}</span>
-        </li>
-      </ul>
+      <ScheduleTimeline v-else :items="analysis.schedule" />
     </section>
 
     <section>
       <h3 class="mb-2 text-lg font-semibold">{{ copy.analysis.budget }}</h3>
-      <dl class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-base">
+      <dl class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2 rounded-card bg-surface-2 px-4 py-3 text-base">
         <template
           v-for="[label, value] in [
             [copy.analysis.budgetText, analysis.budget_contract.budget_text],
@@ -65,7 +51,7 @@ const sevTone = { high: 'danger', mid: 'warning', low: 'neutral' } as const
           ]"
           :key="label"
         >
-          <dt class="text-text-2">{{ label }}</dt>
+          <dt class="text-text-3">{{ label }}</dt>
           <dd>{{ value || copy.analysis.none }}</dd>
         </template>
       </dl>

@@ -1,5 +1,5 @@
 // 공고 검색·상세·북마크·피드백 API (SPEC §6.2·§6.3).
-import { api } from './client'
+import { api, requestBlob } from './client'
 import type { BidDetail, FeedbackIn, FileText, SearchQuery, SearchResult } from './types'
 
 export const bidsApi = {
@@ -7,6 +7,8 @@ export const bidsApi = {
   detail: (bidId: string) => api.get<BidDetail>(`/bids/${encodeURIComponent(bidId)}`),
   lookup: (bidNo: string) =>
     api.get<{ bid_id: string }>(`/bids/lookup?${new URLSearchParams({ bid_no: bidNo })}`),
+  download: (bidId: string, fileId: number) =>
+    requestBlob(`/bids/${encodeURIComponent(bidId)}/files/${fileId}/download`),
   fileText: (bidId: string, fileId: number, maxChars = 20000) =>
     api.get<FileText>(
       `/bids/${encodeURIComponent(bidId)}/files/${fileId}/text?max_chars=${maxChars}`,

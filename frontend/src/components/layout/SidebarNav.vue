@@ -18,7 +18,8 @@ const items = computed(() => NAV_ITEMS.filter((i) => !i.adminOnly || auth.isAdmi
     class="sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border bg-surface md:flex md:w-16 lg:w-58"
   >
     <RouterLink
-      to="/search"
+      to="/"
+      :aria-label="copy.app.home"
       class="flex h-14 items-center gap-2 px-4 text-lg font-semibold text-primary-hover"
     >
       <span

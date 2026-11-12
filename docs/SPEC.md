@@ -481,7 +481,7 @@ LLM과 G2B는 호출 횟수를 세는 가짜 객체로 바꿔 검증합니다.
 | `POST /bids/search` | 회원 | SearchQuery(6.3) | SearchResult, 스냅샷 저장 |
 | `GET /bids/{bid_id}` | 회원 |  | 메타 + 첨부 목록 + 요약(캐시에 있을 때). LLM·G2B 호출 없음 |
 | GET /bids/lookup | 회원 | bid\_no | 공고 번호 또는 사전규격 등록번호로 DB에서 찾아 bid\_id 반환, 없으면 404 \[결정: P3a\]. DB에 없으면 G2B 단건 조회(일반 조회 `inqryDiv=2`, 공고 → 사전규격 순, 최대 2회)로 가져와 저장한 뒤 반환하고, G2B 실패는 503 `g2b_unavailable` \[확인됨·결정: 2026-11-12\]. 라우트는 /bids/{bid\_id}보다 먼저 선언. |
-| `GET /bids/{bid_id}/files/{file_id}/text` | 회원 | `max_chars`(기본 20000) | 추출된 본문 일부 |
+| `GET /bids/{bid_id}/files/{file_id}/text` | 회원 | `max_chars`(기본 20000) | 추출된 본문 일부. 원본은 `GET /bids/{bid_id}/files/{file_id}/download`(회원, 30회/분): 원본을 저장하지 않으므로 허용 호스트·크기 제한을 거쳐 다시 받아 `application/octet-stream` + attachment로 넘김(첫부 URL 비노출), 실패는 502 `file_unavailable` \[결정: 2026-11-12\] |
 | `POST /bids/{bid_id}/analyze` | 회원 | profile\_id | **SSE** (6.4) |
 | `POST /recommend` | 회원 | profile\_id, days, source, top\_n, keywords(선택) | **SSE** (6.4) |
 | `GET /search-runs` · `GET /search-runs/{id}` | 회원 | `kind`, `limit`, `offset` | 내 검색 기록 / 스냅샷 항목(외부 호출 없음) |
@@ -666,7 +666,7 @@ MCP 서버의 세 도구를 웹 탭으로 옮기고, 어시스턴트·기록·�
 화면은 위에서 아래로 다음 순서입니다.
 
 1. **헤더**: 제목, 기관, 예산, 마감 D-day, 구분·정정 배지, 북마크, \[원문\] 링크, 관련 사전규격 링크(`prespec_reg_no`로 이어지는 공고가 있을 때).
-2. **첨부 파일**: 이름, 구분(`rfp`·`spec`·`other`), 상태 배지(읽음 / 실패 / 미지원). 클릭하면 추출된 본문 일부를 드로어로 보여 줍니다(`GET .../files/{file_id}/text`).
+2. **첨부 파일**: 이름, 구분(`rfp`·`spec`·`other`), 상태 배지(읽음 / 실패 / 미지원). 이름을 누르면 원본을 내려받고(`GET .../files/{file_id}/download`), 읽은 파일은 눈 아이콘으로 추출된 본문 일부를 드로어로 보여 줍니다 \[결정: 2026-11-12\](`GET .../files/{file_id}/text`).
 3. **요약**: 캐시에 있으면 제목줄·개요와 함께 일정·예산·계약 조건·평가 기준·참가 자격·핵심 요구사항(5개까지 펼치고 나머지는 접음)을 보여 주고(빈 항목은 제목째 숨김) \[결정: 2026-11-12\], 없으면 ‘분석하면 함께 만들어져요’ 안내를 보여 줍니다. 요약만 따로 만드는 버튼은 두지 않습니다.
 4. **분석 패널**: 프로필 선택 + \[분석하기\]. 누르면 SSE 단계(파일 확인 → 본문 추출 → 요약 → 분석)가 진행되고 끝나면 결과를 렌더합니다.
 5. **분석 결과**: 아래 순서를 고정합니다. §8의 `AnalysisResult` 스키마 필드 순서가 이 순서와 같아야 합니다.

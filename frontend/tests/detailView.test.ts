@@ -99,6 +99,48 @@ describe('BidDetailView', () => {
     expect(document.body.textContent).toContain(copy.detail.previewTruncated)
   })
 
+  it('첨부 이름을 누르면 원본을 내려받고, 본문 보기는 읽은 파일에만 아이콘으로 있다', async () => {
+    const api = mockApi(
+      base({
+        'GET /api/v1/bids/b101/files/12/download': new Response('%PDF', {
+          status: 200,
+          headers: { 'content-type': 'application/octet-stream' },
+        }),
+      }),
+    )
+    const created = vi.fn(() => 'blob:fake')
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: created, revokeObjectURL: vi.fn() }))
+    const clicked: HTMLAnchorElement[] = []
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      clicked.push(this)
+    })
+    m = await mountAt('/bids/b101')
+    // 본문 보기: 읽은 파일(ok)만. 내려받기: 상태와 관계없이 모두
+    expect(m.wrapper.findAll(`button[aria-label="${copy.detail.previewOpen('과업지시서.pdf')}"]`)).toHaveLength(0)
+    expect(m.wrapper.find(`button[aria-label="${copy.detail.previewOpen('제안요청서.hwp')}"]`).exists()).toBe(true)
+    await m.wrapper.get(`button[aria-label="${copy.detail.download('과업지시서.pdf')}"]`).trigger('click')
+    await settle()
+    expect(api.calls.some((c) => c.url.startsWith('/api/v1/bids/b101/files/12/download'))).toBe(true)
+    expect(created).toHaveBeenCalledOnce()
+    expect(clicked.map((a) => [a.href, a.download])).toEqual([['blob:fake', '과업지시서.pdf']])
+    click.mockRestore()
+  })
+
+  it('첨부를 받지 못하면 안내 토스트', async () => {
+    mockApi(
+      base({
+        'GET /api/v1/bids/b101/files/11/download': json(
+          { error: { code: 'file_unavailable', message: 'x', details: [] } },
+          502,
+        ),
+      }),
+    )
+    m = await mountAt('/bids/b101')
+    await m.wrapper.get(`button[aria-label="${copy.detail.download('제안요청서.hwp')}"]`).trigger('click')
+    await settle()
+    expect(document.body.textContent).toContain(copy.common.fileUnavailable)
+  })
+
   it('분석하기: 단계 표시 → 결과를 §7.5 순서로, 경고 배너, 피드백', async () => {
     const api = mockApi(
       base({

@@ -4,6 +4,7 @@
 export const copy = {
   app: {
     name: '나라장터 도우미',
+    home: '나라장터 도우미 홈으로',
     skipToContent: '본문으로 건너뛰기',
   },
   nav: {
@@ -126,6 +127,8 @@ export const copy = {
     fileKind: { rfp: '제안요청서', spec: '규격서', other: '기타' },
     previewTruncated: '앞부분만 보여 줘요.',
     previewOpen: (name: string) => `${name} 본문 보기`,
+    download: (name: string) => `${name} 내려받기`,
+    downloading: '받는 중',
     summary: '요약',
     summaryHint: '분석하면 요약도 함께 만들어져요.',
     eligibility: '참가 자격',
@@ -155,6 +158,13 @@ export const copy = {
     payment: '대금 지급',
     period: '기간',
     none: '문서에서 확인되지 않음',
+    deadline: '마감',
+    // 화면 문구가 아니라 이름 매칭용 단어 (배점 막대의 가격 항목, 일정의 마감 강조)
+    match: { price: '가격', deadline: '마감' },
+    techScore: '기술 평가',
+    priceScore: '가격 평가',
+    scoreBar: (tech: number, price: number) => `배점 비율: 기술 평가 ${tech}점, 가격 평가 ${price}점`,
+    kind: { functional: '기능', technical: '기술', staffing: '인력', legal: '법·제도', other: '기타' },
     source: (name: string) => `근거: ${name}`,
     points: (n: number) => `${n}점`,
     verdict: { strong: '적합', possible: '검토 필요', weak: '낮음' },
@@ -297,6 +307,7 @@ export const copy = {
     loading: '불러오는 중이에요',
     networkError: '서버에 연결하지 못했어요. 네트워크를 확인하고 다시 시도해 주세요.',
     unknownError: '요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.',
+    fileUnavailable: '첨부 파일을 받지 못했어요. 잠시 후 다시 시도하거나 원문에서 받아 주세요.',
     g2bUnavailable: '나라장터 조회에 실패했어요. 잠시 후 다시 시도해 주세요.',
     rateLimited: (seconds: number) =>
       `요청이 너무 많아요. ${seconds}초 뒤에 다시 시도해 주세요.`,

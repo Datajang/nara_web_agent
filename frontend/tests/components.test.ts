@@ -173,3 +173,20 @@ describe('FeedbackButtons (§12.7-1)', () => {
     expect(api.calls.find((c) => c.url.endsWith('/feedback'))?.body).toMatchObject({ rating: 1, reason: null })
   })
 })
+
+describe('로고 → 홈', () => {
+  it('사이드바 로고는 홈(/)으로 간다', async () => {
+    setActivePinia(createPinia())
+    const { default: SidebarNav } = await import('@/components/layout/SidebarNav.vue')
+    const w = mount(SidebarNav, { global: { plugins: [router] } })
+    expect(w.get('a[href="/"]').text()).toContain(copy.app.name)
+  })
+
+  it('휴대폰 상단 바에도 홈으로 가는 로고가 있다 (사이드바가 숨는 768px 미만)', async () => {
+    const { default: TopBar } = await import('@/components/layout/TopBar.vue')
+    const w = mount(TopBar, { props: { title: '공고 검색' }, global: { plugins: [router] } })
+    const a = w.get('a[href="/"]')
+    expect(a.attributes('aria-label')).toBe(copy.app.home)
+    expect(a.classes()).toContain('md:hidden')
+  })
+})

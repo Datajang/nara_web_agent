@@ -26,6 +26,7 @@ import { useSse } from '@/composables/useSse'
 import { copy } from '@/copy'
 import { useUiStore } from '@/stores/ui'
 import { generalMessage } from '@/utils/authErrors'
+import { saveBlob } from '@/utils/saveBlob'
 
 const IN_PROGRESS_RETRY_MS = 5000
 const STAGES = ['files', 'extract', 'summarize', 'analyze'] as const
@@ -72,6 +73,19 @@ async function openPreview(f: { file_id: number }) {
     previewOpen.value = true
   } catch (e) {
     ui.toast(generalMessage(e), 'danger')
+  }
+}
+
+// ---------- 첨부 원본 내려받기 ----------
+const downloading = ref<number | null>(null)
+async function download(f: { file_id: number; name: string }) {
+  downloading.value = f.file_id
+  try {
+    saveBlob(await bidsApi.download(bidId.value, f.file_id), f.name)
+  } catch (e) {
+    ui.toast(generalMessage(e), 'danger')
+  } finally {
+    downloading.value = null
   }
 }
 
@@ -250,7 +264,7 @@ async function toggleBookmark() {
 
       <section>
         <h3 class="mb-2 text-lg font-semibold">{{ copy.detail.files }}</h3>
-        <FileList :files="bid.files" @preview="openPreview" />
+        <FileList :files="bid.files" :downloading="downloading" @preview="openPreview" @download="download" />
       </section>
 
       <section class="rounded-card border border-border bg-surface p-4">

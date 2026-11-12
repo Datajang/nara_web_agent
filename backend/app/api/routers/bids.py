@@ -1,13 +1,15 @@
 """/api/v1/bids (SPEC §6.2, §6.3). 상세·파일 본문 조회는 LLM·G2B를 호출하지 않는다.
 
-lookup만 DB에 없을 때 G2B 단건 조회를 1~2회 한다.
+lookup만 DB에 없을 때 G2B 단건 조회를 1~2회 한다. 첨부 원본 내려받기는 원본을 저장하지
+않으므로 누를 때 첨부 서버에서 다시 받는다(공공데이터 API 호출이 아니라 일일 예산과 무관).
 """
 
 from __future__ import annotations
 
 from typing import Annotated
+from urllib.parse import quote
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Response
 from sqlalchemy import select
 
 from app.api.common import bid_not_found, load_bid, model_id
@@ -24,6 +26,7 @@ from app.bids.cards import build_cards
 from app.bids.lookup import fetch_from_g2b, find_in_db
 from app.db.models import Bid, BidFile, BidSummary, FileText
 from app.errors import ApiError
+from app.files.download import DownloadRejected
 from app.g2b.client import G2BError
 from app.history import repo as history
 from app.llm.schemas import BidSummary as BidSummaryOut
@@ -139,4 +142,40 @@ async def file_text(
         text=t.text[:max_chars],
         char_count=t.char_count,
         truncated=len(t.text) > max_chars,
+    )
+
+
+@router.get("/{bid_id}/files/{file_id}/download", response_class=Response)
+async def file_download(
+    bid_id: str, file_id: int, user: ActiveUser, s: DbSession, ctx: Ctx
+) -> Response:
+    """첨부 원본. 저장해 두지 않으므로 허용 호스트 검사·크기 제한을 거쳐 다시 받아 그대로 넘긴다.
+
+    브라우저가 열지 않고 저장하도록 octet-stream + attachment로 보낸다(받은 HTML이 우리 출처에서
+    실행되지 않게). 첨부 URL은 응답·오류 어디에도 싣지 않는다.
+    """
+    bid = await load_bid(s, bid_id)
+    f = await s.scalar(select(BidFile).where(BidFile.id == file_id, BidFile.bid_id == bid.id))
+    if f is None:
+        raise bid_not_found()
+    ctx.limiter.hit(f"download:{user.id}", 30, 60)
+    downloader = ctx.deps.downloader
+    try:
+        if downloader is None:
+            raise DownloadRejected("downloader not configured")
+        got = await downloader.fetch(f.url)
+    except DownloadRejected:
+        raise ApiError(
+            502,
+            "file_unavailable",
+            "첨부 파일을 받지 못했어요. 잠시 후 다시 시도하거나 원문에서 받아 주세요.",
+        ) from None
+    return Response(
+        content=got.content,
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{quote(f.name)}",
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "private, no-store",
+        },
     )

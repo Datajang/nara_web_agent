@@ -110,6 +110,21 @@ export async function request<T>(
   return (text ? JSON.parse(text) : undefined) as T
 }
 
+/** 파일 내려받기: JSON 대신 Blob. 401 refresh·오류 변환은 request와 같다. */
+export async function requestBlob(path: string, opts: RequestOptions = {}): Promise<Blob> {
+  let res = await send('GET', path, undefined, opts)
+  if (needsRefresh(res, path)) {
+    if (await refreshOnce()) res = await send('GET', path, undefined, opts)
+    if (res.status === 401 && !opts.silent) clientHooks.onUnauthorized()
+  }
+  if (!res.ok) {
+    const err = await toApiError(res)
+    if (err.status === 429 && err.retryAfter) clientHooks.onRateLimited(err.retryAfter)
+    throw err
+  }
+  return res.blob()
+}
+
 export const api = {
   get: <T>(path: string, opts?: RequestOptions) => request<T>('GET', path, undefined, opts),
   post: <T>(path: string, body?: unknown, opts?: RequestOptions) =>

@@ -1,33 +1,47 @@
 <script setup lang="ts">
-// 첨부 목록 (SPEC §7.5-2): 이름·구분·상태 배지. 읽은 파일은 본문 미리보기 드로어를 연다.
-import { FileText } from 'lucide-vue-next'
+// 첨부 목록 (SPEC §7.5-2): 이름을 누르면 원본을 내려받고, 읽은 파일은 눈 아이콘으로 본문(AI가 읽은 글자)을 본다.
+import { Download, Eye, FileText, LoaderCircle } from 'lucide-vue-next'
 import type { BidDetail } from '@/api/types'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import { copy } from '@/copy'
 
 type File = BidDetail['files'][number]
-defineProps<{ files: File[] }>()
-const emit = defineEmits<{ preview: [File] }>()
+defineProps<{ files: File[]; downloading?: number | null }>()
+const emit = defineEmits<{ preview: [File]; download: [File] }>()
 const tone = { new: 'neutral', ok: 'success', failed: 'danger', unsupported: 'warning' } as const
 </script>
 
 <template>
   <p v-if="!files.length" class="text-text-3">{{ copy.detail.noFiles }}</p>
   <ul v-else class="divide-y divide-border rounded-card border border-border bg-surface">
-    <li v-for="f in files" :key="f.file_id" class="flex flex-wrap items-center gap-2 px-4 py-3">
-      <FileText class="size-4 text-text-3" aria-hidden="true" />
+    <li v-for="f in files" :key="f.file_id" class="flex flex-wrap items-center gap-2 px-4 py-2">
+      <FileText class="size-4 shrink-0 text-text-3" aria-hidden="true" />
       <button
-        v-if="f.status === 'ok'"
         type="button"
-        class="min-h-10 text-left text-base text-primary-hover hover:underline"
-        :aria-label="copy.detail.previewOpen(f.name)"
-        @click="emit('preview', f)"
+        class="group inline-flex min-h-10 min-w-0 items-center gap-1.5 text-left text-base text-primary-hover hover:underline disabled:opacity-60"
+        :aria-label="copy.detail.download(f.name)"
+        :disabled="downloading === f.file_id"
+        @click="emit('download', f)"
       >
-        {{ f.name }}
+        <span class="break-all">{{ f.name }}</span>
+        <LoaderCircle v-if="downloading === f.file_id" class="size-4 shrink-0 animate-spin" aria-hidden="true" />
+        <Download v-else class="size-4 shrink-0 opacity-60 group-hover:opacity-100" aria-hidden="true" />
+        <span v-if="downloading === f.file_id" class="text-sm text-text-3">{{ copy.detail.downloading }}</span>
       </button>
-      <span v-else class="text-base text-text">{{ f.name }}</span>
       <span class="text-sm text-text-3">{{ copy.detail.fileKind[f.kind] }}</span>
-      <UiBadge :tone="tone[f.status]" class="ml-auto">{{ copy.detail.fileStatus[f.status] }}</UiBadge>
+      <span class="ml-auto flex items-center gap-1">
+        <button
+          v-if="f.status === 'ok'"
+          type="button"
+          class="inline-flex size-10 items-center justify-center rounded-control text-text-2 hover:bg-surface-2 hover:text-text"
+          :aria-label="copy.detail.previewOpen(f.name)"
+          :title="copy.detail.previewOpen(f.name)"
+          @click="emit('preview', f)"
+        >
+          <Eye class="size-4" aria-hidden="true" />
+        </button>
+        <UiBadge :tone="tone[f.status]">{{ copy.detail.fileStatus[f.status] }}</UiBadge>
+      </span>
     </li>
   </ul>
 </template>

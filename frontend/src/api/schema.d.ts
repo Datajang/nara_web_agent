@@ -286,6 +286,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/bids/{bid_id}/files/{file_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * File Download
+         * @description 첨부 원본. 저장해 두지 않으므로 허용 호스트 검사·크기 제한을 거쳐 다시 받아 그대로 넘긴다.
+         *
+         *     브라우저가 열지 않고 저장하도록 octet-stream + attachment로 보낸다(받은 HTML이 우리 출처에서
+         *     실행되지 않게). 첨부 URL은 응답·오류 어디에도 싣지 않는다.
+         */
+        get: operations["file_download_api_v1_bids__bid_id__files__file_id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/bids/{bid_id}/analyze": {
         parameters: {
             query?: never;
@@ -2364,6 +2387,36 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["FileTextOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    file_download_api_v1_bids__bid_id__files__file_id__download_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+                file_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

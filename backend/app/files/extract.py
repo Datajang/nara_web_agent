@@ -74,11 +74,40 @@ def _run(content: bytes, filename: str) -> str:
     return extract_text_from_bytes(content, filename)
 
 
+def _import_extractor() -> None:
+    """워커 시작 시 추출기(HWPLoader → langchain, 약 1초)를 미리 불러온다."""
+    import app.files.extractor  # noqa: F401
+
+
+def _extractor_loaded() -> bool:
+    import sys
+
+    return "app.files.extractor" in sys.modules
+
+
 def _get_pool() -> ProcessPoolExecutor:
     global _pool
     if _pool is None:
-        _pool = ProcessPoolExecutor(max_workers=2, mp_context=multiprocessing.get_context("spawn"))
+        _pool = ProcessPoolExecutor(
+            max_workers=2,
+            mp_context=multiprocessing.get_context("spawn"),
+            initializer=_import_extractor,
+        )
     return _pool
+
+
+def shutdown_pool() -> None:
+    _kill_pool()
+
+
+async def warm_pool() -> bool:
+    """서버 시작 시 워커를 띄워 둔다. 첫 사용자 요청이 워커 기동 비용을 내지 않게 한다."""
+    loop = asyncio.get_running_loop()
+    try:
+        return await loop.run_in_executor(_get_pool(), _extractor_loaded)
+    except Exception:  # 예열 실패는 기동을 막지 않는다. 첫 추출 때 다시 시도된다
+        _kill_pool()
+        return False
 
 
 def _kill_pool() -> None:

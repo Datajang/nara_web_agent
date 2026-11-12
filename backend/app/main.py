@@ -19,6 +19,7 @@ from app.config import Settings, get_settings
 from app.db.session import Database
 from app.deps import Deps, utcnow
 from app.files.download import HttpDownloader
+from app.files.extract import shutdown_pool, warm_pool
 from app.g2b.client import G2BClient
 from app.llm.base import LLMClient
 from app.llm.client import OpenAICompatLLM
@@ -79,7 +80,9 @@ def build_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        await warm_pool()  # 추출 워커 예열(약 1초). 실패해도 기동은 계속
         yield
+        shutdown_pool()
         for close in ctx.closers:
             await close()
         await ctx.deps.db.dispose()

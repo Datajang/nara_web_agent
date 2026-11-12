@@ -128,6 +128,8 @@ export const copy = {
     previewOpen: (name: string) => `${name} 본문 보기`,
     summary: '요약',
     summaryHint: '분석하면 요약도 함께 만들어져요.',
+    eligibility: '참가 자격',
+    moreRequirements: (n: number) => `${n}개 더 보기`,
     analyzeTitle: '분석',
     analyzeSubmit: '분석하기',
     profileRequired: '분석하려면 프로필이 필요해요. 설정에서 팀 소개를 만들어 주세요.',

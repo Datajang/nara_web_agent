@@ -15,6 +15,7 @@ import FeedbackButtons from '@/components/bid/FeedbackButtons.vue'
 import FileList from '@/components/bid/FileList.vue'
 import MoneyText from '@/components/bid/MoneyText.vue'
 import ProgressSteps from '@/components/bid/ProgressSteps.vue'
+import SummaryFacts from '@/components/bid/SummaryFacts.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
@@ -257,6 +258,7 @@ async function toggleBookmark() {
         <template v-if="bid.summary">
           <p class="mb-2 font-medium">{{ bid.summary.headline }}</p>
           <p class="whitespace-pre-line text-base text-text-2">{{ bid.summary.overview }}</p>
+          <SummaryFacts :summary="bid.summary" />
         </template>
         <p v-else class="text-base text-text-3">{{ copy.detail.summaryHint }}</p>
       </section>

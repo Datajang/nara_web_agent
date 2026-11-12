@@ -58,6 +58,28 @@ describe('BidDetailView', () => {
     expect(m.wrapper.get('a[href="/bids/b300"]').text()).toContain(copy.bid.relatedPrespec)
   })
 
+  it('요약 카드에 제목줄·개요와 일정·예산 같은 구조화 정보를 보여 준다', async () => {
+    const summary = {
+      headline: '민원 분석 시스템 구축',
+      overview: '민원 데이터를 분석한다.',
+      key_requirements: [],
+      evaluation: { method: null, items: [] },
+      schedule: [{ label: '제안서 제출 마감', date: '2026-11-30', raw: null }],
+      budget_contract: { budget_text: '금 99,000,000원', contract_method: null, payment_terms: null, period: null },
+      eligibility: [],
+      risks: [],
+      keywords: [],
+      coverage: { files_read: 1, files_total: 2, truncated: false, warnings: [] },
+    }
+    mockApi(base({ 'GET /api/v1/bids/b101': json({ ...DETAIL, summary }) }))
+    m = await mountAt('/bids/b101')
+    const t = text(m.wrapper)
+    for (const s of [summary.headline, summary.overview, '제안서 제출 마감', '2026-11-30', '금 99,000,000원']) {
+      expect(t).toContain(s)
+    }
+    expect(t).not.toContain(copy.detail.summaryHint)
+  })
+
   it('첨부를 누르면 본문 일부를 드로어로 보여 준다', async () => {
     mockApi(
       base({

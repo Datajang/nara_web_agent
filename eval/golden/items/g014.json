@@ -1,0 +1,27 @@
+{
+ "id": "g014",
+ "bid_key": "prespec:R26BD00298070",
+ "text_path": "texts/g014.txt",
+ "profile": {
+  "dept": "합성 프로필 A",
+  "keywords": [
+   "AI",
+   "자연어처리",
+   "검색",
+   "데이터 플랫폼",
+   "챗봇"
+  ]
+ },
+ "expect": {
+  "budget_won": 2123600000,
+  "deadline": "2026-11-15",
+  "method": "",
+  "qualifications": []
+ },
+ "fit": "mid",
+ "tags": [
+  "prespec"
+ ],
+ "notes": "초안: 2027-2028년 사랑의열매 정보시스템 통합 유지보수 사업",
+ "verified": false
+}

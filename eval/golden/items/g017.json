@@ -1,0 +1,27 @@
+{
+ "id": "g017",
+ "bid_key": "regular:R26BK01822430",
+ "text_path": "texts/g017.txt",
+ "profile": {
+  "dept": "합성 프로필 A",
+  "keywords": [
+   "AI",
+   "자연어처리",
+   "검색",
+   "데이터 플랫폼",
+   "챗봇"
+  ]
+ },
+ "expect": {
+  "budget_won": 825087273,
+  "deadline": "2026-12-01",
+  "method": "일반경쟁",
+  "qualifications": []
+ },
+ "fit": "low",
+ "tags": [
+  "regular"
+ ],
+ "notes": "초안: 2027년 서울마이소울샵 매장 운영 및 관리",
+ "verified": false
+}

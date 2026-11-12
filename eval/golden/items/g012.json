@@ -1,0 +1,27 @@
+{
+ "id": "g012",
+ "bid_key": "regular:R26BK01822159",
+ "text_path": "texts/g012.txt",
+ "profile": {
+  "dept": "합성 프로필 A",
+  "keywords": [
+   "AI",
+   "자연어처리",
+   "검색",
+   "데이터 플랫폼",
+   "챗봇"
+  ]
+ },
+ "expect": {
+  "budget_won": 45454545,
+  "deadline": "2026-11-25",
+  "method": "일반경쟁",
+  "qualifications": []
+ },
+ "fit": "low",
+ "tags": [
+  "regular"
+ ],
+ "notes": "초안(제목 판단 보정): 대덕대학교 중장기 발전계획 고도화 수립 용역",
+ "verified": false
+}

@@ -1,0 +1,27 @@
+{
+ "id": "g004",
+ "bid_key": "regular:R26BK01819243",
+ "text_path": "texts/g004.txt",
+ "profile": {
+  "dept": "합성 프로필 A",
+  "keywords": [
+   "AI",
+   "자연어처리",
+   "검색",
+   "데이터 플랫폼",
+   "챗봇"
+  ]
+ },
+ "expect": {
+  "budget_won": 1519041855,
+  "deadline": "2026-11-27",
+  "method": "제한경쟁",
+  "qualifications": []
+ },
+ "fit": "high",
+ "tags": [
+  "regular"
+ ],
+ "notes": "초안: 2027년 범정부 데이터분석시스템 운영 및 유지관리",
+ "verified": false
+}

@@ -1,0 +1,27 @@
+{
+ "id": "g011",
+ "bid_key": "regular:R26BK01822194",
+ "text_path": "texts/g011.txt",
+ "profile": {
+  "dept": "합성 프로필 A",
+  "keywords": [
+   "AI",
+   "자연어처리",
+   "검색",
+   "데이터 플랫폼",
+   "챗봇"
+  ]
+ },
+ "expect": {
+  "budget_won": 52727273,
+  "deadline": "2026-11-23",
+  "method": "제한경쟁",
+  "qualifications": []
+ },
+ "fit": "mid",
+ "tags": [
+  "regular"
+ ],
+ "notes": "초안: 범부처통합연구지원시스템(IRIS) 연계 및 기능 개선 용역",
+ "verified": false
+}

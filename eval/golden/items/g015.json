@@ -1,0 +1,27 @@
+{
+ "id": "g015",
+ "bid_key": "regular:R26BK01821151",
+ "text_path": "texts/g015.txt",
+ "profile": {
+  "dept": "합성 프로필 A",
+  "keywords": [
+   "AI",
+   "자연어처리",
+   "검색",
+   "데이터 플랫폼",
+   "챗봇"
+  ]
+ },
+ "expect": {
+  "budget_won": 31818182,
+  "deadline": "2026-11-24",
+  "method": "제한경쟁",
+  "qualifications": []
+ },
+ "fit": "low",
+ "tags": [
+  "regular"
+ ],
+ "notes": "초안: 전남광주 디지털산업 통계조사 용역",
+ "verified": false
+}

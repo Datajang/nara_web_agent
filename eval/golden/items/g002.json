@@ -1,0 +1,27 @@
+{
+ "id": "g002",
+ "bid_key": "regular:R26BK01822113",
+ "text_path": "texts/g002.txt",
+ "profile": {
+  "dept": "합성 프로필 A",
+  "keywords": [
+   "AI",
+   "자연어처리",
+   "검색",
+   "데이터 플랫폼",
+   "챗봇"
+  ]
+ },
+ "expect": {
+  "budget_won": 90000000,
+  "deadline": "2026-11-24",
+  "method": "제한경쟁",
+  "qualifications": []
+ },
+ "fit": "mid",
+ "tags": [
+  "regular"
+ ],
+ "notes": "초안(제목 판단 보정): 가상자산 AI 해킹 대응 역량강화 워크숍",
+ "verified": false
+}

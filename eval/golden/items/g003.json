@@ -1,0 +1,27 @@
+{
+ "id": "g003",
+ "bid_key": "regular:R26BK01822141",
+ "text_path": "texts/g003.txt",
+ "profile": {
+  "dept": "합성 프로필 A",
+  "keywords": [
+   "AI",
+   "자연어처리",
+   "검색",
+   "데이터 플랫폼",
+   "챗봇"
+  ]
+ },
+ "expect": {
+  "budget_won": 72545455,
+  "deadline": "2026-11-16",
+  "method": "수의계약",
+  "qualifications": []
+ },
+ "fit": "high",
+ "tags": [
+  "regular"
+ ],
+ "notes": "초안: 2027년 충청북도 가치자람플랫폼 유지관리용역",
+ "verified": false
+}

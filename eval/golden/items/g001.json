@@ -1,0 +1,27 @@
+{
+ "id": "g001",
+ "bid_key": "regular:R26BK01803467",
+ "text_path": "texts/g001.txt",
+ "profile": {
+  "dept": "합성 프로필 A",
+  "keywords": [
+   "AI",
+   "자연어처리",
+   "검색",
+   "데이터 플랫폼",
+   "챗봇"
+  ]
+ },
+ "expect": {
+  "budget_won": 206220000,
+  "deadline": null,
+  "method": "제한경쟁",
+  "qualifications": []
+ },
+ "fit": "low",
+ "tags": [
+  "regular"
+ ],
+ "notes": "초안(제목 판단 보정): HPC-AI 공용인프라 하드웨어(HCSF) 유지보수",
+ "verified": false
+}

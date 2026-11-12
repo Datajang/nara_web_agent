@@ -1,0 +1,27 @@
+{
+ "id": "g010",
+ "bid_key": "regular:R26BK01822200",
+ "text_path": "texts/g010.txt",
+ "profile": {
+  "dept": "합성 프로필 A",
+  "keywords": [
+   "AI",
+   "자연어처리",
+   "검색",
+   "데이터 플랫폼",
+   "챗봇"
+  ]
+ },
+ "expect": {
+  "budget_won": 1116100000,
+  "deadline": "2026-11-26",
+  "method": "제한경쟁",
+  "qualifications": []
+ },
+ "fit": "mid",
+ "tags": [
+  "regular"
+ ],
+ "notes": "초안: 2027~2028년 수용가정보시스템 및 사이버민원센터 유지관리 용역(긴급) ",
+ "verified": false
+}

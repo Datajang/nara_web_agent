@@ -1,0 +1,27 @@
+{
+ "id": "g007",
+ "bid_key": "prespec:R26BD00298058",
+ "text_path": "texts/g007.txt",
+ "profile": {
+  "dept": "합성 프로필 A",
+  "keywords": [
+   "AI",
+   "자연어처리",
+   "검색",
+   "데이터 플랫폼",
+   "챗봇"
+  ]
+ },
+ "expect": {
+  "budget_won": 2495000000,
+  "deadline": "2026-11-15",
+  "method": "",
+  "qualifications": []
+ },
+ "fit": "low",
+ "tags": [
+  "prespec"
+ ],
+ "notes": "초안(제목 판단 보정): GIST 부설 AI 영재학교 신설공사 감독권한대행 등 건설사업관리(CM)용역",
+ "verified": false
+}

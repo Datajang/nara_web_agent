@@ -1,0 +1,27 @@
+{
+ "id": "g018",
+ "bid_key": "regular:R26BK01822411",
+ "text_path": "texts/g018.txt",
+ "profile": {
+  "dept": "합성 프로필 A",
+  "keywords": [
+   "AI",
+   "자연어처리",
+   "검색",
+   "데이터 플랫폼",
+   "챗봇"
+  ]
+ },
+ "expect": {
+  "budget_won": 668425100,
+  "deadline": null,
+  "method": "일반경쟁",
+  "qualifications": []
+ },
+ "fit": "low",
+ "tags": [
+  "regular"
+ ],
+ "notes": "초안: 주거안심종합센터 서울시 금천지역주거복지상담 및 지원사업 위탁 운영(`27년)",
+ "verified": false
+}

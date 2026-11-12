@@ -1,0 +1,27 @@
+{
+ "id": "g008",
+ "bid_key": "prespec:R26BD00298053",
+ "text_path": "texts/g008.txt",
+ "profile": {
+  "dept": "합성 프로필 A",
+  "keywords": [
+   "AI",
+   "자연어처리",
+   "검색",
+   "데이터 플랫폼",
+   "챗봇"
+  ]
+ },
+ "expect": {
+  "budget_won": 151100000,
+  "deadline": "2026-11-15",
+  "method": "",
+  "qualifications": []
+ },
+ "fit": "high",
+ "tags": [
+  "prespec"
+ ],
+ "notes": "초안: 서울의료관광 플랫폼 재구축",
+ "verified": false
+}

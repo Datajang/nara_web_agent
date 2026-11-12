@@ -1,0 +1,27 @@
+{
+ "id": "g005",
+ "bid_key": "regular:R26BK01821717",
+ "text_path": "texts/g005.txt",
+ "profile": {
+  "dept": "합성 프로필 A",
+  "keywords": [
+   "AI",
+   "자연어처리",
+   "검색",
+   "데이터 플랫폼",
+   "챗봇"
+  ]
+ },
+ "expect": {
+  "budget_won": 890909091,
+  "deadline": "2026-12-21",
+  "method": "제한경쟁",
+  "qualifications": []
+ },
+ "fit": "high",
+ "tags": [
+  "regular"
+ ],
+ "notes": "초안: AI 기반 생육지원 데이터센터 구축 ISMP 수립",
+ "verified": false
+}

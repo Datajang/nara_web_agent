@@ -1,0 +1,27 @@
+{
+ "id": "g009",
+ "bid_key": "regular:R26BK01822444",
+ "text_path": "texts/g009.txt",
+ "profile": {
+  "dept": "합성 프로필 A",
+  "keywords": [
+   "AI",
+   "자연어처리",
+   "검색",
+   "데이터 플랫폼",
+   "챗봇"
+  ]
+ },
+ "expect": {
+  "budget_won": 859181818,
+  "deadline": null,
+  "method": "제한경쟁",
+  "qualifications": []
+ },
+ "fit": "mid",
+ "tags": [
+  "regular"
+ ],
+ "notes": "초안: 2027년 CCTV 시스템 통합유지관리 용역",
+ "verified": false
+}

@@ -25,6 +25,8 @@ export interface SearchState {
 
 export const PERIODS = [7, 14, 30, 60, 90] as const
 export const PAGE = 50
+/** 최소 예산 기본값(만원): 1억 원 이상. 사용자가 비우면 금액 제한 없이 찾는다. */
+export const DEFAULT_BUDGET_MIN = '10000'
 
 export function defaultState(): SearchState {
   return {
@@ -35,7 +37,7 @@ export function defaultState(): SearchState {
     from: '',
     to: '',
     status: 'open',
-    budgetMin: '',
+    budgetMin: DEFAULT_BUDGET_MIN,
     budgetMax: '',
     org: '',
     sort: 'notice_desc',
@@ -67,7 +69,8 @@ export function parseSearch(q: LocationQuery): SearchState {
   } else if ((PERIODS as readonly number[]).includes(days)) {
     s.period = days as Period
   }
-  s.budgetMin = one(q.bmin).replace(/\D/g, '')
+  // bmin이 없으면 기본 1억, 비어 있으면(bmin=) 사용자가 지운 것이므로 제한 없음
+  if ('bmin' in q) s.budgetMin = one(q.bmin).replace(/\D/g, '')
   s.budgetMax = one(q.bmax).replace(/\D/g, '')
   s.org = one(q.org).slice(0, 100)
   return s
@@ -85,7 +88,7 @@ export function toQuery(s: SearchState): LocationQueryRaw {
     q.to = s.to
   } else if (s.period !== 'custom' && s.period !== d.period) q.days = String(s.period)
   if (s.status !== d.status) q.status = s.status
-  if (s.budgetMin) q.bmin = s.budgetMin
+  if (s.budgetMin !== d.budgetMin) q.bmin = s.budgetMin
   if (s.budgetMax) q.bmax = s.budgetMax
   if (s.org.trim()) q.org = s.org.trim()
   if (s.sort !== d.sort) q.sort = s.sort
@@ -108,7 +111,7 @@ export function toRequest(s: SearchState): Partial<SearchQuery> {
   } else {
     body.days = s.period === 'custom' ? 14 : s.period
   }
-  if (s.budgetMin) body.budget_min = Number(s.budgetMin) * 10_000
+  if (Number(s.budgetMin) > 0) body.budget_min = Number(s.budgetMin) * 10_000
   if (s.budgetMax) body.budget_max = Number(s.budgetMax) * 10_000
   if (s.org.trim()) body.org = s.org.trim()
   return body
@@ -130,6 +133,7 @@ export function fromRunQuery(query: Record<string, unknown>): SearchState {
   } else if ((PERIODS as readonly number[]).includes(Number(query.days))) {
     s.period = Number(query.days) as Period
   }
+  s.budgetMin = '' // 저장된 조건에 없으면 당시처럼 제한 없음
   if (typeof query.budget_min === 'number') s.budgetMin = String(Math.round(query.budget_min / 10_000))
   if (typeof query.budget_max === 'number') s.budgetMax = String(Math.round(query.budget_max / 10_000))
   if (typeof query.org === 'string') s.org = query.org

@@ -58,6 +58,7 @@ export const copy = {
     statusOpen: '진행중',
     statusAll: '전체',
     budgetMin: '최소 예산(만원)',
+    budgetMinHint: '기본 1억 원 이상. 비우면 금액 제한 없이 찾아요.',
     budgetMax: '최대 예산(만원)',
     org: '발주기관',
     sort: '정렬',

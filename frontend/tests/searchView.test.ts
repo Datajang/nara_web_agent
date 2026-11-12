@@ -66,6 +66,35 @@ describe('SearchView', () => {
     expect(t).toContain(copy.data.asOf('11-09 10:20'))
   })
 
+  it('최소 예산은 기본 1억(10,000만원)이고 바꿀 수 있다', async () => {
+    const api = mockApi(routes())
+    m = await mountAt('/search?q=AI')
+    const searches = () => api.calls.filter((c) => c.url === '/api/v1/bids/search')
+    expect(searches()[0]!.body).toMatchObject({ budget_min: 100_000_000 })
+    const min = m.wrapper.findAll('input[type="number"]')[0]!
+    expect((min.element as HTMLInputElement).value).toBe('10000')
+    expect(text(m.wrapper)).toContain(copy.search.budgetMinHint)
+
+    await min.setValue('')
+    await m.wrapper.get('form').trigger('submit')
+    await settle()
+    expect(m.router.currentRoute.value.query.bmin).toBe('')
+    expect(searches().slice(-1)[0]!.body).not.toHaveProperty('budget_min')
+
+    await m.router.push('/search?q=AI&bmin=5000')
+    await settle()
+    expect(searches().slice(-1)[0]!.body).toMatchObject({ budget_min: 50_000_000 })
+  })
+
+  it('예산 조건 없이 저장된 최근 검색은 기본 1억을 덧씌우지 않는다', async () => {
+    const api = mockApi(routes())
+    m = await mountAt('/search')
+    await m.wrapper.findAll('button').find((b) => b.text().includes('클라우드'))!.trigger('click')
+    await settle()
+    const last = api.calls.filter((c) => c.url === '/api/v1/bids/search').slice(-1)[0]
+    expect(last!.body).not.toHaveProperty('budget_min')
+  })
+
   it('검색하면 조건이 URL에 반영된다', async () => {
     mockApi(routes())
     m = await mountAt('/search')

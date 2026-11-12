@@ -204,7 +204,7 @@ const toggleBookmark = useBookmarkToggle(items)
           ]"
         />
         <div class="grid grid-cols-2 gap-3">
-          <UiInput v-model="form.budgetMin" type="number" :label="copy.search.budgetMin" />
+          <UiInput v-model="form.budgetMin" type="number" :label="copy.search.budgetMin" :hint="copy.search.budgetMinHint" />
           <UiInput v-model="form.budgetMax" type="number" :label="copy.search.budgetMax" />
         </div>
         <UiInput v-model="form.org" :label="copy.search.org" :max-length="100" />

@@ -760,14 +760,14 @@ LLM은 ‘문서를 읽고 구조화하는 일’과 ‘대화에서 도구를 �
 
 | 호출 | 입력 | 출력 | 저장 | 온도 · 최대 출력 토큰 |
 | --- | --- | --- | --- | --- |
-| 파일 사실 추출 (map) | 파일 청크 1개 | `FileFacts` | 요약 결과에 흡수 | 0.1 · 2,000 |
-| 공고 요약 (reduce) | 공고 메타 + `FileFacts` 목록 | `BidSummary` | `bid_summaries` | 0.1 · 2,500 |
+| 파일 사실 추출 (map) | 파일 청크 1개 | `FileFacts` | 요약 결과에 흡수 | 0.1 · 4,000 |
+| 공고 요약 (reduce) | 공고 메타 + `FileFacts` 목록 | `BidSummary` | `bid_summaries` | 0.1 · 4,000 |
 | 적합도 점수 | 프로필 + 공고 메타 최대 20건 | `ScoreBatch` | `bid_scores` | 0.1 · 1,500 |
 | 상세 분석 | 프로필 + 공고 메타 + `BidSummary` | `AnalysisResult` | `analyses` | 0.2 · 3,500 |
 | 키워드 제안 | 프로필 설명 | `KeywordSuggestion` | 없음 | 0.2 · 300 |
 | 어시스턴트 | 대화 + 도구 정의 | 텍스트 + 도구 호출 | `messages` | 0.3 · 1,500 |
 
-1. **스키마 우선**: 구조화 출력은 vLLM의 `response_format`(json\_schema)으로 형식을 강제하고, Pydantic으로 한 번 더 검증합니다. 검증에 실패하면 오류 메시지를 붙여 한 번만 다시 요청(repair)하고, 그래도 실패하면 그 단위(청크·공고)만 건너뛰어 `warnings`에 남깁니다.
+1. **스키마 우선**: 구조화 출력은 vLLM의 `response_format`(json\_schema)으로 형식을 강제하고, Pydantic으로 한 번 더 검증합니다. 모델에 보내는 스키마는 모든 필드를 required로 바꾼 사본입니다(`strict_schema`, null·빈 목록은 허용). 기본값 있는 필드를 선택으로 두면 강제 디코딩에서 모델이 필드를 통째로 빼고, 모두 채우면 요약 출력이 2,000토큰을 넘으므로 map·reduce 출력은 §8.3 예산 4,000을 씁니다 \[확인됨: 2026-11-12 골든셋\]. 검증에 실패하면 오류 메시지를 붙여 한 번만 다시 요청(repair)하고, 그래도 실패하면 그 단위(청크·공고)만 건너뛰어 `warnings`에 남깁니다.
 2. **원문 우선**: 문서에 없는 내용은 추측하지 않고 null이나 빈 배열로 둡니다. 금액·날짜·번호·배점은 원문 표기를 그대로 옮기고 계산하지 않습니다.
 3. **데이터와 지시 분리**: 문서 본문, 공고 제목, 프로필, 도구 결과는 모두 구분자(`<document>`, `<profile>`, `<tool_result>`)로 감싸고, 그 안의 지시문은 따르지 않도록 시스템 프롬프트에 명시합니다(프롬프트 인젝션 대응).
 4. **생각 모드 끔**: Qwen3.5의 thinking은 끄고(`enable_thinking: false`) 지연과 토큰을 줄입니다.
@@ -813,7 +813,7 @@ resp = await client.chat.completions.create(
 )
 ```
 
-- 환경변수: `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`(v1의 `api_key="unused"`를 실제 키로 교체하고 vLLM `--api-key`와 맞춤), `LLM_TIMEOUT_S`(읽기 180), `LLM_MAX_CONCURRENCY`(5.5), `LLM_BACKEND`(vllm|fake|none, fake는 운영에서 시작 거부), `LLM_MODEL_ID`(PROMPT\_VERSION 접미사, 예: v1+q35-9b), `LLM_TOKENIZER_PATH`, `LLM_LOCK_WAIT_S`, `SUMMARY_MAX_CHUNKS` \[결정: P3a\].
+- 환경변수: `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`(v1의 `api_key="unused"`를 실제 키로 교체하고 vLLM `--api-key`와 맞춤), `LLM_TIMEOUT_S`(읽기 360 — 동시 4요청에서 요청당 약 17토큰/초라 4,000토큰 출력이 약 235초 \[확인됨: 2026-11-12\]), `LLM_MAX_CONCURRENCY`(5.5), `LLM_BACKEND`(vllm|fake|none, fake는 운영에서 시작 거부), `LLM_MODEL_ID`(PROMPT\_VERSION 접미사, 예: v1+q35-9b), `LLM_TOKENIZER_PATH`, `LLM_LOCK_WAIT_S`, `SUMMARY_MAX_CHUNKS` \[결정: P3a\].
 - 재시도는 5xx와 타임아웃에 한해 2회, 400(컨텍스트 초과)은 청크를 절반으로 줄여 1회만 다시 시도합니다.
 - `/readyz`는 `GET {LLM_BASE_URL}/models`로 연결을 확인합니다. LLM만 불가면 200 + `llm: unavailable`(검색은 동작), DB 불가면 503 \[결정: P3a\].
 

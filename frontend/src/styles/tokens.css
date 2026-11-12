@@ -1,26 +1,39 @@
-/* 색상 토큰 정본 (SPEC §10.1). 화면 코드에는 16진수 색을 직접 쓰지 않는다.
-   바꾸면 tests/contrast.test.ts를 통과해야 한다. */
+/* 색상 토큰 정본 (SPEC §10.1, P7 개편 2026-11-12). 화면 코드에는 16진수 색을 직접 쓰지 않는다.
+   바꾸면 tests/contrast.test.ts를 통과해야 한다.
+   방향: 공문서 — 서류철 회색 종이(bg), 공문 남색 잉크(primary), 먹색 글자(text), 관인 주홍(danger·마감 도장). */
 :root {
-  --bg: #f7f8fa;
+  --bg: #f2f3f0;
   --surface: #ffffff;
-  --surface-2: #f1f3f6;
-  --border: #e3e7ec;
-  --border-input: #8590a0;
-  --text: #14181f;
-  --text-2: #4a5565;
-  --text-3: #667085;
-  --primary: #2f5bea;
-  --primary-hover: #2449c4;
-  --primary-soft: #eaf0ff;
-  --success-fg: #0f6b4d;
-  --success-bg: #e6f6ef;
+  --surface-2: #f5f6f3;
+  --border: #d9dcd5;
+  --border-input: #7d8590;
+  --text: #16202f;
+  --text-2: #46505e;
+  --text-3: #5e6774;
+  --primary: #1e3f74;
+  --primary-hover: #15305a;
+  --primary-soft: #e6ecf5;
+  --success-fg: #1e6b48;
+  --success-bg: #e3f2ea;
   --warning-fg: #8a4b08;
-  --warning-bg: #fef0c7;
-  --danger-fg: #b42318;
-  --danger-bg: #fee4e2;
-  --neutral-fg: #475467;
-  --neutral-bg: #f2f4f7;
+  --warning-bg: #fbefd0;
+  --danger-fg: #b3261e;
+  --danger-bg: #fbe6e3;
+  --neutral-fg: #4a5361;
+  --neutral-bg: #eceeea;
 
-  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.06);
-  --shadow-pop: 0 8px 24px rgba(16, 24, 40, 0.12);
+  /* 범주 색 (배점 항목 등). 고정 순서, 순환 금지. dataviz 검증: 인접 CVD ΔE ≥ 9.1, 일반 ≥ 19.6.
+     3·4·5번은 흰 바탕 대비 3:1 미만이라 항상 이름·점수를 옆에 적는다. 9번째부터는 '기타'(--series-other). */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #6250d6;
+  --series-8: #e34948;
+  --series-other: #9aa0a8;
+
+  --shadow-card: 0 1px 0 rgba(22, 32, 47, 0.04);
+  --shadow-pop: 0 10px 28px rgba(22, 32, 47, 0.16);
 }

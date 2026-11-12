@@ -5,6 +5,7 @@ export const copy = {
   app: {
     name: '나라장터 도우미',
     home: '나라장터 도우미 홈으로',
+    seal: '입찰',
     skipToContent: '본문으로 건너뛰기',
   },
   nav: {
@@ -166,6 +167,7 @@ export const copy = {
     match: { price: '가격', deadline: '마감' },
     techScore: '기술 평가',
     priceScore: '가격 평가',
+    otherItems: (n: number) => `기타 ${n}개 항목`,
     scoreBar: (tech: number, price: number) => `배점 비율: 기술 평가 ${tech}점, 가격 평가 ${price}점`,
     kind: { functional: '기능', technical: '기술', staffing: '인력', legal: '법·제도', other: '기타' },
     source: (name: string) => `근거: ${name}`,

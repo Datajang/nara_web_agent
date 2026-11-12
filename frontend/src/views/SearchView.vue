@@ -219,7 +219,7 @@ const toggleBookmark = useBookmarkToggle(items)
           v-for="r in recent.data.value.items"
           :key="r.id"
           type="button"
-          class="h-8 rounded-full border border-border-input px-3 text-sm text-text-2 hover:bg-surface-2"
+          class="h-8 rounded-control border border-border-input px-3 text-sm text-text-2 hover:bg-surface-2"
           @click="useRecent(r.query)"
         >
           {{ recentLabel(r.query) }}

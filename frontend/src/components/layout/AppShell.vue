@@ -32,7 +32,7 @@ async function logout() {
     <SidebarNav @logout="logout" />
     <div class="flex min-w-0 flex-1 flex-col">
       <TopBar :title="title" />
-      <main id="main" tabindex="-1" class="mx-auto w-full max-w-[1200px] flex-1 p-4 pb-24 md:p-6">
+      <main id="main" tabindex="-1" class="mx-auto w-full max-w-[1200px] flex-1 p-4 pb-24 md:px-8 md:py-6">
         <ForbiddenView v-if="forbidden" />
         <RouterView v-else />
       </main>

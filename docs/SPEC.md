@@ -1250,36 +1250,38 @@ CSS 변수는 `src/styles/tokens.css`에서 한 번만 정의하고, Tailwind �
 
 | 변수 | 값 | 용도 |
 | --- | --- | --- |
-| `--bg` | `#F7F8FA` | 앱 배경 |
+| `--bg` | `#F2F3F0` | 앱 배경 |
 | `--surface` | `#FFFFFF` | 카드·패널 |
-| `--surface-2` | `#F1F3F6` | 보조 영역, 표 헤더 |
-| `--border` | `#E3E7EC` | 카드·구분선(장식용) |
-| `--border-input` | `#8590A0` | 입력창·체크박스 테두리(비텍스트 대비 3:1 충족) |
-| `--text` | `#14181F` | 본문·제목 |
-| `--text-2` | `#4A5565` | 보조 텍스트 |
-| `--text-3` | `#667085` | 힌트·플레이스홀더·메타 정보 |
-| `--primary` | `#2F5BEA` | 주 버튼·링크·포커스 링 |
-| `--primary-hover` | `#2449C4` | 호버·활성 |
-| `--primary-soft` | `#EAF0FF` | 선택된 항목 배경, 사전규격 배지 |
-| `--success-fg` / `--success-bg` | `#0F6B4D` / `#E6F6EF` | 진행중, 높은 적합도 |
-| `--warning-fg` / `--warning-bg` | `#8A4B08` / `#FEF0C7` | 마감 임박, 경고 배너 |
-| `--danger-fg` / `--danger-bg` | `#B42318` / `#FEE4E2` | 오류, 마감 3일 이내, 삭제 |
-| `--neutral-fg` / `--neutral-bg` | `#475467` / `#F2F4F7` | 일반 배지, 마감된 공고 |
+| `--surface-2` | `#F5F6F3` | 보조 영역, 표 헤더 |
+| `--border` | `#D9DCD5` | 카드·구분선(장식용) |
+| `--border-input` | `#7D8590` | 입력창·체크박스 테두리(비텍스트 대비 3:1 충족) |
+| `--text` | `#16202F` | 본문·제목 |
+| `--text-2` | `#46505E` | 보조 텍스트 |
+| `--text-3` | `#5E6774` | 힌트·플레이스홀더·메타 정보 |
+| `--primary` | `#1E3F74` | 주 버튼·링크·포커스 링 |
+| `--primary-hover` | `#15305A` | 호버·활성 |
+| `--primary-soft` | `#E6ECF5` | 선택된 항목 배경, 사전규격 배지 |
+| `--success-fg` / `--success-bg` | `#1E6B48` / `#E3F2EA` | 진행중, 높은 적합도 |
+| `--warning-fg` / `--warning-bg` | `#8A4B08` / `#FBEFD0` | 마감 임박, 경고 배너 |
+| `--danger-fg` / `--danger-bg` | `#B3261E` / `#FBE6E3` | 오류, 마감 3일 이내, 삭제 |
+| `--neutral-fg` / `--neutral-bg` | `#4A5361` / `#ECEEEA` | 일반 배지, 마감된 공고 |
 
-**대비 검증.** 위 색을 스크립트로 계산했습니다. 텍스트는 모두 4.5:1 이상, `--border-input`은 흰 배경에서 3.23:1입니다. \[확인됨\]
+**대비 검증.** 위 색을 스크립트로 계산했습니다. 텍스트는 모두 4.5:1 이상, `--border-input`은 흰 배경에서 3.73:1입니다. \[확인됨\]
 
 | 조합 | 대비 |
 | --- | --- |
-| `--text` / 흰색, `--text` / `--bg` | 17.8 / 16.8 |
-| `--text-2` / 흰색, `--text-2` / `--surface-2` | 7.6 / 6.8 |
-| `--text-3` / 흰색, `--text-3` / `--bg` | 5.0 / 4.7 |
-| 흰색 / `--primary`, 흰색 / `--primary-hover` | 5.5 / 7.4 |
-| `--primary-hover` / `--primary-soft` | 6.5 |
-| `--success-fg` / `--success-bg` | 5.8 |
-| `--warning-fg` / `--warning-bg` | 6.0 |
-| `--danger-fg` / `--danger-bg`, 흰색 / `--danger-fg` | 5.5 / 6.6 |
-| `--neutral-fg` / `--neutral-bg` | 7.0 |
-| `--border-input` / 흰색, `--border-input` / `--bg` | 3.2 / 3.0 |
+| `--text` / 흰색, `--text` / `--bg` | 16.4 / 14.7 |
+| `--text-2` / 흰색, `--text-2` / `--surface-2` | 8.2 / 7.5 |
+| `--text-3` / 흰색, `--text-3` / `--bg` | 5.7 / 5.1 |
+| 흰색 / `--primary`, 흰색 / `--primary-hover` | 10.4 / 13.1 |
+| `--primary-hover` / `--primary-soft` | 11.0 |
+| `--success-fg` / `--success-bg` | 5.6 |
+| `--warning-fg` / `--warning-bg` | 5.9 |
+| `--danger-fg` / `--danger-bg`, 흰색 / `--danger-fg` | 5.5 / 6.5 |
+| `--neutral-fg` / `--neutral-bg` | 6.7 |
+| `--border-input` / 흰색, `--border-input` / `--bg` | 3.7 / 3.4 |
+
+**P7 디자인 방향** \[결정: 2026-11-12\]: 공문서 — 서류철 회색 종이(`--bg`), 공문 남색 잉크(`--primary`), 먹색 글자(`--text`), 관인 주홍(`--danger-fg`). 브랜드 표식은 주홍 테두리 안의 ‘입찰’ 도장이고, 같은 도장 모양을 마감 3일 이내 표시에만 씁니다. 공고 목록은 간격을 둔 카드가 아니라 한 장의 대장(줄마다 가는 선, 왼쪽 마감 칸)입니다. 배지는 각진 꼬리표, 그림자는 팝오버에만. 범주 색(배점 항목 등)은 `--series-1..8`(고정 순서, dataviz 검증: 인접 CVD ΔE ≥ 9.1)을 쓰고 9번째부터는 ‘기타’(`--series-other`)로 묶으며, 색 옆에 항목 이름·점수를 항상 적습니다.
 
 토큰을 바꾸는 PR은 `frontend/tests/contrast.test.ts`(위 조합을 계산하는 테스트)를 통과해야 합니다.
 
@@ -1310,7 +1312,7 @@ CSS 변수는 `src/styles/tokens.css`에서 한 번만 정의하고, Tailwind �
 굵기는 400, 500, 600만 씁니다(700은 쓰지 않음).
 
 - **간격**: 4px 격자(4, 8, 12, 16, 24, 32, 48). 카드 내부 여백 16, 카드 사이 12, 페이지 여백 24.
-- **모서리**: 입력·버튼 6px, 카드·패널 10px, 배지 999px.
+- **모서리**: 입력·버튼 4px, 카드·패널 6px, 배지(꼬리표) 3px \[결정: P7\].
 - **그림자**: 카드 `0 1px 2px rgba(16,24,40,.06)`, 팝오버·모달 `0 8px 24px rgba(16,24,40,.12)`. 카드는 그림자 대신 1px `--border` 테두리를 기본으로 합니다.
 - **포커스 링**: 키보드 포커스에서 2px `--primary`, 오프셋 2px. 포커스 표시를 지우지 않습니다.
 - **모션**: 120\~200ms ease-out. `prefers-reduced-motion`에서는 이동·페이드 애니메이션을 끕니다.

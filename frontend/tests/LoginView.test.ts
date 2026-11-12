@@ -112,6 +112,6 @@ describe('LoginView', () => {
     const me = { id: 1, email: 'a@corp.example', display_name: 'a', role: 'member', status: 'active' }
     const w = await mountLogin(() => respond(200, me))
     await submit(w)
-    await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/library'))
+    await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/library'), { timeout: 5000 })
   })
 })

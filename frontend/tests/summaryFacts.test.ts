@@ -87,7 +87,7 @@ describe('SummaryFacts', () => {
 })
 
 describe('요약·분석 공용 시각 요소', () => {
-  it('배점은 비율 막대로: 폭은 배점 비율, 가격 항목은 따로 표시하고 범례에 합계를 적는다', async () => {
+  it('배점은 항목마다 다른 색: 막대 조각·목록 견본이 같은 색이고 합계는 글로 쓴다', async () => {
     const { default: EvaluationBars } = await import('@/components/bid/EvaluationBars.vue')
     const w = mount(EvaluationBars, {
       props: {
@@ -102,16 +102,31 @@ describe('요약·분석 공용 시각 요소', () => {
         },
       },
     })
-    const segs = w.findAll('[data-seg]')
-    expect(segs.map((s) => [s.attributes('data-seg'), s.attributes('style')])).toEqual([
-      ['tech', 'width: 60%;'],
-      ['tech', 'width: 20%;'],
-      ['price', 'width: 20%;'],
+    const segs = w.findAll('[data-seg]').map((x) => [x.attributes('data-seg'), x.attributes('style')])
+    expect(segs).toEqual([
+      ['1', 'width: 60%; background-color: var(--series-1);'],
+      ['2', 'width: 20%; background-color: var(--series-2);'],
+      ['3', 'width: 20%; background-color: var(--series-3);'],
+    ])
+    const swatches = w.findAll('li [data-swatch]').map((x) => x.attributes('style'))
+    expect(swatches).toEqual([
+      'background-color: var(--series-1);',
+      'background-color: var(--series-2);',
+      'background-color: var(--series-3);',
     ])
     const t = w.text()
     expect(t).toContain(`${copy.analysis.techScore} ${copy.analysis.points(80)}`)
     expect(t).toContain(`${copy.analysis.priceScore} ${copy.analysis.points(20)}`)
     expect(t).toContain('배점 없음') // 배점 없는 항목도 목록에는 남는다
+  })
+
+  it('9번째 항목부터는 색을 새로 만들지 않고 기타로 묶는다', async () => {
+    const { default: EvaluationBars } = await import('@/components/bid/EvaluationBars.vue')
+    const items = Array.from({ length: 10 }, (_, i) => ({ name: `항목${i + 1}`, points: 10, note: null }))
+    const w = mount(EvaluationBars, { props: { evaluation: { method: null, items } } })
+    const segs = w.findAll('[data-seg]').map((x) => x.attributes('data-seg'))
+    expect(segs).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', 'other'])
+    const last = w.findAll('[data-seg]'); expect(last[last.length - 1]!.attributes('style')).toBe('width: 20%; background-color: var(--series-other);')
   })
 
   it('일정은 순서대로, 이름에 마감이 있으면 마감 배지', async () => {

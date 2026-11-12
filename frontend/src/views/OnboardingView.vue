@@ -56,7 +56,7 @@ async function save() {
           <span
             v-for="k in teamKeywords"
             :key="k"
-            class="inline-flex h-7 items-center rounded-full bg-surface-2 px-3 text-sm text-text-2"
+            class="inline-flex h-7 items-center rounded-tag border border-border bg-surface-2 px-2 text-sm text-text-2"
           >{{ k }}</span>
         </p>
         <p class="text-sm text-text-3">{{ copy.onboarding.teamHint }}</p>

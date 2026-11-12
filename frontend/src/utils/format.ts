@@ -55,3 +55,9 @@ export function formatDataAsOf(iso: string): string {
   const p = kstParts(new Date(iso))
   return `${pad(p.m)}-${pad(p.d)} ${pad(p.hh)}:${pad(p.mm)}`
 }
+
+/** 공고 대장 왼쪽 칸의 마감 시각: MM.DD HH:mm (KST). */
+export function formatShortDate(iso: string): string {
+  const p = kstParts(new Date(iso))
+  return `${pad(p.m)}.${pad(p.d)} ${pad(p.hh)}:${pad(p.mm)}`
+}

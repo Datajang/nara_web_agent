@@ -5,6 +5,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import { copy } from '@/copy'
 import { useAuthStore } from '@/stores/auth'
 import { isActive, NAV_ITEMS } from './nav'
+import BrandMark from './BrandMark.vue'
 import UserMenu from './UserMenu.vue'
 
 const auth = useAuthStore()
@@ -20,21 +21,22 @@ const items = computed(() => NAV_ITEMS.filter((i) => !i.adminOnly || auth.isAdmi
     <RouterLink
       to="/"
       :aria-label="copy.app.home"
-      class="flex h-14 items-center gap-2 px-4 text-lg font-semibold text-primary-hover"
+      class="flex h-16 items-center gap-2.5 border-b border-border px-4"
     >
-      <span
-        class="inline-flex size-8 items-center justify-center rounded-control bg-primary text-sm font-semibold text-white"
-        aria-hidden="true"
-      >N</span>
-      <span class="sr-only lg:not-sr-only">{{ copy.app.name }}</span>
+      <BrandMark />
+      <span class="sr-only text-md font-semibold tracking-tight text-text lg:not-sr-only">{{ copy.app.name }}</span>
     </RouterLink>
     <nav :aria-label="copy.nav.label" class="flex-1 px-2 py-2">
       <ul class="flex flex-col gap-1">
         <li v-for="item in items" :key="item.to">
           <RouterLink
             :to="item.to"
-            class="flex h-10 items-center gap-3 rounded-control px-3 text-base text-text-2 hover:bg-surface-2 hover:text-text"
-            :class="isActive(item, route.path) ? '!bg-primary-soft !text-primary-hover font-medium' : ''"
+            class="relative flex h-10 items-center gap-3 rounded-control px-3 text-base text-text-2 hover:bg-surface-2 hover:text-text"
+            :class="
+              isActive(item, route.path)
+                ? 'font-semibold !text-primary before:absolute before:-left-2 before:top-2 before:bottom-2 before:w-[3px] before:rounded-r-sm before:bg-primary'
+                : ''
+            "
             :aria-current="isActive(item, route.path) ? 'page' : undefined"
           >
             <component :is="item.icon" class="size-5 shrink-0" aria-hidden="true" />

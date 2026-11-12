@@ -51,8 +51,8 @@ describe('관심 공고 홈 (/)', () => {
       'GET /api/v1/teams/me': json(NO_TEAM),
     })
     m = await mountAt('/')
-    await settle(15) // 지연 로딩되는 화면으로 replace
-    expect(m.router.currentRoute.value.path).toBe('/onboarding')
+    // 지연 로딩되는 화면으로 replace: 고정 대기 대신 조건이 될 때까지 기다린다
+    await vi.waitFor(() => expect(m!.router.currentRoute.value.path).toBe('/onboarding'), { timeout: 5000 })
   })
 
   it('로그인한 사람이 로그인 화면에 오면 홈으로', async () => {
@@ -81,9 +81,8 @@ describe('키워드 설정 (/onboarding)', () => {
     }
     expect(save().attributes('disabled')).toBeUndefined()
     await save().trigger('click')
-    await settle()
+    await vi.waitFor(() => expect(m!.router.currentRoute.value.path).toBe('/'), { timeout: 5000 })
     expect(api.calls.find((c) => c.method === 'PATCH')?.body).toEqual({ interest_keywords: ['AI', '데이터'] })
-    expect(m.router.currentRoute.value.path).toBe('/')
   })
 })
 
@@ -96,9 +95,8 @@ describe('초대 수락 (/join)', () => {
     m = await mountAt('/join?code=ABCD234567')
     expect(text(m.wrapper)).toContain('ABCD234567')
     await m.wrapper.findAll('button').find((b) => b.text() === copy.team.joinSubmit)!.trigger('click')
-    await settle(15)
+    await vi.waitFor(() => expect(m!.router.currentRoute.value.path).toBe('/settings/team'), { timeout: 5000 })
     expect(api.calls.find((c) => c.url.endsWith('/teams/join'))?.body).toEqual({ code: 'ABCD234567' })
-    expect(m.router.currentRoute.value.path).toBe('/settings/team')
   })
 
   it('이미 팀이 있으면 안내만', async () => {

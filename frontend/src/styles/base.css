@@ -22,6 +22,7 @@
   --color-danger-bg: var(--danger-bg);
   --color-neutral-fg: var(--neutral-fg);
   --color-neutral-bg: var(--neutral-bg);
+  --color-series-other: var(--series-other);
   --shadow-card: var(--shadow-card);
   --shadow-pop: var(--shadow-pop);
 }
@@ -44,8 +45,9 @@
   --text-xl--line-height: 28px;
   --text-2xl: 24px;
   --text-2xl--line-height: 32px;
-  --radius-control: 6px;
-  --radius-card: 10px;
+  --radius-control: 4px;
+  --radius-card: 6px;
+  --radius-tag: 3px;
 }
 
 @layer base {

@@ -14,26 +14,28 @@ const tone = { new: 'neutral', ok: 'success', failed: 'danger', unsupported: 'wa
 <template>
   <p v-if="!files.length" class="text-text-3">{{ copy.detail.noFiles }}</p>
   <ul v-else class="divide-y divide-border rounded-card border border-border bg-surface">
-    <li v-for="f in files" :key="f.file_id" class="flex flex-wrap items-center gap-2 px-4 py-2">
-      <FileText class="size-4 shrink-0 text-text-3" aria-hidden="true" />
-      <button
-        type="button"
-        class="group inline-flex min-h-10 min-w-0 items-center gap-1.5 text-left text-base text-primary-hover hover:underline disabled:opacity-60"
-        :aria-label="copy.detail.download(f.name)"
-        :disabled="downloading === f.file_id"
-        @click="emit('download', f)"
-      >
-        <span class="break-all">{{ f.name }}</span>
-        <LoaderCircle v-if="downloading === f.file_id" class="size-4 shrink-0 animate-spin" aria-hidden="true" />
-        <Download v-else class="size-4 shrink-0 opacity-60 group-hover:opacity-100" aria-hidden="true" />
-        <span v-if="downloading === f.file_id" class="text-sm text-text-3">{{ copy.detail.downloading }}</span>
-      </button>
-      <span class="text-sm text-text-3">{{ copy.detail.fileKind[f.kind] }}</span>
-      <span class="ml-auto flex items-center gap-1">
+    <li v-for="f in files" :key="f.file_id" class="flex items-start gap-3 px-4 py-2.5">
+      <FileText class="mt-2.5 size-4 shrink-0 text-text-3" aria-hidden="true" />
+      <div class="flex min-w-0 flex-1 flex-col">
+        <button
+          type="button"
+          class="group inline-flex min-h-10 items-center gap-1.5 text-left text-base text-primary hover:underline disabled:opacity-60"
+          :aria-label="copy.detail.download(f.name)"
+          :disabled="downloading === f.file_id"
+          @click="emit('download', f)"
+        >
+          <span class="min-w-0 break-all">{{ f.name }}</span>
+          <LoaderCircle v-if="downloading === f.file_id" class="size-4 shrink-0 animate-spin" aria-hidden="true" />
+          <Download v-else class="size-4 shrink-0 opacity-60 group-hover:opacity-100" aria-hidden="true" />
+          <span v-if="downloading === f.file_id" class="text-sm text-text-3">{{ copy.detail.downloading }}</span>
+        </button>
+        <span class="-mt-1.5 text-sm text-text-3">{{ copy.detail.fileKind[f.kind] }}</span>
+      </div>
+      <span class="flex shrink-0 items-center gap-1 pt-1">
         <button
           v-if="f.status === 'ok'"
           type="button"
-          class="inline-flex size-10 items-center justify-center rounded-control text-text-2 hover:bg-surface-2 hover:text-text"
+          class="inline-flex size-9 items-center justify-center rounded-control text-text-2 hover:bg-surface-2 hover:text-text"
           :aria-label="copy.detail.previewOpen(f.name)"
           :title="copy.detail.previewOpen(f.name)"
           @click="emit('preview', f)"

@@ -17,7 +17,7 @@ const asTable = computed(() => props.view === 'table' && !narrow.value)
 
 <template>
   <BidTable v-if="asTable" :bids="bids" />
-  <ul v-else class="grid gap-3">
+  <ul v-else class="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface">
     <li v-for="b in bids" :key="b.bid_id">
       <BidCard :bid="b" :show-score="showScore" @toggle-bookmark="emit('toggle-bookmark', $event)" />
     </li>

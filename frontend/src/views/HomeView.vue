@@ -59,11 +59,11 @@ const toggleBookmark = useBookmarkToggle(items)
         <span
           v-for="k in keywords"
           :key="k"
-          class="inline-flex h-7 items-center rounded-full bg-primary-soft px-3 text-sm text-primary-hover"
+          class="inline-flex h-7 items-center rounded-tag border border-primary/25 bg-primary-soft px-2 text-sm text-primary-hover"
         >{{ k }}</span>
         <RouterLink
           to="/onboarding"
-          class="inline-flex h-7 items-center gap-1 rounded-full px-2 text-sm text-text-2 hover:bg-surface-2 hover:text-text"
+          class="inline-flex h-7 items-center gap-1 rounded-control px-2 text-sm text-text-2 hover:bg-surface-2 hover:text-text"
         >
           <Pencil class="size-3.5" aria-hidden="true" />{{ copy.feed.editKeywords }}
         </RouterLink>
@@ -77,18 +77,19 @@ const toggleBookmark = useBookmarkToggle(items)
     <EmptyState v-else-if="!items.length" :title="copy.feed.empty" />
     <template v-else>
       <p class="text-sm text-text-3">{{ copy.feed.total(total) }}</p>
-      <ul class="grid gap-3">
-        <li v-for="b in items" :key="b.bid_id" class="flex flex-col gap-1.5">
-          <BidCard :bid="b" @toggle-bookmark="toggleBookmark" />
-          <p class="flex flex-wrap items-center gap-1.5 px-1 text-xs text-text-3">
-            <span>{{ copy.feed.matched }}</span>
-            <span
-              v-for="k in b.matched_keywords"
-              :key="k"
-              data-matched
-              class="rounded-full bg-surface-2 px-2 py-0.5 text-text-2"
-            >{{ k }}</span>
-          </p>
+      <ul class="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface">
+        <li v-for="b in items" :key="b.bid_id">
+          <BidCard :bid="b" @toggle-bookmark="toggleBookmark">
+            <p class="flex flex-wrap items-center gap-1.5 text-xs text-text-3">
+              <span>{{ copy.feed.matched }}</span>
+              <span
+                v-for="k in b.matched_keywords"
+                :key="k"
+                data-matched
+                class="border-b border-primary/40 text-text-2"
+              >{{ k }}</span>
+            </p>
+          </BidCard>
         </li>
       </ul>
       <UiButton v-if="items.length < total" variant="secondary" :loading="loadingMore" @click="more">

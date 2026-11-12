@@ -190,3 +190,21 @@ describe('로고 → 홈', () => {
     expect(a.classes()).toContain('md:hidden')
   })
 })
+
+describe('DeadlineStamp (공고 대장 왼쪽 칸)', () => {
+  const at = (days: number) => new Date(NOW.getTime() + days * 86_400_000).toISOString()
+
+  it('3일 이내면 관인 도장처럼 강조하고, 마감일·시각을 함께 쓴다', async () => {
+    const { default: DeadlineStamp } = await import('@/components/bid/DeadlineStamp.vue')
+    const w = mount(DeadlineStamp, { props: { deadlineAt: at(2), now: NOW } })
+    expect(w.get('[data-urgent]').text()).toBe('D-2')
+    expect(w.text()).toContain('11.12')
+  })
+
+  it('넉넉하면 도장 없이, 마감 지남·미정은 글자로', async () => {
+    const { default: DeadlineStamp } = await import('@/components/bid/DeadlineStamp.vue')
+    expect(mount(DeadlineStamp, { props: { deadlineAt: at(10), now: NOW } }).find('[data-urgent]').exists()).toBe(false)
+    expect(mount(DeadlineStamp, { props: { deadlineAt: at(-1), now: NOW } }).text()).toContain(copy.format.closed)
+    expect(mount(DeadlineStamp, { props: { deadlineAt: null, now: NOW } }).text()).toContain(copy.format.noDeadline)
+  })
+})

@@ -46,12 +46,12 @@ defineExpose({ commit: add })
       <span
         v-for="chip in model"
         :key="chip"
-        class="inline-flex h-7 items-center gap-1 rounded-full bg-primary-soft pl-2.5 pr-1 text-sm text-primary-hover"
+        class="inline-flex h-7 items-center gap-1 rounded-tag border border-primary/25 bg-primary-soft pl-2 pr-0.5 text-sm text-primary-hover"
       >
         {{ chip }}
         <button
           type="button"
-          class="inline-flex size-6 items-center justify-center rounded-full hover:bg-surface"
+          class="inline-flex size-6 items-center justify-center rounded-tag hover:bg-surface"
           :aria-label="`${chip} ${copy.common.remove}`"
           @click="remove(chip)"
         >

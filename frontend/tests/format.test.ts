@@ -1,6 +1,6 @@
 // §10.10-2: 포맷 규칙 예시와 시간대 경계.
 import { describe, expect, it } from 'vitest'
-import { formatDataAsOf, formatDateTime, formatDday, formatMoney } from '@/utils/format'
+import { formatDataAsOf, formatDateTime, formatDday, formatMoney, formatShortDate } from '@/utils/format'
 
 describe('formatMoney', () => {
   it.each([
@@ -41,6 +41,11 @@ describe('formatDday (KST 기준)', () => {
 })
 
 describe('날짜 표시', () => {
+  it('formatShortDate: 대장 왼쪽 칸의 마감일 MM.DD HH:mm (KST)', () => {
+    expect(formatShortDate('2026-11-20T01:00:00Z')).toBe('11.20 10:00')
+    expect(formatShortDate('2026-11-20T16:05:00Z')).toBe('11.21 01:05')
+  })
+
   it('formatDateTime: UTC ISO → KST', () => {
     expect(formatDateTime('2026-11-20T01:00:00Z')).toBe('2026-11-20 10:00')
     expect(formatDateTime('2026-11-20T16:05:00Z')).toBe('2026-11-21 01:05')

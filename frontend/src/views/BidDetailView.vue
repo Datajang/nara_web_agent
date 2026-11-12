@@ -10,7 +10,7 @@ import { libraryApi } from '@/api/library'
 import { profilesApi } from '@/api/profiles'
 import type { AnalysisResult, BidDetail, FileText, StreamEvent } from '@/api/types'
 import AnalysisResultView from '@/components/bid/AnalysisResultView.vue'
-import DeadlineBadge from '@/components/bid/DeadlineBadge.vue'
+import DeadlineStamp from '@/components/bid/DeadlineStamp.vue'
 import FeedbackButtons from '@/components/bid/FeedbackButtons.vue'
 import FileList from '@/components/bid/FileList.vue'
 import MoneyText from '@/components/bid/MoneyText.vue'
@@ -220,7 +220,10 @@ async function toggleBookmark() {
     </div>
 
     <template v-else-if="bid">
-      <header class="flex flex-col gap-3 rounded-card border border-border bg-surface p-4">
+      <header
+        class="grid grid-cols-[4.75rem_minmax(0,1fr)] gap-x-4 gap-y-3 rounded-card border border-border bg-surface p-4 sm:grid-cols-[6rem_minmax(0,1fr)] sm:p-5"
+      >
+        <DeadlineStamp :deadline-at="bid.deadline_at" class="row-span-4 pt-1" />
         <div class="flex flex-wrap items-center gap-1.5">
           <UiBadge :tone="bid.source === 'prespec' ? 'primary' : 'neutral'">
             {{ bid.source === 'prespec' ? copy.bid.prespec : copy.bid.regular }}
@@ -229,11 +232,10 @@ async function toggleBookmark() {
           <UiBadge v-if="bid.cancelled" tone="danger">{{ copy.bid.cancelled }}</UiBadge>
           <span class="text-sm tabular text-text-3">{{ bid.bid_no }}</span>
         </div>
-        <h2 class="text-xl font-semibold leading-snug text-text">{{ bid.title }}</h2>
-        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-base text-text-2">
+        <h2 class="text-xl font-semibold leading-snug tracking-tight text-text sm:text-2xl">{{ bid.title }}</h2>
+        <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-base text-text-2">
           <span>{{ bid.org_name || copy.bid.noOrg }}</span>
-          <MoneyText :value="bid.budget" />
-          <DeadlineBadge :deadline-at="bid.deadline_at" />
+          <MoneyText :value="bid.budget" class="font-medium text-text" />
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <button

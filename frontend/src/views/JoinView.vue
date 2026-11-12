@@ -1,11 +1,11 @@
 <script setup lang="ts">
 // 초대 수락 (SPEC §13 P6). /join?code= 로 온다. 로그인 전이면 라우터 가드가 로그인 뒤 여기로 되돌린다.
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
-import { Users } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { authApi } from '@/api/auth'
 import { teamsApi } from '@/api/teams'
+import BrandMark from '@/components/layout/BrandMark.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import { copy } from '@/copy'
 import { useAuthStore } from '@/stores/auth'
@@ -42,9 +42,7 @@ async function join() {
 
 <template>
   <section class="mx-auto flex max-w-md flex-col items-center gap-4 rounded-card border border-border bg-surface p-8 text-center">
-    <span class="inline-flex size-12 items-center justify-center rounded-full bg-primary-soft text-primary">
-      <Users class="size-6" aria-hidden="true" />
-    </span>
+    <BrandMark />
     <template v-if="!code">
       <p class="text-base text-text-2">{{ copy.team.noCode }}</p>
     </template>

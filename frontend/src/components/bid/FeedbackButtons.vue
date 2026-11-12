@@ -70,7 +70,7 @@ async function submit() {
             <label
               v-for="r in REASONS"
               :key="r"
-              class="inline-flex h-9 cursor-pointer items-center rounded-full border border-border-input px-3 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary-soft has-[:checked]:text-primary-hover has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-primary"
+              class="inline-flex h-9 cursor-pointer items-center rounded-control border border-border-input px-3 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary-soft has-[:checked]:text-primary-hover has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-primary"
             >
               <input v-model="reason" class="sr-only" type="radio" :name="radioName" :value="r" />
               {{ copy.feedback.reasons[r] }}

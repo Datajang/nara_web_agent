@@ -8,5 +8,5 @@
   - `inqryDiv=3`: PPSSrch는 resultCode 07, 일반 조회는 08 (지원 안 함)
   - 사전규격: `getPublicPrcureThngInfoServc`(일반·PPSSrch 둘 다) + `inqryDiv=2` + `bfSpecRgstNo` → 1행
   - 일반 조회 응답 필드는 PPSSrch와 114개 모두 같고 값도 같음 → 지금 `mapper.to_record`를 그대로 쓸 수 있음
-- 결정(제안, 사용자 승인 대기): lookup이 DB에서 못 찾으면 위 일반 조회로 1회 호출(예산 차감) → 차수 최대 행만 저장(수집기와 같은 경로) → bid_id 반환. 못 찾으면 지금처럼 404
-- 명세 수정 필요: 있음 — §14 Q5 [확인됨], §6.2·§7 lookup의 'DB만'을 'DB → G2B 단건 조회'로 (구현 승인 뒤 Claude Docs 원본에서)
+- 결정(사용자 승인 2026-11-12, 구현): lookup이 DB에서 못 찾으면 공고 → 사전규격 순으로 일반 조회(최대 2회, usage_logs `search`로 예산 차감) → 응답 중 **그 번호 행만** 차수 최대로 저장(`upsert_bids`) → bid_id. 없으면 404, G2B 실패·예산 초과는 503 `g2b_unavailable`(화면은 ‘나라장터 조회에 실패했어요’). 사용자당 30회/분 제한. 코드 `app/bids/lookup.py`, 시험 `tests/integration/test_api_lookup.py`
+- 명세 수정: 2026-11-12 Claude Docs 원본에 반영 (§6.2 lookup, §7.5 공고번호로 열기, §14 Q5)

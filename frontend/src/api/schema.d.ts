@@ -241,7 +241,7 @@ export interface paths {
         };
         /**
          * Lookup
-         * @description DB에서만 찾는다. G2B 단건 조회는 [미확인]이라 아직 하지 않는다 (P3a 결정).
+         * @description DB → 없으면 G2B 단건 조회(Q5 확인, docs/decisions/2026-11-12-g2b-single-lookup.md).
          */
         get: operations["lookup_api_v1_bids_lookup_get"];
         put?: never;

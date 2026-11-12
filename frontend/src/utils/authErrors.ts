@@ -18,5 +18,6 @@ export function generalMessage(err: unknown): string {
   if (err.status === 429) return copy.common.rateLimited(err.retryAfter ?? 60)
   if (err.status === 422) return copy.auth.invalidInput
   if (err.code === 'llm_unavailable') return copy.llm.unavailable
+  if (err.code === 'g2b_unavailable') return copy.common.g2bUnavailable
   return copy.common.unknownError
 }

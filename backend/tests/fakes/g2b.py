@@ -21,6 +21,9 @@ OPS = {
     "getBidPblancListInfoServcPPSSrch": "regular",
     "getPublicPrcureThngInfoServcPPSSrch": "prespec",
 }
+# 단건 조회용 일반 조회 (docs/decisions/2026-11-12-g2b-single-lookup.md): inqryDiv=2 + 번호
+LOOKUP_OPS = {"getBidPblancListInfoServc": "regular", "getPublicPrcureThngInfoServc": "prespec"}
+NO_FIELD = {"regular": "bidNtceNo", "prespec": "bfSpecRgstNo"}
 DATE_FIELD = {"regular": "bidNtceDt", "prespec": "rgstDt"}
 TITLE_FIELD = {"regular": "bidNtceNm", "prespec": "prdctClsfcNoNm"}
 
@@ -112,10 +115,13 @@ class FakeG2B:
         self.requests.append(request)
         if self.fail_queue:
             return self.fail_queue.pop(0)
-        source = OPS.get(request.url.path.rsplit("/", 1)[-1])
+        op = request.url.path.rsplit("/", 1)[-1]
+        p = request.url.params
+        if op in LOOKUP_OPS:
+            return self._lookup(LOOKUP_OPS[op], p)
+        source = OPS.get(op)
         if source is None:
             return httpx.Response(404, text="unknown op")
-        p = request.url.params
         bgn = datetime.strptime(p["inqryBgnDt"], "%Y%m%d%H%M").replace(tzinfo=KST)
         end = datetime.strptime(p["inqryEndDt"], "%Y%m%d%H%M").replace(tzinfo=KST)
         if end - bgn > timedelta(days=16):  # 실제 API의 기간 제한 오류 모양
@@ -143,6 +149,13 @@ class FakeG2B:
             json={"response": {"header": {"resultCode": "00", "resultMsg": "정상"}, "body": body}},
         )
 
+    def _lookup(self, source: str, p: httpx.QueryParams) -> httpx.Response:
+        field = NO_FIELD[source]
+        if p.get("inqryDiv") != "2" or not p.get(field):
+            return _ok({"items": [], "totalCount": 0})
+        matched = [it for it in self.items[source] if it.get(field) == p[field]]
+        return _ok({"items": matched, "totalCount": len(matched)})
+
     async def _async_handler(self, request: httpx.Request) -> httpx.Response:
         if self.delay_s:
             await asyncio.sleep(self.delay_s)
@@ -150,3 +163,9 @@ class FakeG2B:
 
     def http_client(self) -> httpx.AsyncClient:
         return httpx.AsyncClient(transport=httpx.MockTransport(self._async_handler))
+
+
+def _ok(body: dict[str, Any]) -> httpx.Response:
+    return httpx.Response(
+        200, json={"response": {"header": {"resultCode": "00", "resultMsg": "정상"}, "body": body}}
+    )

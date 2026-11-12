@@ -295,6 +295,7 @@ export const copy = {
     loading: '불러오는 중이에요',
     networkError: '서버에 연결하지 못했어요. 네트워크를 확인하고 다시 시도해 주세요.',
     unknownError: '요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.',
+    g2bUnavailable: '나라장터 조회에 실패했어요. 잠시 후 다시 시도해 주세요.',
     rateLimited: (seconds: number) =>
       `요청이 너무 많아요. ${seconds}초 뒤에 다시 시도해 주세요.`,
     streamInterrupted: '응답이 중간에 끊겼어요. 다시 시도해 주세요.',

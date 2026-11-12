@@ -30,6 +30,12 @@ ENDPOINTS = {
     "regular": (BID_BASE, "getBidPblancListInfoServcPPSSrch", "bidNtceNm"),
     "prespec": (PRESPEC_BASE, "getPublicPrcureThngInfoServcPPSSrch", "prdctClsfcNoNm"),
 }
+# 번호 단건 조회: 일반 조회 + inqryDiv=2. 검색용 PPSSrch는 번호 필터를 무시한다
+# (docs/decisions/2026-11-12-g2b-single-lookup.md)
+LOOKUP_ENDPOINTS = {
+    "regular": (BID_BASE, "getBidPblancListInfoServc", "bidNtceNo"),
+    "prespec": (PRESPEC_BASE, "getPublicPrcureThngInfoServc", "bfSpecRgstNo"),
+}
 MAX_SPAN = timedelta(days=15)
 _KEY_PARAM = re.compile(r"(ServiceKey=)[^&\s'\"]+", re.IGNORECASE)
 
@@ -113,6 +119,13 @@ class G2BClient:
             out.extend(await self._fetch_span(source, cur, nxt, keyword))
             cur = nxt
         return out
+
+    async def lookup(self, source: str, number: str) -> list[dict[str, Any]]:
+        """번호로 1회 조회. 그 번호의 행(정정 차수별)만 돌려준다. 없으면 빈 리스트."""
+        base, op, field = LOOKUP_ENDPOINTS[source]
+        params = {"type": "json", "inqryDiv": "2", field: number, "numOfRows": "100", "pageNo": "1"}
+        body = await self._call(source, f"{base}/{op}", params)
+        return [it for it in _items(body) if str(it.get(field) or "") == number]
 
     async def _fetch_span(
         self, source: str, start: datetime, end: datetime, keyword: str | None

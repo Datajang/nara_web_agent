@@ -175,6 +175,21 @@ describe('BidDetailView', () => {
     expect(m.router.currentRoute.value.path).toBe('/bids/b202')
   })
 
+  it('공고번호로 열기: 나라장터 조회 실패는 번호 오류와 다르게 안내', async () => {
+    mockApi(
+      base({
+        'GET /api/v1/bids/lookup': json({ error: { code: 'g2b_unavailable', message: '' } }, 503),
+      }),
+    )
+    m = await mountAt('/bids/b101')
+    const input = m.wrapper.get('input[name="bid_no"]')
+    await input.setValue('R26BK00000999')
+    ;(input.element as HTMLInputElement).form!.dispatchEvent(new Event('submit'))
+    await settle()
+    expect(text(m.wrapper)).toContain(copy.common.g2bUnavailable)
+    expect(text(m.wrapper)).not.toContain(copy.detail.lookupNotFound)
+  })
+
   it('없는 공고는 안내', async () => {
     mockApi({ 'GET /api/v1/profiles': json({ items: [] }) })
     m = await mountAt('/bids/b999')

@@ -1,4 +1,7 @@
-"""/api/v1/bids (SPEC §6.2, §6.3). 상세·파일 본문 조회는 LLM·G2B를 호출하지 않는다."""
+"""/api/v1/bids (SPEC §6.2, §6.3). 상세·파일 본문 조회는 LLM·G2B를 호출하지 않는다.
+
+lookup만 DB에 없을 때 G2B 단건 조회를 1~2회 한다.
+"""
 
 from __future__ import annotations
 
@@ -18,7 +21,10 @@ from app.api.schemas.bids import (
     SearchResultOut,
 )
 from app.bids.cards import build_cards
+from app.bids.lookup import fetch_from_g2b, find_in_db
 from app.db.models import Bid, BidFile, BidSummary, FileText
+from app.errors import ApiError
+from app.g2b.client import G2BError
 from app.history import repo as history
 from app.llm.schemas import BidSummary as BidSummaryOut
 from app.llm.versions import SUMMARY_PROMPT, bid_ref, prompt_version
@@ -50,18 +56,22 @@ async def search(body: SearchQuery, user: ActiveUser, s: DbSession, ctx: Ctx) ->
 # /bids/{bid_id}보다 먼저 선언한다 (§6.2)
 @router.get("/lookup")
 async def lookup(
-    _: ActiveUser,
+    user: ActiveUser,
     s: DbSession,
+    ctx: Ctx,
     bid_no: Annotated[str, Query(min_length=1, max_length=40)],
 ) -> LookupOut:
-    """DB에서만 찾는다. G2B 단건 조회는 [미확인]이라 아직 하지 않는다 (P3a 결정)."""
+    """DB → 없으면 G2B 단건 조회(Q5 확인, docs/decisions/2026-11-12-g2b-single-lookup.md)."""
     no = bid_no.strip()
-    found = await s.scalar(
-        select(Bid.id)
-        .where((Bid.bid_no == no) | (Bid.prespec_reg_no == no))
-        .order_by(Bid.revision.desc(), Bid.id.desc())
-        .limit(1)
-    )
+    found = await find_in_db(s, no)
+    if found is None and no and ctx.deps.g2b is not None:
+        ctx.limiter.hit(f"lookup:{user.id}", 30, 60)
+        try:
+            found = await fetch_from_g2b(ctx.deps, user.id, no)
+        except G2BError as e:
+            raise ApiError(
+                503, "g2b_unavailable", "나라장터 조회에 실패했어요. 잠시 후 다시 시도해 주세요."
+            ) from e
     if found is None:
         raise bid_not_found()
     return LookupOut(bid_id=bid_ref(found))

@@ -9,6 +9,7 @@ from app.api.schemas import MeOut, MePatch
 from app.api.security import set_auth_cookies
 from app.auth.service import AuthService
 from app.errors import ApiError
+from app.profiles.repo import clean_keywords
 
 router = APIRouter(tags=["me"])
 
@@ -24,6 +25,8 @@ async def patch_me(
 ) -> MeOut:
     if body.display_name is not None:
         user.display_name = body.display_name
+    if body.interest_keywords is not None:
+        user.interest_keywords = clean_keywords(body.interest_keywords)
     if body.new_password is not None:
         if body.current_password is None:
             raise ApiError(

@@ -215,6 +215,126 @@ export interface paths {
         patch: operations["patch_profile_api_v1_profiles__profile_id__patch"];
         trace?: never;
     };
+    "/api/v1/teams/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get My Team */
+        get: operations["get_my_team_api_v1_teams_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Rename Team */
+        patch: operations["rename_team_api_v1_teams_me_patch"];
+        trace?: never;
+    };
+    "/api/v1/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Team */
+        post: operations["create_team_api_v1_teams_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Join Team */
+        post: operations["join_team_api_v1_teams_join_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/me/invite-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotate Invite Code */
+        post: operations["rotate_invite_code_api_v1_teams_me_invite_code_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/me/members/{member_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Member */
+        delete: operations["remove_member_api_v1_teams_me_members__member_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/me/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Leave Team */
+        post: operations["leave_team_api_v1_teams_me_leave_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Feed */
+        get: operations["get_feed_api_v1_feed_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/bids/search": {
         parameters: {
             query?: never;
@@ -439,7 +559,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Analyses */
+        /**
+         * List Analyses
+         * @description scope=team이면 팀 프로필로 만든 팀원의 분석(§13 P6). 팀이 없으면 빈 목록.
+         */
         get: operations["list_analyses_api_v1_analyses_get"];
         put?: never;
         post?: never;
@@ -874,6 +997,8 @@ export interface components {
             summary: components["schemas"]["BidSummary"] | null;
             /** My Analysis Id */
             my_analysis_id: number | null;
+            /** Team Analysis Id */
+            team_analysis_id?: number | null;
         };
         /** BidSummary */
         BidSummary: {
@@ -1145,6 +1270,62 @@ export interface components {
              */
             items: components["schemas"]["EvalItem"][];
         };
+        /** FeedItem */
+        FeedItem: {
+            /** Bid Id */
+            bid_id: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "regular" | "prespec";
+            /** Bid No */
+            bid_no: string;
+            /** Title */
+            title: string;
+            /** Org Name */
+            org_name: string | null;
+            /** Budget */
+            budget: number | null;
+            /** Deadline At */
+            deadline_at: string | null;
+            /** Notice At */
+            notice_at: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "closed";
+            /** Cancelled */
+            cancelled: boolean;
+            /** Revision */
+            revision: number;
+            /** Detail Url */
+            detail_url: string | null;
+            /** Has Files */
+            has_files: boolean;
+            /** Summary Ready */
+            summary_ready: boolean;
+            /** Bookmarked */
+            bookmarked: boolean;
+            /** Score */
+            score?: number | null;
+            /** Reason */
+            reason?: string | null;
+            /** Matched Keywords */
+            matched_keywords: string[];
+        };
+        /** FeedOut */
+        FeedOut: {
+            /** Keywords */
+            keywords: string[];
+            /** Needs Keywords */
+            needs_keywords: boolean;
+            /** Total */
+            total: number;
+            /** Items */
+            items: components["schemas"]["FeedItem"][];
+        };
         /** FeedbackIn */
         FeedbackIn: {
             /**
@@ -1237,6 +1418,11 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** JoinIn */
+        JoinIn: {
+            /** Code */
+            code: string;
+        };
         /** KeywordsIn */
         KeywordsIn: {
             /** Description */
@@ -1259,7 +1445,10 @@ export interface components {
             /** Bid Id */
             bid_id: string;
         };
-        /** MeOut */
+        /**
+         * MeOut
+         * @description 내 정보. 팀(P6)과 개인 관심 키워드를 함께 준다.
+         */
         MeOut: {
             /** Id */
             id: number;
@@ -1277,6 +1466,14 @@ export interface components {
              * @enum {string}
              */
             status: "pending_verification" | "pending_approval" | "active" | "disabled";
+            /**
+             * Interest Keywords
+             * @default []
+             */
+            interest_keywords: string[];
+            team?: components["schemas"]["MeTeam"] | null;
+            /** Team Role */
+            team_role?: ("owner" | "member") | null;
         };
         /** MePatch */
         MePatch: {
@@ -1286,6 +1483,29 @@ export interface components {
             current_password?: string | null;
             /** New Password */
             new_password?: string | null;
+            /** Interest Keywords */
+            interest_keywords?: string[] | null;
+        };
+        /** MeTeam */
+        MeTeam: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
+        /** MemberOut */
+        MemberOut: {
+            /** User Id */
+            user_id: number;
+            /** Display Name */
+            display_name: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "owner" | "member";
+            /** Joined At */
+            joined_at: string | null;
         };
         /** MessageIn */
         MessageIn: {
@@ -1316,6 +1536,20 @@ export interface components {
              */
             created_at: string;
         };
+        /**
+         * MyTeamOut
+         * @description 팀이 없으면 team=null이고 나머지는 비어 있다.
+         */
+        MyTeamOut: {
+            team?: components["schemas"]["TeamOut"] | null;
+            /** Role */
+            role?: ("owner" | "member") | null;
+            /**
+             * Members
+             * @default []
+             */
+            members: components["schemas"]["MemberOut"][];
+        };
         /** ProfileIn */
         ProfileIn: {
             /** Name */
@@ -1335,6 +1569,12 @@ export interface components {
              * @default false
              */
             is_default: boolean;
+            /**
+             * Scope
+             * @default personal
+             * @enum {string}
+             */
+            scope: "personal" | "team";
         };
         /** ProfileList */
         ProfileList: {
@@ -1355,6 +1595,11 @@ export interface components {
             is_default: boolean;
             /** Profile Hash */
             profile_hash: string;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "personal" | "team";
             /**
              * Created At
              * Format: date-time
@@ -1608,6 +1853,20 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** TeamIn */
+        TeamIn: {
+            /** Name */
+            name: string;
+        };
+        /** TeamOut */
+        TeamOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Invite Code */
+            invite_code: string;
         };
         /** TokenIn */
         TokenIn: {
@@ -2270,6 +2529,224 @@ export interface operations {
             };
         };
     };
+    get_my_team_api_v1_teams_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyTeamOut"];
+                };
+            };
+        };
+    };
+    rename_team_api_v1_teams_me_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyTeamOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_team_api_v1_teams_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyTeamOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    join_team_api_v1_teams_join_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JoinIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyTeamOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rotate_invite_code_api_v1_teams_me_invite_code_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyTeamOut"];
+                };
+            };
+        };
+    };
+    remove_member_api_v1_teams_me_members__member_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    leave_team_api_v1_teams_me_leave_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_feed_api_v1_feed_get: {
+        parameters: {
+            query?: {
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     search_api_v1_bids_search_post: {
         parameters: {
             query?: never;
@@ -2781,6 +3258,7 @@ export interface operations {
             query?: {
                 limit?: number;
                 offset?: number;
+                scope?: "mine" | "team";
             };
             header?: never;
             path?: never;

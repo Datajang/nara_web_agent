@@ -153,11 +153,14 @@ async function loadSaved(id: number) {
     // 기록이 지워졌으면 새로 분석하면 된다
   }
 }
+// 내 분석이 없으면 팀원이 팀 프로필로 만든 분석을 보여 준다 (§13 P6).
+const fromTeam = ref(false)
 watch(
-  [() => route.query.analysis, () => bid.value?.my_analysis_id, bidId],
-  ([q, mine], old) => {
+  [() => route.query.analysis, () => bid.value?.my_analysis_id, bidId, () => bid.value?.team_analysis_id],
+  ([q, mine, , team], old) => {
     if (old && old[2] !== bidId.value) analysis.value = null
-    const id = Number(q) || mine
+    const id = Number(q) || mine || team
+    fromTeam.value = !Number(q) && !mine && !!team
     if (id && id !== analysisId.value) void loadSaved(id)
   },
   { immediate: true },
@@ -318,7 +321,8 @@ async function toggleBookmark() {
         >
           {{ copy.analyze.noText }}
         </p>
-        <p v-if="fromCache" class="text-sm text-text-3">{{ copy.analysis.fromCache }}</p>
+        <p v-if="fromTeam" class="rounded-control bg-primary-soft px-3 py-2 text-sm text-primary-hover">{{ copy.detail.teamAnalysis }}</p>
+        <p v-else-if="fromCache" class="text-sm text-text-3">{{ copy.analysis.fromCache }}</p>
         <div class="rounded-card border border-border bg-surface p-4">
           <AnalysisResultView :analysis="analysis" />
         </div>

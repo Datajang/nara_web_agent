@@ -1,11 +1,12 @@
 // 주 메뉴 정의 (SPEC §10.3 사이드바 메뉴 6개).
-import { FolderOpen, MessageSquare, Search, Settings, ShieldCheck, Sparkles } from 'lucide-vue-next'
+import { FolderOpen, House, MessageSquare, Search, Settings, ShieldCheck, Sparkles } from 'lucide-vue-next'
 import type { Component } from 'vue'
 import { copy } from '@/copy'
 
 export interface NavItem {
   to: string
-  match: string // 이 경로로 시작하면 활성 표시
+  match: string // 이 경로로 시작하면 활성 표시 (exact면 같을 때만)
+  exact?: boolean
   label: string
   icon: Component
   adminOnly?: boolean
@@ -13,6 +14,7 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
+  { to: '/', match: '/', exact: true, label: copy.nav.home, icon: House, mobile: true },
   { to: '/search', match: '/search', label: copy.nav.search, icon: Search, mobile: true },
   { to: '/recommend', match: '/recommend', label: copy.nav.recommend, icon: Sparkles, mobile: true },
   { to: '/assistant', match: '/assistant', label: copy.nav.assistant, icon: MessageSquare, mobile: true },
@@ -20,3 +22,8 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/settings/profiles', match: '/settings', label: copy.nav.settings, icon: Settings, mobile: false },
   { to: '/admin/users', match: '/admin', label: copy.nav.admin, icon: ShieldCheck, adminOnly: true, mobile: false },
 ]
+
+/** 지금 경로가 이 메뉴에 속하는가. 홈(/)은 정확히 같을 때만. */
+export function isActive(item: NavItem, path: string): boolean {
+  return item.exact ? path === item.match : path.startsWith(item.match)
+}

@@ -4,7 +4,7 @@ import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { copy } from '@/copy'
 import { useAuthStore } from '@/stores/auth'
-import { NAV_ITEMS } from './nav'
+import { isActive, NAV_ITEMS } from './nav'
 import UserMenu from './UserMenu.vue'
 
 const auth = useAuthStore()
@@ -34,8 +34,8 @@ const items = computed(() => NAV_ITEMS.filter((i) => !i.adminOnly || auth.isAdmi
           <RouterLink
             :to="item.to"
             class="flex h-10 items-center gap-3 rounded-control px-3 text-base text-text-2 hover:bg-surface-2 hover:text-text"
-            :class="route.path.startsWith(item.match) ? '!bg-primary-soft !text-primary-hover font-medium' : ''"
-            :aria-current="route.path.startsWith(item.match) ? 'page' : undefined"
+            :class="isActive(item, route.path) ? '!bg-primary-soft !text-primary-hover font-medium' : ''"
+            :aria-current="isActive(item, route.path) ? 'page' : undefined"
           >
             <component :is="item.icon" class="size-5 shrink-0" aria-hidden="true" />
             <span class="sr-only lg:not-sr-only">{{ item.label }}</span>

@@ -114,6 +114,7 @@ async def detail(bid_id: str, user: ActiveUser, s: DbSession, ctx: Ctx) -> BidDe
         ],
         summary=BidSummaryOut.model_validate(raw) if raw else None,
         my_analysis_id=await history.my_latest_analysis_id(s, user.id, bid.id),
+        team_analysis_id=await history.team_latest_analysis_id(s, user.team_id, bid.id),
     )
 
 

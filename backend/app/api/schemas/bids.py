@@ -48,6 +48,7 @@ class BidDetail(BidCard):
     files: list[FileOut]
     summary: BidSummary | None
     my_analysis_id: int | None
+    team_analysis_id: int | None = None  # 팀 프로필로 만든 팀원의 최근 분석 (§13 P6)
 
 
 class FileTextOut(BaseModel):

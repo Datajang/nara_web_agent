@@ -5,6 +5,7 @@ import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { bidsApi } from '@/api/bids'
 import { libraryApi } from '@/api/library'
+import { teamsApi } from '@/api/teams'
 import type { BidCard, Bookmark, SearchRun, SearchRunDetail } from '@/api/types'
 import BidCardView from '@/components/bid/BidCard.vue'
 import BidList from '@/components/bid/BidList.vue'
@@ -43,9 +44,16 @@ const runs = useQuery({
   queryFn: () => libraryApi.runs(undefined, 100),
   enabled: computed(() => tab.value === 'runs'),
 })
+// 내 분석 / 팀 분석(팀 프로필로 만든 팀원의 분석, §13 P6). 팀이 있을 때만 고를 수 있다.
+const scope = ref<'mine' | 'team'>('mine')
+const team = useQuery({
+  queryKey: ['team'],
+  queryFn: () => teamsApi.me(),
+  enabled: computed(() => tab.value === 'analyses'),
+})
 const analyses = useQuery({
-  queryKey: ['analyses'],
-  queryFn: () => libraryApi.analyses(100),
+  queryKey: ['analyses', scope],
+  queryFn: () => libraryApi.analyses(100, 0, scope.value),
   enabled: computed(() => tab.value === 'analyses'),
 })
 const bookmarks = useQuery({
@@ -163,8 +171,22 @@ function unbookmark(b: BidCard) {
 
     <!-- 분석 기록 -->
     <template v-else-if="tab === 'analyses'">
+      <div v-if="team.data.value?.team" class="inline-flex gap-1 self-start rounded-control bg-surface-2 p-1" role="group" :aria-label="copy.library.analysesScope">
+        <button
+          v-for="o in [{ v: 'mine', l: copy.library.myAnalyses }, { v: 'team', l: copy.library.teamAnalyses }] as const"
+          :key="o.v"
+          type="button"
+          class="h-8 rounded-control px-3 text-sm"
+          :class="scope === o.v ? 'bg-surface font-medium text-text shadow-card' : 'text-text-2 hover:text-text'"
+          :aria-pressed="scope === o.v"
+          @click="scope = o.v"
+        >{{ o.l }}</button>
+      </div>
       <UiSkeleton v-if="analyses.isPending.value" />
-      <EmptyState v-else-if="!analyses.data.value?.items.length" :title="copy.library.emptyAnalyses" />
+      <EmptyState
+        v-else-if="!analyses.data.value?.items.length"
+        :title="scope === 'team' ? copy.library.emptyTeamAnalyses : copy.library.emptyAnalyses"
+      />
       <ul v-else class="divide-y divide-border rounded-card border border-border bg-surface">
         <li v-for="a in analyses.data.value.items" :key="a.analysis_id" class="flex flex-wrap items-center gap-3 px-4 py-3">
           <RouterLink
@@ -174,7 +196,7 @@ function unbookmark(b: BidCard) {
           <ScoreBadge :score="a.fit_score" />
           <span class="text-sm text-text-2">{{ a.profile_name || copy.library.profileDeleted }}</span>
           <span class="text-sm tabular text-text-3">{{ formatDateTime(a.created_at) }}</span>
-          <UiButton size="sm" variant="ghost" @click="act(() => libraryApi.deleteAnalysis(a.analysis_id), ['analyses'])">
+          <UiButton v-if="scope === 'mine'" size="sm" variant="ghost" @click="act(() => libraryApi.deleteAnalysis(a.analysis_id), ['analyses'])">
             {{ copy.library.remove }}
           </UiButton>
         </li>

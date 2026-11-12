@@ -7,7 +7,7 @@ import { copy } from '@/copy'
 import { useUiStore } from '@/stores/ui'
 import { generalMessage } from '@/utils/authErrors'
 
-export function useBookmarkToggle(items: Ref<BidCard[]>) {
+export function useBookmarkToggle<T extends BidCard>(items: Ref<T[]>) {
   const ui = useUiStore()
   const queryClient = useQueryClient()
 

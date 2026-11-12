@@ -32,6 +32,7 @@ from app.db.models import Bid, Message, Profile
 from app.llm.assistant import run_turn
 from app.llm.base import Message as LLMMessage
 from app.llm.versions import bid_ref, parse_bid_ref
+from app.profiles.repo import visible_to
 
 router = APIRouter(prefix="/conversations", tags=["assistant"])
 
@@ -69,7 +70,9 @@ async def list_conversations(user: ActiveUser, s: DbSession) -> ConversationList
 async def create_conversation(
     body: ConversationIn, user: ActiveUser, s: DbSession, ctx: Ctx
 ) -> ConversationOut:
-    c = await repo.create(s, user.id, body.title, body.profile_id, ctx.deps.clock())
+    c = await repo.create(
+        s, user.id, body.title, body.profile_id, ctx.deps.clock(), team_id=user.team_id
+    )
     return ConversationOut.model_validate(c)
 
 
@@ -78,7 +81,12 @@ async def rename_conversation(
     conversation_id: int, body: ConversationPatch, user: ActiveUser, s: DbSession, ctx: Ctx
 ) -> ConversationOut:
     c = await repo.update(
-        s, user.id, conversation_id, body.model_dump(exclude_unset=True), ctx.deps.clock()
+        s,
+        user.id,
+        conversation_id,
+        body.model_dump(exclude_unset=True),
+        ctx.deps.clock(),
+        team_id=user.team_id,
     )
     return ConversationOut.model_validate(c)
 
@@ -122,7 +130,7 @@ async def post_message(
     profile: TurnProfile | None = None
     if conv.profile_id is not None:
         p = await s.scalar(
-            select(Profile).where(Profile.id == conv.profile_id, Profile.user_id == user.id)
+            select(Profile).where(Profile.id == conv.profile_id, visible_to(user.id, user.team_id))
         )
         if p is not None:
             profile = TurnProfile(p.id, p.description, [str(k) for k in p.keywords])

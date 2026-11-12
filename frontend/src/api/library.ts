@@ -21,7 +21,8 @@ export const libraryApi = {
   run: (id: number, offset = 0, limit = 50) =>
     api.get<SearchRunDetail>(`/search-runs/${id}?${qs({ offset, limit })}`),
   deleteRun: (id: number) => api.delete<void>(`/search-runs/${id}`),
-  analyses: (limit = 50, offset = 0) => api.get<AnalysisList>(`/analyses?${qs({ limit, offset })}`),
+  analyses: (limit = 50, offset = 0, scope: 'mine' | 'team' = 'mine') =>
+    api.get<AnalysisList>(`/analyses?${qs({ limit, offset, scope: scope === 'team' ? 'team' : undefined })}`),
   analysis: (id: number) => api.get<AnalysisDetail>(`/analyses/${id}`),
   deleteAnalysis: (id: number) => api.delete<void>(`/analyses/${id}`),
   bookmarks: () => api.get<BookmarkList>('/bookmarks'),

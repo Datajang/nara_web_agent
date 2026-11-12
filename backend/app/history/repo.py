@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import ColumnElement, delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -113,18 +113,64 @@ async def list_analyses(
 
 
 async def get_analysis(
-    s: AsyncSession, user_id: int, analysis_id: int
+    s: AsyncSession, user_id: int, analysis_id: int, team_id: int | None = None
 ) -> tuple[UserAnalysis, Analysis]:
+    """내 분석 기록. team_id를 주면 팀 프로필로 만든 팀원의 분석도 읽는다(§13 P6)."""
+    mine = UserAnalysis.user_id == user_id
+    who = mine | _team_link(team_id) if team_id is not None else mine
     row = (
         await s.execute(
             select(UserAnalysis, Analysis)
             .join(Analysis, Analysis.id == UserAnalysis.analysis_id)
-            .where(UserAnalysis.user_id == user_id, UserAnalysis.analysis_id == analysis_id)
+            .where(who, UserAnalysis.analysis_id == analysis_id)
+            .order_by(mine.desc(), UserAnalysis.created_at.desc())
+            .limit(1)
         )
     ).first()
     if row is None:
         raise not_found("분석 기록")
     return row[0], row[1]
+
+
+def _team_link(team_id: int) -> ColumnElement[bool]:
+    """팀 프로필로 만든 분석 연결 (프로필이 팀 소유)."""
+    return UserAnalysis.profile_id.in_(select(Profile.id).where(Profile.team_id == team_id))
+
+
+async def list_team_analyses(
+    s: AsyncSession, team_id: int, limit: int, offset: int
+) -> tuple[list[tuple[UserAnalysis, Analysis, Bid, str | None]], int]:
+    """팀 분석: 팀 프로필로 만든 분석. 여러 팀원이 같은 분석을 열었어도 한 번만(가장 최근)."""
+    latest = (
+        select(UserAnalysis.analysis_id, func.max(UserAnalysis.id).label("ua_id"))
+        .where(_team_link(team_id))
+        .group_by(UserAnalysis.analysis_id)
+        .subquery()
+    )
+    total = await s.scalar(select(func.count()).select_from(latest)) or 0
+    rows = await s.execute(
+        select(UserAnalysis, Analysis, Bid, Profile.name)
+        .join(latest, latest.c.ua_id == UserAnalysis.id)
+        .join(Analysis, Analysis.id == UserAnalysis.analysis_id)
+        .join(Bid, Bid.id == Analysis.bid_id)
+        .outerjoin(Profile, Profile.id == UserAnalysis.profile_id)
+        .order_by(UserAnalysis.created_at.desc(), UserAnalysis.id.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    return [(u, a, b, name) for u, a, b, name in rows.all()], total
+
+
+async def team_latest_analysis_id(s: AsyncSession, team_id: int | None, bid_id: int) -> int | None:
+    if team_id is None:
+        return None
+    return await s.scalar(
+        select(UserAnalysis.analysis_id)
+        .join(Analysis, Analysis.id == UserAnalysis.analysis_id)
+        .where(_team_link(team_id), Analysis.bid_id == bid_id)
+        .order_by(UserAnalysis.created_at.desc(), UserAnalysis.id.desc())
+        .limit(1)
+    )
 
 
 async def my_latest_analysis_id(s: AsyncSession, user_id: int, bid_id: int) -> int | None:

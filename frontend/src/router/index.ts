@@ -13,7 +13,6 @@ declare module 'vue-router' {
 }
 
 const routes: RouteRecordRaw[] = [
-  { path: '/', redirect: '/search' },
   {
     path: '/login',
     component: () => import('@/views/auth/LoginView.vue'),
@@ -54,6 +53,13 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/components/layout/AppShell.vue'),
     meta: { requiresAuth: true },
     children: [
+      { path: '', component: () => import('@/views/HomeView.vue'), meta: { title: copy.feed.title } },
+      {
+        path: 'onboarding',
+        component: () => import('@/views/OnboardingView.vue'),
+        meta: { title: copy.onboarding.title },
+      },
+      { path: 'join', component: () => import('@/views/JoinView.vue'), meta: { title: copy.team.joinTitle } },
       { path: 'search', component: () => import('@/views/SearchView.vue'), meta: { title: copy.nav.search } },
       {
         path: 'recommend',
@@ -76,6 +82,11 @@ const routes: RouteRecordRaw[] = [
         path: 'settings/profiles',
         component: () => import('@/views/settings/ProfilesView.vue'),
         meta: { title: copy.profile.title },
+      },
+      {
+        path: 'settings/team',
+        component: () => import('@/views/settings/TeamView.vue'),
+        meta: { title: copy.team.title },
       },
       {
         path: 'settings/account',
@@ -119,7 +130,7 @@ const routes: RouteRecordRaw[] = [
 export function safeNext(next: unknown): string {
   return typeof next === 'string' && next.startsWith('/') && !next.startsWith('//')
     ? next
-    : '/search'
+    : '/'
 }
 
 export function createAppRouter(history: RouterHistory = createWebHistory()) {
@@ -131,7 +142,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
     const needsAuth = to.matched.some((r) => r.meta.requiresAuth)
     if (needsAuth && !auth.me) return { path: '/login', query: { next: to.fullPath } }
     // 관리자 경로의 비관리자는 주소를 유지한 채 403 화면(AppShell이 표시, §7.11-9)
-    if (to.meta.guestOnly && auth.me) return '/search'
+    if (to.meta.guestOnly && auth.me) return '/'
     return true
   })
 

@@ -2,6 +2,7 @@
 // 프로필 설정 (SPEC §7.8). 키워드는 추천 후보에만 쓰이고 profile_hash에 들어가지 않는다.
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref } from 'vue'
+import { teamsApi } from '@/api/teams'
 import { profilesApi } from '@/api/profiles'
 import type { Profile } from '@/api/types'
 import SubNav from '@/components/layout/SubNav.vue'
@@ -12,6 +13,7 @@ import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiModal from '@/components/ui/UiModal.vue'
+import UiSegmented from '@/components/ui/UiSegmented.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import UiTextarea from '@/components/ui/UiTextarea.vue'
 import { copy } from '@/copy'
@@ -26,11 +28,17 @@ interface Draft {
   keywords: string[]
   is_default: boolean
   original: string
+  scope: 'personal' | 'team'
 }
 
 const ui = useUiStore()
 const queryClient = useQueryClient()
 const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => profilesApi.list() })
+const team = useQuery({ queryKey: ['team'], queryFn: () => teamsApi.me() })
+const scopeOptions = [
+  { value: 'personal' as const, label: copy.profile.scopePersonal },
+  { value: 'team' as const, label: copy.profile.scopeTeam },
+]
 const draft = ref<Draft | null>(null)
 const saving = ref(false)
 const suggesting = ref(false)
@@ -45,6 +53,7 @@ function startNew() {
     keywords: [],
     is_default: !profiles.data.value?.items.length,
     original: '',
+    scope: 'personal',
   }
 }
 function startEdit(p: Profile) {
@@ -55,6 +64,7 @@ function startEdit(p: Profile) {
     keywords: [...p.keywords],
     is_default: p.is_default,
     original: p.description,
+    scope: p.scope,
   }
 }
 const descriptionChanged = computed(
@@ -86,7 +96,7 @@ async function save() {
   const body = { name: d.name, description: d.description, keywords: d.keywords, is_default: d.is_default }
   try {
     if (d.id) await profilesApi.update(d.id, body)
-    else await profilesApi.create(body)
+    else await profilesApi.create({ ...body, scope: d.scope })
     ui.toast(copy.profile.saved, 'success')
     draft.value = null
     await queryClient.invalidateQueries({ queryKey: ['profiles'] })
@@ -122,6 +132,9 @@ async function confirmRemove() {
       class="flex flex-col gap-4 rounded-card border border-border bg-surface p-4"
       @submit.prevent="save"
     >
+      <div v-if="!draft.id && team.data.value?.team" data-scope-select>
+        <UiSegmented v-model="draft.scope" :label="copy.profile.scopeLabel" :options="scopeOptions" />
+      </div>
       <UiInput v-model="draft.name" :label="copy.profile.name" :max-length="50" required />
       <UiTextarea
         v-model="draft.description"
@@ -150,6 +163,9 @@ async function confirmRemove() {
     <ul v-else-if="profiles.data.value?.items.length" class="divide-y divide-border rounded-card border border-border bg-surface">
       <li v-for="p in profiles.data.value.items" :key="p.id" class="flex flex-wrap items-center gap-3 px-4 py-3">
         <span class="text-base font-medium">{{ p.name }}</span>
+        <UiBadge :tone="p.scope === 'team' ? 'success' : 'neutral'">
+          {{ p.scope === 'team' ? copy.profile.teamBadge : copy.profile.personalBadge }}
+        </UiBadge>
         <UiBadge v-if="p.is_default" tone="primary">{{ copy.profile.defaultBadge }}</UiBadge>
         <span class="text-sm text-text-3">{{ copy.profile.updated(formatDateTime(p.updated_at)) }}</span>
         <div class="ml-auto flex gap-1">

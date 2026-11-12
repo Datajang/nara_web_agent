@@ -29,7 +29,7 @@ async def analyze(
 ) -> StreamingResponse:
     ctx.limiter.hit(f"analyze:{user.id}", 10, 60)
     bid = await load_bid(s, bid_id)
-    profile = await profiles.get_profile(s, user.id, body.profile_id)
+    profile = await profiles.get_profile(s, user, body.profile_id)
     deps = ctx.deps
     require_llm(deps)
     uid, pid, text, n = user.id, profile.id, profile.description, bid.id

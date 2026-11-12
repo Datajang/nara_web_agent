@@ -2,6 +2,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { copy } from '@/copy'
 import { createAppRouter } from '@/router'
 
 function meResponse(me: unknown) {
@@ -41,8 +42,8 @@ describe('router guard', () => {
     expect((await go('/admin/users', ADMIN)).path).toBe('/admin/users')
   })
 
-  it('로그인 사용자가 로그인 화면에 가면 검색으로', async () => {
-    expect((await go('/login', MEMBER)).path).toBe('/search')
+  it('로그인 사용자가 로그인 화면에 가면 홈(관심 공고)으로 (§13 P6)', async () => {
+    expect((await go('/login', MEMBER)).path).toBe('/')
   })
 
   it('공개 화면은 비로그인도 열린다', async () => {
@@ -51,7 +52,9 @@ describe('router guard', () => {
     }
   })
 
-  it('/ 는 /search로', async () => {
-    expect((await go('/', MEMBER)).path).toBe('/search')
+  it('/ 는 관심 공고 홈이다 (§13 P6)', async () => {
+    const r = await go('/', MEMBER)
+    expect(r.path).toBe('/')
+    expect(r.meta.title).toBe(copy.feed.title)
   })
 })

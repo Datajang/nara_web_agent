@@ -20,5 +20,8 @@ export function generalMessage(err: unknown): string {
   if (err.code === 'llm_unavailable') return copy.llm.unavailable
   if (err.code === 'g2b_unavailable') return copy.common.g2bUnavailable
   if (err.code === 'file_unavailable') return copy.common.fileUnavailable
+  if (err.code === 'already_in_team') return copy.team.alreadyInTeam
+  if (err.code === 'invalid_invite') return copy.team.invalidCode
+  if (err.code === 'not_team_owner') return copy.team.ownerOnly
   return copy.common.unknownError
 }

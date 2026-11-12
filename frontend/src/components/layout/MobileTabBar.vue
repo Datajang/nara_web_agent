@@ -28,12 +28,13 @@ const itemClass =
     :aria-label="copy.nav.label"
     class="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface md:hidden"
   >
-    <ul class="grid grid-cols-5">
+    <ul class="grid" :style="{ gridTemplateColumns: `repeat(${tabs.length + 1}, minmax(0, 1fr))` }">
       <li v-for="tab in tabs" :key="tab.to">
         <RouterLink
           :to="tab.to"
-          class="flex h-14 flex-col items-center justify-center gap-0.5 text-xs text-text-2"
-          active-class="!text-primary-hover font-medium"
+          class="flex h-14 flex-col items-center justify-center gap-0.5 truncate px-0.5 text-xs text-text-2"
+          :active-class="tab.exact ? '' : '!text-primary-hover font-medium'"
+          exact-active-class="!text-primary-hover font-medium"
         >
           <component :is="tab.icon" class="size-5" aria-hidden="true" />{{ tab.label }}
         </RouterLink>

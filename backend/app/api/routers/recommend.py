@@ -28,7 +28,7 @@ async def post_recommend(
     body: RecommendIn, user: ActiveUser, s: DbSession, ctx: Ctx
 ) -> StreamingResponse:
     ctx.limiter.hit(f"recommend:{user.id}", 10, 60)
-    profile = await profiles.get_profile(s, user.id, body.profile_id)
+    profile = await profiles.get_profile(s, user, body.profile_id)
     deps = ctx.deps
     require_llm(deps)
     uid, pid = user.id, profile.id

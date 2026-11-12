@@ -10,13 +10,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Conversation, Message, Profile
 from app.history.repo import not_found
+from app.profiles.repo import visible_to
 
 
-async def _own_profile(s: AsyncSession, user_id: int, profile_id: int | None) -> None:
+async def _own_profile(
+    s: AsyncSession, user_id: int, profile_id: int | None, team_id: int | None = None
+) -> None:
+    """내 개인 프로필이나 내 팀의 팀 프로필만 대화에 붙일 수 있다 (§13 P6)."""
     if profile_id is None:
         return
     found = await s.scalar(
-        select(Profile.id).where(Profile.id == profile_id, Profile.user_id == user_id)
+        select(Profile.id).where(Profile.id == profile_id, visible_to(user_id, team_id))
     )
     if found is None:
         raise not_found("프로필")
@@ -33,9 +37,14 @@ async def list_conversations(s: AsyncSession, user_id: int) -> list[Conversation
 
 
 async def create(
-    s: AsyncSession, user_id: int, title: str, profile_id: int | None, now: datetime
+    s: AsyncSession,
+    user_id: int,
+    title: str,
+    profile_id: int | None,
+    now: datetime,
+    team_id: int | None = None,
 ) -> Conversation:
-    await _own_profile(s, user_id, profile_id)
+    await _own_profile(s, user_id, profile_id, team_id)
     c = Conversation(
         user_id=user_id, title=title, profile_id=profile_id, created_at=now, updated_at=now
     )
@@ -57,11 +66,16 @@ async def get(s: AsyncSession, user_id: int, conversation_id: int) -> Conversati
 
 
 async def update(
-    s: AsyncSession, user_id: int, conversation_id: int, fields: dict[str, Any], now: datetime
+    s: AsyncSession,
+    user_id: int,
+    conversation_id: int,
+    fields: dict[str, Any],
+    now: datetime,
+    team_id: int | None = None,
 ) -> Conversation:
     c = await get(s, user_id, conversation_id)
     if "profile_id" in fields:
-        await _own_profile(s, user_id, fields["profile_id"])
+        await _own_profile(s, user_id, fields["profile_id"], team_id)
         c.profile_id = fields["profile_id"]
     if fields.get("title") is not None:
         c.title = fields["title"]

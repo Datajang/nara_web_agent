@@ -20,7 +20,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects.postgresql import CITEXT, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, pk, ts_now
 
@@ -33,6 +33,18 @@ def _user_fk() -> Mapped[int]:
     return mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
 
 
+class Team(Base):
+    """회원이 만드는 팀 (P6). 초대 코드를 아는 회원이 들어온다. 관리자는 관여하지 않는다."""
+
+    __tablename__ = "teams"
+
+    id: Mapped[int] = pk()
+    name: Mapped[str] = mapped_column(Text)
+    invite_code: Mapped[str] = mapped_column(Text, unique=True)
+    created_at: Mapped[datetime] = ts_now()
+    updated_at: Mapped[datetime] = ts_now()
+
+
 class User(Base):
     __tablename__ = "users"
     __table_args__ = (
@@ -41,6 +53,8 @@ class User(Base):
             "status IN ('pending_verification','pending_approval','active','disabled')",
             name="status",
         ),
+        CheckConstraint("team_role IS NULL OR team_role IN ('owner','member')", name="team_role"),
+        CheckConstraint("(team_id IS NULL) = (team_role IS NULL)", name="team_pair"),
     )
 
     id: Mapped[int] = pk()
@@ -52,6 +66,15 @@ class User(Base):
     email_verified_at: Mapped[datetime | None] = _ts()
     last_login_at: Mapped[datetime | None] = _ts()
     created_at: Mapped[datetime] = ts_now()
+    # P6: 열 하나라 한 계정은 한 팀에만 속한다
+    team_id: Mapped[int | None] = mapped_column(
+        ForeignKey("teams.id", ondelete="SET NULL"), index=True
+    )
+    team_role: Mapped[str | None] = mapped_column(Text)
+    team_joined_at: Mapped[datetime | None] = _ts()
+    interest_keywords: Mapped[list[Any]] = mapped_column(server_default=text("'[]'::jsonb"))
+    # /me 응답에 팀 이름이 필요하다. 사용자를 읽을 때 함께 읽는다(비동기 지연 로딩 금지)
+    team: Mapped[Team | None] = relationship(lazy="joined")
 
 
 class LoginFailure(Base):
@@ -93,10 +116,16 @@ class RefreshToken(Base):
 
 
 class Profile(Base):
+    """개인 프로필(user_id) 또는 팀 프로필(team_id, P6). 둘 중 정확히 하나만 값."""
+
     __tablename__ = "profiles"
+    __table_args__ = (CheckConstraint("(user_id IS NULL) <> (team_id IS NULL)", name="owner"),)
 
     id: Mapped[int] = pk()
-    user_id: Mapped[int] = _user_fk()
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    team_id: Mapped[int | None] = mapped_column(
+        ForeignKey("teams.id", ondelete="CASCADE"), index=True
+    )
     name: Mapped[str] = mapped_column(Text)
     description: Mapped[str] = mapped_column(Text, server_default="")
     keywords: Mapped[list[Any]] = mapped_column(server_default=text("'[]'::jsonb"))
@@ -104,6 +133,10 @@ class Profile(Base):
     is_default: Mapped[bool] = mapped_column(Boolean, server_default="false")
     created_at: Mapped[datetime] = ts_now()
     updated_at: Mapped[datetime] = ts_now()
+
+    @property
+    def scope(self) -> str:
+        return "team" if self.team_id is not None else "personal"
 
 
 class SearchRun(Base):

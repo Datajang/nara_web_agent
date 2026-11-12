@@ -24,11 +24,13 @@ from app.api.routers import (
     auth,
     bids,
     dev,
+    feed,
     feedback,
     history,
     me,
     profiles,
     recommend,
+    teams,
 )
 from app.api.schemas.events import EVENT_MODELS
 from app.api.security import OriginCheckMiddleware
@@ -106,6 +108,8 @@ def create_app(
         auth.router,
         me.router,
         profiles.router,
+        teams.router,
+        feed.router,
         bids.router,
         analyze.router,
         recommend.router,

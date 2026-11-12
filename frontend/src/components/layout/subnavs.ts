@@ -3,6 +3,7 @@ import { copy } from '@/copy'
 
 export const SETTINGS_NAV = [
   { to: '/settings/profiles', label: copy.nav.settingsProfiles },
+  { to: '/settings/team', label: copy.nav.settingsTeam },
   { to: '/settings/account', label: copy.nav.settingsAccount },
 ]
 

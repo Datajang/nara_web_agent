@@ -76,9 +76,20 @@ async def delete_run(run_id: int, user: ActiveUser, s: DbSession) -> Response:
 
 @router.get("/analyses")
 async def list_analyses(
-    user: ActiveUser, s: DbSession, ctx: Ctx, limit: Limit = 50, offset: Offset = 0
+    user: ActiveUser,
+    s: DbSession,
+    ctx: Ctx,
+    limit: Limit = 50,
+    offset: Offset = 0,
+    scope: Literal["mine", "team"] = "mine",
 ) -> AnalysisList:
-    rows, total = await repo.list_analyses(s, user.id, limit, offset)
+    """scope=team이면 팀 프로필로 만든 팀원의 분석(§13 P6). 팀이 없으면 빈 목록."""
+    if scope == "team":
+        if user.team_id is None:
+            return AnalysisList(items=[], total=0)
+        rows, total = await repo.list_team_analyses(s, user.team_id, limit, offset)
+    else:
+        rows, total = await repo.list_analyses(s, user.id, limit, offset)
     cards = await build_cards(
         s, user.id, [b for _, _, b, _ in rows], ctx.deps.clock(), model_id(ctx.deps)
     )
@@ -101,7 +112,7 @@ async def list_analyses(
 
 @router.get("/analyses/{analysis_id}")
 async def get_analysis(analysis_id: int, user: ActiveUser, s: DbSession) -> AnalysisDetail:
-    ua, a = await repo.get_analysis(s, user.id, analysis_id)
+    ua, a = await repo.get_analysis(s, user.id, analysis_id, user.team_id)
     return AnalysisDetail(
         analysis_id=a.id,
         bid_id=bid_ref(a.bid_id),

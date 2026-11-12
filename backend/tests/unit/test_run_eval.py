@@ -86,3 +86,17 @@ def test_injection_payload_is_in_the_middle_of_text():
     text = "가" * 100
     out = ev.inject(text)
     assert ev.INJECTION in out and out.startswith("가") and out.endswith("가")
+
+
+def test_filled_reports_which_structured_fields_have_content():
+    summary = {
+        "schedule": [{"label": "마감", "date": "2026-11-30"}],
+        "budget_contract": {"budget_text": None, "contract_method": "협상에 의한 계약"},
+        "key_requirements": [],
+        "eligibility": ["중소기업"],
+        "evaluation": {"method": None, "items": []},
+    }
+    assert ev.filled(summary) == {
+        "schedule": True, "budget_contract": True, "key_requirements": False,
+        "eligibility": True, "evaluation": False,
+    }  # fmt: skip

@@ -2,7 +2,7 @@
 분리된다 (예: v1+q35-9b). 프롬프트(llm/prompts/*.md)를 고치면 해당 값을 올린다.
 """
 
-PROMPT_VERSION = "v1"
+PROMPT_VERSION = "v2"  # v2: 모델에 보내는 스키마의 모든 필드 required (2026-11-12)
 SUMMARY_PROMPT = PROMPT_VERSION
 ANALYSIS_PROMPT = PROMPT_VERSION
 SCORE_PROMPT = PROMPT_VERSION

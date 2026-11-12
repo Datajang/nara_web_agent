@@ -149,6 +149,14 @@ def extraction(expect: dict[str, Any], summary: dict[str, Any]) -> dict[str, boo
     return out
 
 
+FILLED = ("schedule", "budget_contract", "key_requirements", "eligibility", "evaluation")
+
+
+def filled(summary: dict[str, Any]) -> dict[str, bool]:
+    """구조화 필드에 내용이 하나라도 있는가 (P3a-2: reduce가 필드를 통째로 빼먹던 문제 감시)."""
+    return {k: any(s.strip() for s in _strings(summary.get(k))) for k in FILLED}
+
+
 def schema_rates(calls: int, invalid_first: int, invalid_final: int) -> dict[str, Any]:
     """§12.5 스키마 유효율. 첫 시도 실패마다 repair 호출이 1번 더 생긴다."""
     gen = calls - invalid_first
@@ -338,6 +346,7 @@ async def cmd_run(label: str, only: list[str] | None, n_injection: int) -> dict[
             "warnings": summary.summary.get("coverage", {}).get("warnings", []),
             "grounded": [found, total],
             "extraction": extraction(it.get("expect") or {}, summary.summary),
+            "filled": filled(summary.summary),
             "fit_score": analysis.result.get("fit", {}).get("score"),
             "headline": summary.summary.get("headline"),
         }
@@ -418,8 +427,10 @@ def _totals(rows: list[dict[str, Any]], seconds: float) -> dict[str, Any]:
     for field in ("budget", "deadline", "method"):
         vals = [r["extraction"][field] for r in ok if r["extraction"][field] is not None]
         acc[field] = [sum(vals), len(vals)]
+    fill = {k: sum(r["filled"][k] for r in ok) for k in FILLED}
     return {
         "items": len(rows),
+        "filled": fill,
         "ok": len(ok),
         "errors": len(rows) - len(ok),
         "grounded_ratio": round(found / total, 4) if total else None,

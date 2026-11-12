@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
@@ -26,13 +26,29 @@ class TaskSpec:
 
 
 TASKS: dict[str, TaskSpec] = {
-    "summarize_file": TaskSpec(0.1, 2000),
-    "summarize_bid": TaskSpec(0.1, 2500),
+    "summarize_file": TaskSpec(0.1, 4000),  # §8.3 출력 예산 (2026-11-12, strict 스키마)
+    "summarize_bid": TaskSpec(0.1, 4000),
     "score_bids": TaskSpec(0.1, 1500),
     "analyze_bid": TaskSpec(0.2, 3500),
     "suggest_keywords": TaskSpec(0.2, 300),
     "assistant": TaskSpec(0.3, 1500),
 }
+
+
+def strict_schema(node: Any) -> Any:
+    """모델에 보낼 스키마: 모든 object의 모든 필드를 required로 (사본).
+
+    기본값 있는 필드가 선택이면 json_schema 강제 디코딩에서 모델이 필드를 통째로 빼먹는다
+    (2026-11-12 골든셋, docs/decisions/2026-11-12-p3a2-real-llm.md). null·빈 목록은 그대로 허용된다.
+    """
+    if isinstance(node, list):
+        return [strict_schema(v) for v in node]
+    if not isinstance(node, dict):
+        return node
+    out = {k: strict_schema(v) for k, v in node.items()}
+    if isinstance(out.get("properties"), dict):
+        out["required"] = list(out["properties"])
+    return out
 
 
 def _parse(text: str, schema: type[T]) -> T:
@@ -44,7 +60,7 @@ def _parse(text: str, schema: type[T]) -> T:
 
 async def generate(llm: LLMClient, task: str, messages: list[Message], schema: type[T]) -> T:
     spec = TASKS[task]
-    js = schema.model_json_schema()
+    js = strict_schema(schema.model_json_schema())
     msgs = list(messages)
     for attempt in range(2):
         out = await llm.complete(

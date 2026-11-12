@@ -30,4 +30,4 @@ def test_data_cannot_close_the_delimiter():
 
 
 def test_prompt_version_has_model_suffix():
-    assert prompt_version(PROMPT_VERSION, "q35-9b") == "v1+q35-9b"
+    assert prompt_version(PROMPT_VERSION, "q35-9b") == "v2+q35-9b"

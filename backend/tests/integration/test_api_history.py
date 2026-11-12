@@ -240,7 +240,7 @@ async def test_feedback_stores_reason_model_and_prompt_version(full_api, fake_g2
     fr = rows["search_run"]
     settings = full_api.ctx.deps.settings
     assert fr.reason is None and fr.model == settings.llm_model_id
-    assert fr.prompt_version == f"v1+{settings.llm_model_id}"
+    assert fr.prompt_version == f"v2+{settings.llm_model_id}"
 
 
 async def test_admin_usage_includes_feedback_by_reason(full_api, fake_g2b):

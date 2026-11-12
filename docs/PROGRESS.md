@@ -43,4 +43,9 @@
 - **한 일**: v2 systemd 유닛 7개(vLLM FP8·API·수집·백업·경보)·nginx(보안 헤더 snippet, SSE, 점검 경로 차단)·`deploy.sh`(자동 롤백)·`backup.sh`·`restore.sh`, JSON 로그·요청 ID, XFF 신뢰(127.0.0.1만), `/readyz` 수집 시각, 경보 점검, 피드백 사유(0004)와 관리자 집계, CI `audit`·`e2e`(Playwright) 잡, 부하 스크립트, `docs/ops/` 5개. 테스트 먼저 → pytest·vitest·배포 스크립트 시험·로컬 E2E·10명 부하(가짜 LLM) 통과.
 - **달라진 결정**: 포트 8010/8011, PG16 5434, XFF는 덮어쓰기+마지막 값, 사유 집계는 usage 응답에, 자동 배포 미룸, v1 유닛 `nara-v1-*` 보존 (`docs/decisions/2026-11-11-p4-ops.md`).
 - **후속(같은 날)**: langchain-teddynote 필수 결정 → langchain 1.x에서 HWPLoader가 깨짐을 확인, 11개 취약점을 근거와 함께 수용하고 CI는 그 밖에 실패, HWPLoader 가드 테스트. 도메인 없이 외부 접속: `<IP>.sslip.io` + `deploy/set-host.sh`. P0~P4 SPEC 수정 제안을 Claude Docs 원본에 반영하고 다시 내보냄.
-- **남은 문제(P4b, 운영자)**: SMTP·서버 설치·외부 IP 고정/방화벽·복원 리허설·전환/롤백 연습·Uptime Check, P3a-2 후 골든셋 50·모델 A/B·실제 부하, 파일럿 2주와 👎 상위 3개 조치. G2B 단건 조회는 확인됨(2026-11-12, 일반 조회 `inqryDiv=2`) — lookup 연동은 승인 대기.
+- **남은 문제(P4b, 운영자)**: SMTP·서버 설치·외부 IP 고정/방화벽·복원 리허설·전환/롤백 연습·Uptime Check, P3a-2 후 골든셋 50·모델 A/B·실제 부하, 파일럿 2주와 👎 상위 3개 조치. G2B 단건 조회는 확인됨(2026-11-12, 일반 조회 `inqryDiv=2`) → lookup 연동 구현(`7dd7a1a`).
+
+## P3a-2 — 실제 모델 검증 (2026-11-12, 진행 중)
+
+- **한 일**: 공고번호로 열기 G2B 단건 조회, 추출 워커 예열, 골든셋 평가 스크립트와 초안 19건, vLLM FP8 실측. 요약의 구조화 필드가 모두 비던 원인(선택 필드 생략·출력 2,000토큰 잘림)을 찾아 strict 스키마·출력 4,000·`PROMPT_VERSION` v2로 고침 (`docs/decisions/2026-11-12-p3a2-real-llm.md`).
+- **남은 문제**: v2 재평가·추천 150건 시간(§8.8-5), 골든셋 라벨 확정(운영자, `verified: true`)과 50건 채우기, SPEC 수정 제안(§8.1 표·§8.1-1) 승인.

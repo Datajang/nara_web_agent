@@ -101,3 +101,13 @@ def test_summary_tasks_get_the_full_output_budget():
     for task in ("summarize_file", "summarize_bid"):
         assert TASKS[task].max_tokens == 4000
         assert INPUT_BUDGET + TASKS[task].max_tokens <= 32_768
+
+
+def test_default_llm_timeout_covers_a_full_summary_output():
+    # 동시 4요청일 때 요청당 생성 속도 약 17토큰/초 (2026-11-12 vLLM 로그, L4 FP8).
+    # 4,000토큰 출력 ≈ 235초 + 입력 처리 → 180초면 타임아웃·재시도로 같은 생성을 세 번 한다.
+    from app.config import Settings
+
+    slowest_tok_s = 17
+    default = Settings.model_fields["llm_timeout_s"].default
+    assert default >= TASKS["summarize_file"].max_tokens / slowest_tok_s + 60

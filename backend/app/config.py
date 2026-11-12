@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     llm_model: str = "brain"  # vLLM --served-model-name
     llm_model_id: str = "q35-9b"  # PROMPT_VERSION 접미사 (예: v1+q35-9b)
     llm_api_key: SecretStr = SecretStr("")
-    llm_timeout_s: float = 180
+    llm_timeout_s: float = 360  # 출력 4,000토큰 ÷ 동시 4요청 약 17토큰/초 + 입력 처리 (2026-11-12)
     llm_max_concurrency: int = 4
     llm_tokenizer_path: str = ""  # Qwen tokenizer.json. 비우면 글자 수 × 1.2 (§8.3-1)
     llm_lock_wait_s: float = 120  # single-flight 대기 상한 (§5.5)

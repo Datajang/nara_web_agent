@@ -34,6 +34,7 @@ class Completion:
     text: str
     prompt_tokens: int = 0
     completion_tokens: int = 0
+    finish_reason: str = "stop"  # 'length'면 max_tokens에서 잘림
 
 
 @dataclass

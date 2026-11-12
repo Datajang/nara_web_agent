@@ -114,6 +114,7 @@ class OpenAICompatLLM:
             text=resp.choices[0].message.content or "",
             prompt_tokens=u.prompt_tokens if u else 0,
             completion_tokens=u.completion_tokens if u else 0,
+            finish_reason=resp.choices[0].finish_reason or "stop",
         )
 
     async def chat_stream(

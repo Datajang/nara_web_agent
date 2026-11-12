@@ -1,8 +1,10 @@
 """구조화 출력: Pydantic 검증 + repair 1회 (SPEC §8.1-1, §8.7) 와 사용량 집계 (§8.1-6)."""
 
+import json
+
 import pytest
 
-from app.llm.base import LLMContextTooLong, LLMInvalidOutput
+from app.llm.base import Completion, LLMContextTooLong, LLMInvalidOutput
 from app.llm.fake import FakeLLM
 from app.llm.schemas import KeywordSuggestion
 from app.llm.structured import TASKS, generate
@@ -111,3 +113,102 @@ def test_default_llm_timeout_covers_a_full_summary_output():
     slowest_tok_s = 17
     default = Settings.model_fields["llm_timeout_s"].default
     assert default >= TASKS["summarize_file"].max_tokens / slowest_tok_s + 60
+
+
+# --- 출력 길이 상한 (2026-11-12 실측: summarize_file 실패 9/25건이 모두 4,000토큰에서 잘림) ---
+
+# 실제 공고문 한국어를 들여쓰기 JSON으로 썼을 때 vLLM /tokenize 기준 1.96~2.18자/토큰.
+# 가장 촘촘한 값보다 조금 낮게 잡아 최악의 출력 글자 수를 토큰으로 바꾼다.
+CHARS_PER_TOKEN = 1.9
+
+
+def _resolve(node, defs):
+    while isinstance(node, dict) and "$ref" in node:
+        node = defs[node["$ref"].rsplit("/", 1)[-1]]
+    return node
+
+
+def _longest(node, defs):
+    """상한을 꽉 채운 값. 상한 없는 문자열·목록이 있으면 실패 (모든 출력은 길이가 막혀야 함)."""
+    node = _resolve(node, defs)
+    if "anyOf" in node:
+        branches = [_longest(b, defs) for b in node["anyOf"] if b.get("type") != "null"]
+        return max(branches, key=lambda v: len(json.dumps(v, ensure_ascii=False)))
+    if "enum" in node:
+        return max(node["enum"], key=lambda v: len(str(v)))
+    t = node.get("type")
+    if t == "object":
+        return {k: _longest(v, defs) for k, v in node["properties"].items()}
+    if t == "array":
+        assert "maxItems" in node, f"목록 상한 없음: {node}"
+        return [_longest(node["items"], defs) for _ in range(node["maxItems"])]
+    if t == "string":
+        assert "maxLength" in node, f"문자열 상한 없음: {node}"
+        return "가" * node["maxLength"]
+    if t in ("number", "integer"):
+        return 100.5 if t == "number" else 100
+    if t == "boolean":
+        return False
+    raise AssertionError(f"모르는 스키마: {node}")
+
+
+@pytest.mark.parametrize(
+    "task,model", [("summarize_file", "FileFacts"), ("summarize_bid", "BidSummary")]
+)
+async def test_worst_case_output_fits_the_token_budget(task, model):
+    from app.llm import schemas
+
+    llm = FakeLLM()
+    with track():
+        await generate(llm, task, MSGS, getattr(schemas, model))
+    sent = llm.requests[-1]["json_schema"]
+    worst = json.dumps(_longest(sent, sent.get("$defs", {})), ensure_ascii=False, indent=2)
+    assert len(worst) / CHARS_PER_TOKEN <= TASKS[task].max_tokens, len(worst)
+
+
+def test_caps_name_real_fields_and_leave_validation_alone():
+    from app.llm import schemas
+    from app.llm.structured import CAPS
+
+    for key in CAPS:
+        model, field = key.split(".")
+        assert field in getattr(schemas, model).model_fields, key
+    # 상한은 모델에 보내는 스키마에만: 저장된 긴 값도 그대로 읽힌다
+    many = [{"text": "가" * 300, "evidence": "나" * 300}] * 30
+    assert len(schemas.FileFacts.model_validate({"requirements": many}).requirements) == 30
+    assert "maxItems" not in schemas.FileFacts.model_json_schema()["properties"]["requirements"]
+
+
+async def test_truncated_output_is_retried_shorter_without_echoing_it():
+    """잘린 출력은 고칠 것이 아니라 짧게 다시 써야 한다: 잘린 본문을 되돌려 보내지 않는다."""
+    llm = FakeLLM()
+    llm.queue(
+        "suggest_keywords",
+        Completion(text='{"keywords": ["검', finish_reason="length"),
+        '{"keywords": ["검색"]}',
+    )
+    out = await generate(llm, "suggest_keywords", MSGS, KeywordSuggestion)
+    assert out.keywords == ["검색"]
+    retry = llm.payloads[-1][1]
+    assert all(m["role"] != "assistant" for m in retry)
+    assert "잘렸" in retry[-1]["content"]
+
+
+def test_prompts_state_the_same_caps_so_text_is_not_cut_midway():
+    """강제 디코딩은 상한에서 문장을 자른다. 프롬프트에 같은 숫자를 알려 처음부터 고르게 한다."""
+    from app.llm.prompts import render
+    from app.llm.structured import CAPS
+
+    file_p = str(render("summarize_file", file_name="a.hwp", kind="rfp", i=1, n=1, chunk_text="x"))
+    for key, unit in [
+        ("FileFacts.requirements", "items"),
+        ("Requirement.text", "chars"),
+        ("Requirement.evidence", "chars"),
+    ]:
+        n = getattr(CAPS[key], unit)
+        assert f"{n}{'개' if unit == 'items' else '자'} 이내" in file_p, key
+    bid_p = str(
+        render("summarize_bid", meta="m", facts_list="f", n_read=1, n_total=1, truncated=False)
+    )
+    assert f"{CAPS['BidSummary.key_requirements'].items}개 이내" in bid_p
+    assert f"{CAPS['BidSummary.overview'].chars}자 이내" in bid_p

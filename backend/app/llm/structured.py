@@ -35,6 +35,85 @@ TASKS: dict[str, TaskSpec] = {
 }
 
 
+@dataclass(frozen=True)
+class Cap:
+    items: int | None = None  # 목록 최대 개수 (maxItems)
+    chars: int | None = None  # 문자열(목록이면 각 원소) 최대 글자 수 (maxLength)
+
+
+# 모델에 보내는 스키마에만 거는 길이 상한 (2026-11-12 실측: summarize_file 실패 9/25건이
+# 모두 4,000토큰에서 잘린 JSON). vLLM 강제 디코딩이 maxItems·maxLength를 지키므로 꽉 채운
+# 최악의 출력도 max_tokens 안에 든다(tests/unit/test_llm_structured.py). Pydantic 검증·API
+# 스키마는 그대로라 저장된 값은 길어도 읽힌다. 키는 '모델명.필드명', 공통 부품은 분석에도 적용.
+CAPS: dict[str, Cap] = {
+    "Requirement.text": Cap(chars=80),
+    "Requirement.evidence": Cap(chars=100),  # §8.5 '120자 이내' 안
+    "Requirement.source": Cap(chars=30),
+    "EvalItem.name": Cap(chars=30),
+    "EvalItem.note": Cap(chars=40),
+    "Evaluation.method": Cap(chars=40),
+    "Evaluation.items": Cap(items=10),
+    "ScheduleItem.label": Cap(chars=30),
+    "ScheduleItem.date": Cap(chars=10),
+    "ScheduleItem.raw": Cap(chars=40),
+    "BudgetContract.budget_text": Cap(chars=80),
+    "BudgetContract.contract_method": Cap(chars=80),
+    "BudgetContract.payment_terms": Cap(chars=80),
+    "BudgetContract.period": Cap(chars=80),
+    "FileFacts.purpose": Cap(chars=150),
+    "FileFacts.scope": Cap(items=5, chars=60),
+    "FileFacts.requirements": Cap(items=8),
+    "FileFacts.schedule": Cap(items=8),
+    "FileFacts.eligibility": Cap(items=5, chars=80),
+    "FileFacts.risks": Cap(items=4, chars=80),
+    "BidSummary.headline": Cap(chars=80),  # §8.5
+    "BidSummary.overview": Cap(chars=300),
+    "BidSummary.key_requirements": Cap(items=8),
+    "BidSummary.schedule": Cap(items=8),
+    "BidSummary.eligibility": Cap(items=4, chars=80),
+    "BidSummary.risks": Cap(items=4, chars=80),
+    "BidSummary.keywords": Cap(items=10, chars=20),
+    "Coverage.warnings": Cap(items=3, chars=60),
+}
+
+
+def _branch(prop: dict[str, Any], type_: str) -> dict[str, Any] | None:
+    if prop.get("type") == type_:
+        return prop
+    return next((b for b in prop.get("anyOf", []) if b.get("type") == type_), None)
+
+
+def _apply_caps(node: Any) -> None:
+    """Pydantic 스키마(사본)의 각 모델 노드에 CAPS를 단다."""
+    if isinstance(node, list):
+        for v in node:
+            _apply_caps(v)
+        return
+    if not isinstance(node, dict):
+        return
+    props = node.get("properties")
+    if isinstance(props, dict):
+        for name, prop in props.items():
+            cap = CAPS.get(f"{node.get('title')}.{name}")
+            if cap is None:
+                continue
+            arr = _branch(prop, "array")
+            if cap.items is not None and arr is not None:
+                arr["maxItems"] = cap.items
+            text = _branch(arr["items"], "string") if arr is not None else _branch(prop, "string")
+            if cap.chars is not None and text is not None:
+                text["maxLength"] = cap.chars
+    for v in node.values():
+        _apply_caps(v)
+
+
+def model_schema(schema: type[BaseModel]) -> dict[str, Any]:
+    """모델에 보낼 json_schema: 길이 상한(CAPS)을 달고 모든 필드를 required로."""
+    js = strict_schema(schema.model_json_schema())
+    _apply_caps(js)
+    return js
+
+
 def strict_schema(node: Any) -> Any:
     """모델에 보낼 스키마: 모든 object의 모든 필드를 required로 (사본).
 
@@ -60,7 +139,7 @@ def _parse(text: str, schema: type[T]) -> T:
 
 async def generate(llm: LLMClient, task: str, messages: list[Message], schema: type[T]) -> T:
     spec = TASKS[task]
-    js = strict_schema(schema.model_json_schema())
+    js = model_schema(schema)
     msgs = list(messages)
     for attempt in range(2):
         out = await llm.complete(
@@ -71,7 +150,23 @@ async def generate(llm: LLMClient, task: str, messages: list[Message], schema: t
             return _parse(out.text, schema)
         except (ValueError, ValidationError) as e:
             err = str(e)[:800]
-            log.warning("llm.invalid_output task=%s attempt=%d", task, attempt + 1)
+            log.warning(
+                "llm.invalid_output task=%s attempt=%d finish=%s",
+                task,
+                attempt + 1,
+                out.finish_reason,
+            )
+            if out.finish_reason == "length":
+                # 잘린 출력은 고칠 수 없다: 되돌려 보내지 않고 처음부터 더 짧게 쓰게 한다
+                msgs = [
+                    *messages,
+                    {
+                        "role": "user",
+                        "content": "앞선 답이 출력 길이 제한에 걸려 잘렸습니다. 목록은 중요한 것만 "
+                        "남기고 문장은 짧게 줄여, 스키마에 맞는 JSON 전체를 다시 출력하세요.",
+                    },
+                ]
+                continue
             msgs = [
                 *messages,
                 {"role": "assistant", "content": out.text[:4000]},

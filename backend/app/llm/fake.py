@@ -210,6 +210,8 @@ class FakeLLM:
             item = q.popleft()
             if isinstance(item, Exception):
                 raise item
+            if isinstance(item, Completion):  # finish_reason 등을 직접 지정
+                return item
             text = item if isinstance(item, str) else item(messages)
         else:
             text = json.dumps(_DEFAULTS[task](_first_user(messages)), ensure_ascii=False)

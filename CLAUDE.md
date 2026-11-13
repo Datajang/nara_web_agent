@@ -52,6 +52,7 @@ cd frontend && npm ci && npm run lint && npm run typecheck && npm run test && np
 | 테스트 작성 | `docs/SPEC.md` §12 + `docs/v1/TESTING.md` |
 | 배포·systemd·nginx | `docs/SPEC.md` §11 + `docs/ops/DEPLOY.md` |
 | 운영 서버 설치·런북·보안 점검 | `docs/ops/INSTALL.md`, `RUNBOOK.md`, `SECURITY.md` |
+| 운영자가 직접 할 일의 순서(SMTP·설치·전환·골든셋·파일럿) | `docs/ops/OWNER_GUIDE.md` |
 | v1 코드를 옮기거나 지울 때 | `docs/v1/OVERVIEW.md` |
 | v1 → v2 서버 전환(P4) | `docs/ops/CUTOVER.md` (+ `docs/v1/DEPLOY_CUTOVER.md`) |
 | 확인 결과·결정 기록 | `docs/decisions/README.md` |

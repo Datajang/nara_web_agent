@@ -62,7 +62,8 @@ async def test_meta_only_summary_when_no_files(deps, fake_llm):
     row, _ = await get_or_create_summary(deps, bid_id)
     cov = row.summary["coverage"]
     assert fake_llm.calls["summarize_file"] == 0 and fake_llm.calls["summarize_bid"] == 1
-    assert cov["files_read"] == 0 and "첨부 문서를 읽지 못함" in cov["warnings"]
+    assert cov["files_read"] == 0 and summarize.NO_DOCS in cov["warnings"]
+    assert summarize.NO_FILES not in cov["warnings"]  # 읽다 실패한 게 아니라 읽을 문서가 없음
 
 
 async def test_long_document_reads_priority_chunks_only(deps, fake_llm, monkeypatch):
@@ -117,7 +118,7 @@ async def test_analysis_recomputes_verdict_and_renders_markdown(deps, fake_llm):
     fake_llm.queue("analyze_bid", wrong_verdict)
     row, _ = await get_or_create_analysis(deps, bid_id, PROFILE)
     assert row.result["fit"]["verdict"] == "strong"  # 85점 → strong (§8.4)
-    assert "첨부 문서를 읽지 못함" in row.result["warnings"]  # coverage.warnings 포함
+    assert summarize.NO_DOCS in row.result["warnings"]  # coverage.warnings 포함 (첨부 없음)
     heads = re.findall(r"^## (.+)$", row.markdown, re.M)
     assert heads[:3] == ["사업 개요", "핵심 요구사항", "평가 기준·배점"]
     assert "프로필" not in row.markdown or PROFILE not in row.markdown
@@ -239,3 +240,46 @@ async def test_summary_and_analysis_drop_numbers_not_in_source(deps, fake_llm):
         "period": None,
     }
     assert any("원문에서 확인되지 않은" in w for w in a.result["warnings"])
+
+
+async def test_notice_is_summarized_when_there_is_no_rfp(deps, fake_llm):
+    """2026-11-13 R26BK01819243: 첨부가 공고서뿐이라 '읽지 못함'으로 나오던 문제."""
+    notice = "https://www.g2b.go.kr/files/notice.docx"
+    form = "https://www.g2b.go.kr/files/form.docx"
+    deps.downloader.files[notice] = (docx_bytes("공고서: 계약방법 제한경쟁 " * 20), "공고서.docx")
+    deps.downloader.files[form] = (docx_bytes("입찰참가신청서 양식 " * 20), "입찰참가신청서.docx")
+    item = regular_item(
+        "R26BK00000205", NOW, files=[(notice, "공고서.docx"), (form, "입찰참가신청서.docx")]
+    )
+    (bid_id,) = await seed(deps, "regular", item)
+    row, _ = await get_or_create_summary(deps, bid_id)
+    cov = row.summary["coverage"]
+    assert (cov["files_read"], cov["files_total"]) == (1, 1)
+    assert summarize.NO_FILES not in cov["warnings"] and summarize.NO_DOCS not in cov["warnings"]
+    sent = [m[1]["content"] for t, m in fake_llm.payloads if t == "summarize_file"]
+    assert len(sent) == 1 and "공고서" in sent[0] and "신청서 양식" not in sent[0]
+
+
+async def test_requirement_source_is_a_real_file_name_or_nothing(deps, fake_llm):
+    """2026-11-13: 분석 입력이 요약이라 근거에 'summary'를 적음 → 읽은 파일명일 때만."""
+    bid_id = await _bid(deps)
+
+    def analysis(messages):
+        return AnalysisResult(
+            overview="개요",
+            requirements=[
+                Requirement(text="모니터링", source="summary"),
+                Requirement(text="검색", source="제안요청서"),  # 확장자 빠진 파일명
+            ],
+            evaluation={},
+            schedule=[],
+            budget_contract={},
+            risks=[{"text": "일정 촉박", "severity": "high", "source": "bid_summary_json"}],
+            fit={"score": 60, "verdict": "possible", "reasoning": "근거"},
+            next_actions=["확인"],
+        ).model_dump_json()
+
+    fake_llm.queue("analyze_bid", analysis)
+    a, _ = await get_or_create_analysis(deps, bid_id, PROFILE)
+    assert [r["source"] for r in a.result["requirements"]] == [None, "제안요청서.docx"]
+    assert a.result["risks"][0]["source"] is None

@@ -286,7 +286,9 @@ export const copy = {
   },
   analyze: {
     noText: '첨부 문서를 읽지 못해 공고 정보만으로 분석했어요.',
-    noTextMarker: '첨부 문서를 읽지 못함', // 백엔드 coverage.warnings 문구(§8.5 summarize_bid)
+    noTextMarker: '첨부 문서를 읽지 못함', // 백엔드 coverage.warnings 문구 (읽을 첨부는 있었는데 실패)
+    noDocs: '요약할 제안요청서·과업 문서가 없어 공고 정보만으로 분석했어요.',
+    noDocsMarker: '요약할 제안요청서·과업 문서가 없음', // 백엔드 summarize.NO_DOCS (읽을 첨부가 없음)
     inProgress: '다른 요청이 같은 공고를 분석하고 있어요. 잠시 후 자동으로 다시 확인해요.',
   },
   assistant: {

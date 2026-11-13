@@ -282,6 +282,23 @@ describe('BidDetailView', () => {
     expect(text(m.wrapper)).toContain(ANALYSIS.overview)
   })
 
+  it('읽을 문서가 처음부터 없으면 "읽지 못해"가 아니라 "문서가 없어"로 안내', async () => {
+    const saved = (warnings: string[]) =>
+      json({
+        analysis_id: 6,
+        bid_id: 'b101',
+        profile_id: 7,
+        analysis: { ...ANALYSIS, warnings },
+        markdown: '## 사업 개요',
+        created_at: '2026-11-09T00:00:00Z',
+      })
+    mockApi(base({ 'GET /api/v1/analyses/6': saved([copy.analyze.noDocsMarker]) }))
+    m = await mountAt('/bids/b101?analysis=6')
+    const t = text(m.wrapper)
+    expect(t).toContain(copy.analyze.noDocs)
+    expect(t).not.toContain(copy.analyze.noText)
+  })
+
   it('공고번호로 열기: 찾으면 이동, 없으면 안내', async () => {
     mockApi(
       base({

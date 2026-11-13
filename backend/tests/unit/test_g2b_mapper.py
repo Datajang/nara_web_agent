@@ -67,6 +67,16 @@ def test_file_kind_rules():
     assert file_kind("2026 제안요청서(최종).hwp", "regular") == "rfp"
     assert file_kind("과업지시서.pdf", "regular") == "rfp"
     assert file_kind("입찰공고문.hwp", "regular") == "other"
+    # 2026-11-13: 일반공고 1/3이 이런 이름이라 첨부를 안 읽고 있었다 (띄어쓰기 무시)
+    for name in (
+        "2. 과업내용서.hwpx",
+        "과업 설명서.pdf",
+        "과업명세서.hwp",
+        "[수행지침서] 감리용역.hwp",
+    ):
+        assert file_kind(name, "regular") == "rfp", name
+    for name in ("5. 과업설명참가신청서.hwp", "과업설명회 개최 안내.hwp", "과업내용서 양식.hwp"):
+        assert file_kind(name, "regular") == "other", name  # 서식·설명회 안내는 과업 문서가 아님
     assert file_kind("규격문서 1", "prespec") == "spec"
 
 

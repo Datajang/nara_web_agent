@@ -27,6 +27,7 @@ from app.pipeline.summarize import (
     _llm,
     check_evidence,
     get_or_create_summary,
+    known_source,
     source_inputs,
 )
 from app.profiles.hashing import normalize_profile, profile_hash
@@ -115,6 +116,11 @@ async def get_or_create_analysis(
         result = await generate(llm, "analyze_bid", msgs, AnalysisResult)
         _, docs, _ = await source_inputs(deps, bid)
         check_evidence(result.requirements, [d.text for d in docs], None)
+        names = [d.name for d in docs]
+        for r in result.requirements:
+            r.source = known_source(r.source, names)
+        for k in result.risks:
+            k.source = known_source(k.source, names)
         removed = ground(
             result, [*(d.text for d in docs), json.dumps(bid_meta(bid), ensure_ascii=False)]
         )

@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import UTC, datetime, timedelta, timezone
 from typing import Any, Literal
 
@@ -28,6 +29,10 @@ KST = timezone(timedelta(hours=9))
 _FORMATS = ("%Y%m%d", "%Y%m%d%H%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M")
 FileKind = Literal["rfp", "spec", "other"]
 _RFP_WORDS = ("제안요청", "과업지시")
+# 2026-11-13: 과업내용서·수행지침서 등도 읽는다(일반공고 1/3이 첨부를 안 읽고 있었음).
+# 단 '과업설명회 참가신청서' 같은 서식·설명회 안내는 뺀다 (alembic 0006과 같은 규칙)
+_TASK_WORDS = ("과업내용", "과업설명", "과업명세", "수행지침")
+_NOT_TASK_WORDS = ("신청서", "서약서", "확약서", "위임장", "양식", "서식", "설명회")
 
 
 def parse_kst(value: str | None) -> datetime | None:
@@ -66,7 +71,11 @@ def _first(item: dict[str, Any], *keys: str) -> str | None:
 def file_kind(name: str, source: str) -> FileKind:
     if source == "prespec":
         return "spec"
-    return "rfp" if any(w in name for w in _RFP_WORDS) else "other"
+    flat = re.sub(r"\s+", "", name)
+    if any(w in flat for w in _RFP_WORDS):
+        return "rfp"
+    task = any(w in flat for w in _TASK_WORDS)
+    return "rfp" if task and not any(w in flat for w in _NOT_TASK_WORDS) else "other"
 
 
 def _files(source: str, item: dict[str, Any]) -> list[BidFileRef]:

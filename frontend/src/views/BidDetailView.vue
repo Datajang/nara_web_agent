@@ -174,7 +174,13 @@ watch(
   { immediate: true },
 )
 
-const noText = computed(() => analysis.value?.warnings?.includes(copy.analyze.noTextMarker) ?? false)
+// 공고 정보만으로 분석한 경우의 안내: 읽다 실패했는지, 읽을 문서가 없었는지 구분한다
+const noText = computed(() => {
+  const w = analysis.value?.warnings ?? []
+  if (w.includes(copy.analyze.noTextMarker)) return copy.analyze.noText
+  if (w.includes(copy.analyze.noDocsMarker)) return copy.analyze.noDocs
+  return ''
+})
 
 async function copyMarkdown() {
   try {
@@ -333,7 +339,7 @@ async function toggleBookmark() {
           class="rounded-card border border-warning-fg/30 bg-warning-bg px-4 py-3 text-base text-warning-fg"
           role="note"
         >
-          {{ copy.analyze.noText }}
+          {{ noText }}
         </p>
         <p v-if="fromTeam" class="rounded-control bg-primary-soft px-3 py-2 text-sm text-primary-hover">{{ copy.detail.teamAnalysis }}</p>
         <p v-else-if="fromCache" class="text-sm text-text-3">{{ copy.analysis.fromCache }}</p>

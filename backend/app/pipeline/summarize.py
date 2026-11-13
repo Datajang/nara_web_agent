@@ -1,6 +1,8 @@
 """공통 요약 (SPEC §5.7 캐시 계약, §8.3 map→reduce). 프로필과 무관하며 모든 사용자가 공유한다.
 
-source_hash = 이 공고의 rfp·spec 중 ok 파일 sha256을 정렬해 이어 붙인 값의 sha256.
+읽을 첨부(pick_files): rfp·spec. 그중 읽은 게 없으면 공고서·공고문도(서식 제외), 같은 문서의
+hwpx·pdf는 하나만 (2026-11-13, 사용자 승인).
+source_hash = 읽을 첨부 중 ok 파일 sha256을 정렬해 이어 붙인 값의 sha256.
 읽을 파일이 없으면 `meta-only:{bids.content_hash}` (정정공고면 해시가 바뀌어 새 요약).
 
 map: 파일 청크마다 FileFacts. 형식 오류는 repair 1회 뒤 그 청크만 건너뛰고, 컨텍스트 초과는
@@ -14,7 +16,9 @@ import asyncio
 import hashlib
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Protocol, TypeVar
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
@@ -39,7 +43,67 @@ SCANNED_THRESHOLD = 200  # §5.6-8: 이보다 짧으면 스캔본일 가능성
 CHUNK_TARGET = chunking.TARGET_TOKENS
 CHUNK_OVERLAP = chunking.OVERLAP_TOKENS
 SINGLE_MAX = chunking.SINGLE_MAX
-NO_FILES = "첨부 문서를 읽지 못함"
+NO_FILES = "첨부 문서를 읽지 못함"  # 읽을 첨부는 있었는데 실패
+NO_DOCS = "요약할 제안요청서·과업 문서가 없음"  # 읽을 첨부가 처음부터 없음
+_NOTICE_WORDS = ("공고서", "공고문", "입찰공고")
+_FORM_WORDS = ("신청서", "서약서", "확약서", "위임장", "양식", "서식", "내역서")
+_EXT_ORDER = (".hwpx", ".hwp", ".docx", ".doc", ".pdf")  # 같은 문서면 한글 원본 먼저
+
+
+class _FileLike(Protocol):
+    @property
+    def name(self) -> str: ...
+    @property
+    def kind(self) -> str: ...
+    @property
+    def status(self) -> str: ...
+
+
+_F = TypeVar("_F", bound=_FileLike)
+
+
+def _flat(name: str) -> str:
+    return re.sub(r"\s+", "", name).lower()
+
+
+def _stem_ext(name: str) -> tuple[str, str]:
+    stem, dot, ext = name.rpartition(".")
+    return (_flat(stem), "." + ext.lower()) if dot else (_flat(name), "")
+
+
+def _is_notice(name: str) -> bool:
+    flat = _flat(name)
+    return any(w in flat for w in _NOTICE_WORDS) and not any(w in flat for w in _FORM_WORDS)
+
+
+def _one_per_document(files: list[_F]) -> list[_F]:
+    """같은 이름의 hwpx·pdf 등은 하나만: 받은 것 먼저, 그다음 한글 원본."""
+    best: dict[str, tuple[tuple[bool, int], _F]] = {}
+    for f in files:
+        stem, ext = _stem_ext(f.name)
+        rank = (f.status != "ok", _EXT_ORDER.index(ext) if ext in _EXT_ORDER else len(_EXT_ORDER))
+        if stem not in best or rank < best[stem][0]:
+            best[stem] = (rank, f)
+    return [f for _, f in best.values()]
+
+
+def pick_files(files: Sequence[_F]) -> list[_F]:
+    """요약에 읽을 첨부. rfp·spec 중 받은 게 없으면 공고서·공고문(서식 제외)도 읽는다."""
+    picked = [f for f in files if f.kind in ("rfp", "spec")]
+    if not any(f.status == "ok" for f in picked):
+        picked += [f for f in files if f.kind == "other" and _is_notice(f.name)]
+    return _one_per_document(picked)
+
+
+def known_source(source: str | None, names: Sequence[str]) -> str | None:
+    """모델이 적은 근거가 실제로 읽은 파일이면 그 파일명, 아니면 None ('summary' 등)."""
+    if not source:
+        return None
+    s = _flat(source)
+    for n in names:
+        if s in (_flat(n), _stem_ext(n)[0]) or (len(s) >= 4 and s in _flat(n)):
+            return n
+    return None
 
 
 def _llm(deps: Deps) -> LLMClient:
@@ -57,16 +121,16 @@ class SourceDoc:
 
 
 async def source_inputs(deps: Deps, bid: Bid) -> tuple[str, list[SourceDoc], list[BidFile]]:
-    """(source_hash, 읽을 문서, rfp·spec 첨부 전체)."""
+    """(source_hash, 읽을 문서, 읽을 첨부 전체 — pick_files)."""
     async with deps.db.session() as s:
-        files = list(
-            (
-                await s.execute(
-                    select(BidFile)
-                    .where(BidFile.bid_id == bid.id, BidFile.kind.in_(("rfp", "spec")))
-                    .order_by(BidFile.id)
-                )
-            ).scalars()
+        files = pick_files(
+            list(
+                (
+                    await s.execute(
+                        select(BidFile).where(BidFile.bid_id == bid.id).order_by(BidFile.id)
+                    )
+                ).scalars()
+            )
         )
         by_sha: dict[str, BidFile] = {}
         for f in files:
@@ -190,8 +254,10 @@ async def _summarize(
         out = await reduce(facts[: len(facts) // 2])
 
     if not read:
-        warnings.append(NO_FILES)
+        warnings.append(NO_FILES if files else NO_DOCS)
     check_evidence(out.key_requirements, [d.text for d in readable], None)
+    for r in out.key_requirements:
+        r.source = known_source(r.source, [d.name for d in readable])
     removed = ground(
         out, [*(d.text for d in readable), json.dumps(bid_meta(bid), ensure_ascii=False)]
     )
@@ -202,7 +268,10 @@ async def _summarize(
         files_read=len(read),
         files_total=len(files),
         truncated=truncated,
-        warnings=_dedupe(warnings + out.coverage.warnings),
+        # 첨부를 읽었는지는 서버가 정한다: 모델이 쓴 같은 경고는 버린다
+        warnings=_dedupe(
+            warnings + [w for w in out.coverage.warnings if w not in (NO_FILES, NO_DOCS)]
+        ),
     )
     return out
 

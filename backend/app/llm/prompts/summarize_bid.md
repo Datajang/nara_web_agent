@@ -12,7 +12,7 @@
 - 일정의 date는 YYYY-MM-DD 형식으로만 쓰고, 연월일이 모두 적혀 있지 않으면 null로 두고 원문 표기는 raw에 옮기세요.
 - 계약 방식(budget_contract.contract_method)과 평가 방식(evaluation.method)은 원문에 적힌 낙찰·계약 방식을 보기 중에서 고르고, 원문에 없으면 null로 두세요. 분석 기법·장비 이름은 평가 방식이 아닙니다. 마감일·예산·계약 방법은 화면에 G2B 공고 정보로 따로 나오므로 문서에 적힌 값만 옮기세요.
 - keywords는 이 공고를 가장 잘 나타내는 한국어 명사구 5~10개입니다.
-- FileFacts가 없으면 메타만으로 작성하고 coverage.warnings에 '첨부 문서를 읽지 못함'을 넣으세요.
+- FileFacts가 없으면 메타만으로 작성하세요. 첨부를 읽었는지에 대한 경고는 서버가 넣으므로 쓰지 마세요.
 
 [사용자]
 <bid_meta>{meta}</bid_meta>

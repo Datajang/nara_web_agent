@@ -99,7 +99,7 @@ def _bid_summary(user: str) -> dict[str, Any]:
             files_read=int(cov.get("files_read", 0)),
             files_total=int(cov.get("files_total", 0)),
             truncated=cov.get("truncated") == "True",
-            warnings=[] if facts else ["첨부 문서를 읽지 못함"],
+            warnings=[],  # 첨부를 읽었는지 경고는 서버가 넣는다
         ),
     ).model_dump()
 

@@ -276,7 +276,7 @@ async function toggleBookmark() {
         </div>
       </header>
 
-      <OfficialFacts v-if="bid.official" :facts="bid.official" />
+      <OfficialFacts v-if="bid.official" :facts="bid.official" :doc-budgets="bid.doc_budgets" />
 
       <section>
         <h3 class="mb-2 text-lg font-semibold">{{ copy.detail.files }}</h3>

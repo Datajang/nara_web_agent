@@ -59,13 +59,17 @@ CONTRACT_METHODS = (
     "수의계약",
 )
 
+# 평가(낙찰자 결정) 방식 보기 (2026-11-13 v5: 분석 기법명 'Atera in situ'가 들어감).
+# 원문 대조는 계약 방식과 같다
+EVAL_METHODS = (*CONTRACT_METHODS, "종합평가")
+
 CAPS: dict[str, Cap] = {
     "Requirement.text": Cap(chars=80),
     "Requirement.evidence": Cap(chars=100),  # §8.5 '120자 이내' 안
     "Requirement.source": Cap(chars=30),
     "EvalItem.name": Cap(chars=30),
     "EvalItem.note": Cap(chars=40),
-    "Evaluation.method": Cap(chars=40),
+    "Evaluation.method": Cap(chars=20, enum=EVAL_METHODS),
     "Evaluation.items": Cap(items=10),
     "ScheduleItem.label": Cap(chars=30),
     # 날짜가 아니면 null (2026-11-12 예시: '협상 후' 같은 글이 들어가 마감일 추출 0/16)

@@ -227,3 +227,26 @@ async def test_detail_shows_g2b_facts_without_ai(full_api, fake_llm):
     assert body["official"]["estimated_price"] == 90_000_000
     assert body["official"]["award_method"] == "협상에 의한 낙찰자 결정"
     assert body["summary"] is None and sum(fake_llm.calls.values()) == 0  # 요약 없이도 보인다
+
+
+async def test_detail_lists_doc_budget_that_differs_from_g2b(full_api, fake_llm):
+    """원문 사업금액이 G2B 배정예산과 다르면 둘 다 보여 준다."""
+    from app.pipeline.summarize import get_or_create_summary
+
+    deps = full_api.ctx.deps
+    url = "https://www.g2b.go.kr/files/budget.docx"
+    deps.downloader.files[url] = (
+        docx_bytes("다. 사업금액: 665,000,000원 (부가세포함)"),
+        "제안요청서.docx",
+    )
+    item = regular_item("R26BK72000010", NOW, files=[(url, "제안요청서.docx")])
+    item.update(asignBdgtAmt="670900400")
+    (bid_id,) = await seed(deps, "regular", item)
+    await get_or_create_summary(deps, bid_id)  # 첨부를 받아 글자를 뽑아 둔다
+    c = await member(full_api, "docbudget@corp.example")
+    body = (await c.get(f"/api/v1/bids/b{bid_id}")).json()
+    await c.aclose()
+    assert body["official"]["assigned_budget"] == 670_900_400
+    assert body["doc_budgets"] == [
+        {"file": "제안요청서.docx", "label": "사업금액", "amount": 665_000_000}
+    ]

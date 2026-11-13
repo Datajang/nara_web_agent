@@ -2,9 +2,10 @@
 분리된다 (예: v1+q35-9b). 프롬프트(llm/prompts/*.md)를 고치면 해당 값을 올린다.
 """
 
+# v6: 평가 방식 보기 (2026-11-13)
 # v5: G2B 공고 정보 메타·원문 대조·계약 방식 보기, v4: 일정 날짜 형식 (2026-11-13)
 # v3: 출력 길이 상한(CAPS), v2: 모든 필드 required (2026-11-12)
-PROMPT_VERSION = "v5"
+PROMPT_VERSION = "v6"
 SUMMARY_PROMPT = PROMPT_VERSION
 ANALYSIS_PROMPT = PROMPT_VERSION
 SCORE_PROMPT = PROMPT_VERSION

@@ -95,6 +95,9 @@ def test_extraction_counts_g2b_facts_shown_on_screen():
     }
     late = {**official, "deadline_at": "2026-11-24T15:30:00+00:00"}  # KST로는 25일
     assert ev.extraction(expect, empty, late)["deadline"] is False
+    # 원문 사업금액이 G2B와 다르면 화면에 둘 다 나온다 (v5 g013)
+    doc = {**official, "assigned_budget": 670_900_400, "doc_budgets": [{"amount": 99_000_000}]}
+    assert ev.extraction(expect, empty, doc)["budget"] is True
 
 
 def test_schema_rates_from_invalid_output_logs():

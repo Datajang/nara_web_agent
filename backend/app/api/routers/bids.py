@@ -23,7 +23,7 @@ from app.api.schemas.bids import (
     SearchResultOut,
 )
 from app.bids.cards import build_cards
-from app.bids.facts import official_facts
+from app.bids.facts import doc_budgets, official_facts
 from app.bids.lookup import fetch_from_g2b, find_in_db
 from app.db.models import Bid, BidFile, BidSummary, FileText
 from app.errors import ApiError
@@ -89,7 +89,7 @@ async def detail(bid_id: str, user: ActiveUser, s: DbSession, ctx: Ctx) -> BidDe
     files = (
         await s.execute(select(BidFile).where(BidFile.bid_id == bid.id).order_by(BidFile.id))
     ).scalars()
-    source_hash, _, _ = await source_inputs(deps, bid)
+    source_hash, docs, _ = await source_inputs(deps, bid)
     raw = await s.scalar(
         select(BidSummary.summary).where(
             BidSummary.bid_id == bid.id,
@@ -105,6 +105,7 @@ async def detail(bid_id: str, user: ActiveUser, s: DbSession, ctx: Ctx) -> BidDe
             .order_by(Bid.notice_at.desc().nulls_last(), Bid.id.desc())
             .limit(1)
         )
+    official = official_facts(bid)
     return BidDetail(
         **card.model_dump(),
         prespec_reg_no=bid.prespec_reg_no,
@@ -116,7 +117,8 @@ async def detail(bid_id: str, user: ActiveUser, s: DbSession, ctx: Ctx) -> BidDe
         summary=BidSummaryOut.model_validate(raw) if raw else None,
         my_analysis_id=await history.my_latest_analysis_id(s, user.id, bid.id),
         team_analysis_id=await history.team_latest_analysis_id(s, user.team_id, bid.id),
-        official=official_facts(bid),
+        official=official,
+        doc_budgets=doc_budgets(docs, official.assigned_budget, official.estimated_price),
     )
 
 

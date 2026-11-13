@@ -8,7 +8,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, Field
 
 from app.bids.cards import BidCard
-from app.bids.facts import OfficialFacts
+from app.bids.facts import DocBudget, OfficialFacts
 from app.llm.schemas import BidSummary
 from app.search.query import Keyword, SearchQuery
 
@@ -51,6 +51,7 @@ class BidDetail(BidCard):
     my_analysis_id: int | None
     team_analysis_id: int | None = None  # 팀 프로필로 만든 팀원의 최근 분석 (§13 P6)
     official: OfficialFacts  # G2B 공고 정보 그대로 (AI를 거치지 않음, §7.5-3)
+    doc_budgets: list[DocBudget] = []  # 첨부 문서의 사업 금액 중 G2B 값과 다른 것
 
 
 class FileTextOut(BaseModel):

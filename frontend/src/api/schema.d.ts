@@ -1000,6 +1000,11 @@ export interface components {
             /** Team Analysis Id */
             team_analysis_id?: number | null;
             official: components["schemas"]["OfficialFacts"];
+            /**
+             * Doc Budgets
+             * @default []
+             */
+            doc_budgets: components["schemas"]["DocBudget"][];
         };
         /** BidSummary */
         BidSummary: {
@@ -1237,6 +1242,15 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** DocBudget */
+        DocBudget: {
+            /** File */
+            file: string;
+            /** Label */
+            label: string;
+            /** Amount */
+            amount: number;
         };
         /** EmailIn */
         EmailIn: {

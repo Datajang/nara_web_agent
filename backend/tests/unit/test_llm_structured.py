@@ -241,3 +241,17 @@ async def test_contract_method_is_one_of_fixed_choices():
     kinds = {b.get("type"): b for b in prop["contract_method"]["anyOf"]}
     assert kinds["string"]["enum"] == list(CONTRACT_METHODS) and "null" in kinds
     assert "협상에 의한 계약" in CONTRACT_METHODS and "적격심사" in CONTRACT_METHODS
+
+
+async def test_evaluation_method_is_one_of_fixed_choices():
+    """2026-11-13 v5 g019: 평가 방식 칸에 분석 기법명('Atera in situ')이 들어감 → 보기 중에서만."""
+    from app.llm.schemas import BidSummary
+    from app.llm.structured import EVAL_METHODS
+
+    llm = FakeLLM()
+    with track():
+        await generate(llm, "summarize_bid", MSGS, BidSummary)
+    prop = llm.requests[-1]["json_schema"]["$defs"]["Evaluation"]["properties"]
+    kinds = {b.get("type"): b for b in prop["method"]["anyOf"]}
+    assert kinds["string"]["enum"] == list(EVAL_METHODS) and "null" in kinds
+    assert "종합평가" in EVAL_METHODS and "협상에 의한 계약" in EVAL_METHODS

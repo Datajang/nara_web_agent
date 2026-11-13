@@ -155,6 +155,8 @@ export const copy = {
     contractMethod: '입찰 방식',
     awardMethod: '낙찰 방법',
     none: '미정',
+    docBudgetTitle: '첨부 문서에 적힌 금액이 G2B 값과 달라요',
+    docBudgetLead: '두 값을 모두 보여 줘요. 어느 쪽이 맞는지는 공고 원문에서 확인해 주세요.',
     aiNote: '첨부 문서를 AI가 정리한 내용이에요. 원문에서 확인된 금액·날짜만 보여 줘요.',
   },
   analysis: {

@@ -91,6 +91,25 @@ describe('BidDetailView', () => {
     ])
       expect(t).toContain(s)
     expect(text(m.wrapper)).toContain(copy.official.aiNote) // 요약은 AI가 정리했다는 안내
+    expect(t).not.toContain(copy.official.docBudgetTitle) // 원문 금액이 G2B와 같으면 따로 안 보인다
+  })
+
+  it('첨부 문서의 사업금액이 G2B 배정예산과 다르면 둘 다 보인다', async () => {
+    const official = {
+      deadline_label: '의견 등록 마감',
+      deadline_at: '2026-11-15T14:59:00Z',
+      opening_at: null,
+      assigned_budget: 670900400,
+      estimated_price: null,
+      contract_method: null,
+      award_method: null,
+    }
+    const doc_budgets = [{ file: '제안요청서.hwp', label: '사업금액', amount: 665000000 }]
+    mockApi(base({ 'GET /api/v1/bids/b101': json({ ...DETAIL, official, doc_budgets }) }))
+    m = await mountAt('/bids/b101')
+    const t = m.wrapper.get('[data-official]').text()
+    for (const s of ['670,900,400원', copy.official.docBudgetTitle, '665,000,000원', '제안요청서.hwp', '사업금액'])
+      expect(t).toContain(s)
   })
 
   it('헤더·배지·관련 사전규격·첨부 상태·요약 안내', async () => {
@@ -292,8 +311,8 @@ describe('BidDetailView', () => {
     const input = m.wrapper.get('input[name="bid_no"]')
     await input.setValue('  AI 유지보수 ')
     ;(input.element as HTMLInputElement).form!.dispatchEvent(new Event('submit'))
-    await settle()
-    expect(m.router.currentRoute.value.path).toBe('/search')
+    // /search는 지연 로딩이라 이동이 settle()보다 늦게 끝날 수 있다
+    await vi.waitFor(() => expect(m!.router.currentRoute.value.path).toBe('/search'), { timeout: 5000 })
     expect(m.router.currentRoute.value.query.q).toBe('AI 유지보수')
     expect(api.calls.some((c) => c.url.includes('/bids/lookup'))).toBe(false)
   })

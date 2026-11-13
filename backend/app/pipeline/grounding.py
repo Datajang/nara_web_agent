@@ -4,7 +4,7 @@
 - 선택 칸(`str | None`)은 비운다
 - 목록 항목(문자열·요구사항·리스크·일정)은 뺀다. 일정은 날짜·원문 표기가 모두 없어지면 뺀다
 - 필수 글(개요 등)은 그 문장만 뺀다
-계약 방식은 보기 이름이 원문에 있어야 남긴다(띄어쓰기 무시).
+계약 방식·평가 방식은 보기 이름이 원문에 있어야 남긴다(띄어쓰기·가운뎃점 무시).
 평가(eval/run_eval.py)도 같은 함수를 쓴다.
 """
 
@@ -24,7 +24,7 @@ _DATE = re.compile(r"(20\d{2})\s*[-./년]\s*(\d{1,2})\s*[-./월]\s*(\d{1,2})")
 # 문장 끝: 숫자 뒤의 점('2026. 12. 8.')은 날짜라 자르지 않는다
 _SENTENCE = re.compile(r"(?<=[^\d\s][.!?])\s+")
 # 원문에 이름이 있어야 남기는 칸 (모델명, 필드명)
-_MUST_APPEAR = {("BudgetContract", "contract_method")}
+_MUST_APPEAR = {("BudgetContract", "contract_method"), ("Evaluation", "method")}
 
 
 def amounts(text: str) -> set[int]:
@@ -40,6 +40,15 @@ def amounts(text: str) -> set[int]:
     return out
 
 
+def leading_amount(text: str) -> tuple[int, str] | None:
+    """글 맨 앞의 금액과 그 뒤 글. 맨 앞이 금액이 아니면 None."""
+    for rx in (_KR_AMOUNT, _PLAIN_AMOUNT):
+        m = rx.match(text)
+        if m:
+            return min(amounts(m.group(0))), text[m.end() :]
+    return None
+
+
 def dates(text: str) -> set[str]:
     out: set[str] = set()
     for y, mo, d in _DATE.findall(text):
@@ -51,7 +60,8 @@ def dates(text: str) -> set[str]:
 
 
 def _squash(s: str) -> str:
-    return re.sub(r"\s+", "", s)
+    """띄어쓰기·가운뎃점을 지운다('규격·가격 동시입찰' = '규격가격동시입찰')."""
+    return re.sub(r"[\s·ㆍ・]+", "", s)
 
 
 @dataclass(frozen=True)

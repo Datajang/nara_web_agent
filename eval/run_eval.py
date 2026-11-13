@@ -129,6 +129,7 @@ def extraction(
     if expect.get("budget_won"):
         found = amounts(" ".join(_strings(bc)))
         found |= {v for v in (of.get("assigned_budget"), of.get("estimated_price")) if v}
+        found |= {d["amount"] for d in of.get("doc_budgets") or []}
         out["budget"] = int(expect["budget_won"]) in found
     if expect.get("deadline"):
         days = {s.get("date") for s in summary.get("schedule") or []}
@@ -291,12 +292,17 @@ def _load_items(only: list[str] | None) -> list[dict[str, Any]]:
     return [it for it in items if not only or it["id"] in only]
 
 
-def _official(bid: Any) -> dict[str, Any]:
-    """화면의 G2B 공고 정보 + 낙찰 방법 코드명(라벨 '협상에 의한 계약'과 맞춰 보려고)."""
-    from app.bids.facts import official_facts
+def _official(bid: Any, docs: Any = ()) -> dict[str, Any]:
+    """화면의 G2B 공고 정보 + 원문 사업금액(G2B와 다를 때) + 낙찰 방법 코드명(라벨 맞춤용)."""
+    from app.bids.facts import doc_budgets, official_facts
 
+    of = official_facts(bid)
     code = str((bid.raw or {}).get("sucsfbidMthdNm") or "").split("-", 1)[0]
-    return official_facts(bid).model_dump(mode="json") | {"award_method_code": code or None}
+    extra = doc_budgets(docs, of.assigned_budget, of.estimated_price)
+    return of.model_dump(mode="json") | {
+        "award_method_code": code or None,
+        "doc_budgets": [d.model_dump() for d in extra],
+    }
 
 
 async def cmd_run(label: str, only: list[str] | None, n_injection: int) -> dict[str, Any]:
@@ -347,7 +353,7 @@ async def cmd_run(label: str, only: list[str] | None, n_injection: int) -> dict[
             "files_read": summary.summary.get("coverage", {}).get("files_read"),
             "warnings": summary.summary.get("coverage", {}).get("warnings", []),
             "grounded": [found, total],
-            "extraction": extraction(it.get("expect") or {}, summary.summary, _official(bid)),
+            "extraction": extraction(it.get("expect") or {}, summary.summary, _official(bid, docs)),
             "filled": filled(summary.summary),
             "fit_score": analysis.result.get("fit", {}).get("score"),
             "headline": summary.summary.get("headline"),

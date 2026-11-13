@@ -109,3 +109,14 @@ def test_analysis_result_is_grounded_too():
     assert a.overview == "평가는 2026. 12. 8.에 열립니다."
     assert [r.text for r in a.risks] == ["보안 서약 필요"]
     assert a.fit.reasoning == "" and a.next_actions == []
+
+
+def test_evaluation_method_must_appear_in_the_source_too():
+    """v5 g019: 평가 방식 칸의 잘못된 값. 보기 이름이 원문에 있어야 남긴다(가운뎃점 무시)."""
+    src = SRC + ["낙찰자 결정방법: 규격가격 동시입찰"]
+    ok = _summary(evaluation=Evaluation(method="규격·가격 동시입찰"))
+    bad = _summary(evaluation=Evaluation(method="적격심사"))
+    ground(ok, src)
+    ground(bad, src)
+    assert ok.evaluation.method == "규격·가격 동시입찰"
+    assert bad.evaluation.method is None

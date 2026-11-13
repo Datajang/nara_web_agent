@@ -2899,6 +2899,14 @@
           },
           "official": {
             "$ref": "#/components/schemas/OfficialFacts"
+          },
+          "doc_budgets": {
+            "items": {
+              "$ref": "#/components/schemas/DocBudget"
+            },
+            "type": "array",
+            "title": "Doc Budgets",
+            "default": []
           }
         },
         "type": "object",
@@ -3447,6 +3455,29 @@
           "updated_at"
         ],
         "title": "CoverageOut"
+      },
+      "DocBudget": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "title": "File"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "amount": {
+            "type": "integer",
+            "title": "Amount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file",
+          "label",
+          "amount"
+        ],
+        "title": "DocBudget"
       },
       "EmailIn": {
         "properties": {

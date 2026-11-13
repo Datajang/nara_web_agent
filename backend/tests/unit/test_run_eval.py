@@ -76,6 +76,27 @@ def test_extraction_skips_unlabeled_and_flags_wrong():
     assert ev.extraction(expect, summary) == {"budget": None, "deadline": False, "method": None}
 
 
+def test_extraction_counts_g2b_facts_shown_on_screen():
+    """화면에 보이는 값(G2B 공고 정보 + 요약)으로 채점 (decisions/2026-11-13-official-facts)."""
+    expect = {"budget_won": 99_000_000, "deadline": "2026-11-24", "method": "협상에 의한 계약"}
+    official = {
+        "deadline_at": "2026-11-24T01:00:00+00:00",  # KST 10:00
+        "assigned_budget": 99_000_000,
+        "estimated_price": 90_000_000,
+        "award_method": "협상에 의한 낙찰자 결정",
+        "award_method_code": "협상에의한계약",
+        "contract_method": "제한경쟁",
+    }
+    empty = {"budget_contract": {}, "evaluation": {}, "schedule": []}
+    assert ev.extraction(expect, empty, official) == {
+        "budget": True,
+        "deadline": True,
+        "method": True,
+    }
+    late = {**official, "deadline_at": "2026-11-24T15:30:00+00:00"}  # KST로는 25일
+    assert ev.extraction(expect, empty, late)["deadline"] is False
+
+
 def test_schema_rates_from_invalid_output_logs():
     # complete 호출 12회 중 첫 시도 실패 2회(→ repair 2회), 최종 실패 1회 → generate 10회
     st = ev.schema_rates(calls=12, invalid_first=2, invalid_final=1)

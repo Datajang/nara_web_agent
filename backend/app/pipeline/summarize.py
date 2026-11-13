@@ -32,6 +32,7 @@ from app.llm.structured import generate
 from app.llm.tokens import TokenCounter, load_counter
 from app.llm.versions import SUMMARY_PROMPT, prompt_version
 from app.pipeline import chunking
+from app.pipeline.grounding import ground, unverified_warning
 from app.pipeline.singleflight import single_flight
 
 SCANNED_THRESHOLD = 200  # §5.6-8: 이보다 짧으면 스캔본일 가능성
@@ -190,8 +191,13 @@ async def _summarize(
 
     if not read:
         warnings.append(NO_FILES)
-    out.headline = out.headline[:80]
     check_evidence(out.key_requirements, [d.text for d in readable], None)
+    removed = ground(
+        out, [*(d.text for d in readable), json.dumps(bid_meta(bid), ensure_ascii=False)]
+    )
+    if removed:
+        warnings.append(unverified_warning(removed))
+    out.headline = (out.headline or bid.title)[:80]
     out.coverage = Coverage(
         files_read=len(read),
         files_total=len(files),

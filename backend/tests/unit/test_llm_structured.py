@@ -227,3 +227,17 @@ async def test_schedule_date_is_forced_to_iso_date_or_null():
     kinds = {b.get("type"): b for b in date["anyOf"]}
     assert kinds["string"]["pattern"] == r"^\d{4}-\d{2}-\d{2}$"
     assert "null" in kinds
+
+
+async def test_contract_method_is_one_of_fixed_choices():
+    """2026-11-13 v4: 계약 방식 칸에 '선금 30%, 잔금 70%'·장비명이 들어감 → 보기 중에서만 고르게."""
+    from app.llm.schemas import BidSummary
+    from app.llm.structured import CONTRACT_METHODS
+
+    llm = FakeLLM()
+    with track():
+        await generate(llm, "summarize_bid", MSGS, BidSummary)
+    prop = llm.requests[-1]["json_schema"]["$defs"]["BudgetContract"]["properties"]
+    kinds = {b.get("type"): b for b in prop["contract_method"]["anyOf"]}
+    assert kinds["string"]["enum"] == list(CONTRACT_METHODS) and "null" in kinds
+    assert "협상에 의한 계약" in CONTRACT_METHODS and "적격심사" in CONTRACT_METHODS

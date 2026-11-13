@@ -40,12 +40,25 @@ class Cap:
     items: int | None = None  # 목록 최대 개수 (maxItems)
     chars: int | None = None  # 문자열(목록이면 각 원소) 최대 글자 수 (maxLength)
     pattern: str | None = None  # 문자열 형식 (정규식)
+    enum: tuple[str, ...] | None = None  # 보기 중 하나만
 
 
 # 모델에 보내는 스키마에만 거는 길이 상한 (2026-11-12 실측: summarize_file 실패 9/25건이
 # 모두 4,000토큰에서 잘린 JSON). vLLM 강제 디코딩이 maxItems·maxLength를 지키므로 꽉 채운
 # 최악의 출력도 max_tokens 안에 든다(tests/unit/test_llm_structured.py). Pydantic 검증·API
 # 스키마는 그대로라 저장된 값은 길어도 읽힌다. 키는 '모델명.필드명', 공통 부품은 분석에도 적용.
+# 계약(낙찰) 방식 보기 (2026-11-13: 칸 혼동으로 대금 조건·장비명이 들어감).
+# 원문에 없는 보기는 원문 대조(pipeline/grounding.py)에서 비운다
+CONTRACT_METHODS = (
+    "협상에 의한 계약",
+    "적격심사",
+    "최저가",
+    "2단계 경쟁",
+    "규격·가격 동시입찰",
+    "종합심사",
+    "수의계약",
+)
+
 CAPS: dict[str, Cap] = {
     "Requirement.text": Cap(chars=80),
     "Requirement.evidence": Cap(chars=100),  # §8.5 '120자 이내' 안
@@ -59,7 +72,7 @@ CAPS: dict[str, Cap] = {
     "ScheduleItem.date": Cap(chars=10, pattern=r"^\d{4}-\d{2}-\d{2}$"),
     "ScheduleItem.raw": Cap(chars=40),
     "BudgetContract.budget_text": Cap(chars=80),
-    "BudgetContract.contract_method": Cap(chars=80),
+    "BudgetContract.contract_method": Cap(chars=20, enum=CONTRACT_METHODS),
     "BudgetContract.payment_terms": Cap(chars=80),
     "BudgetContract.period": Cap(chars=80),
     "FileFacts.purpose": Cap(chars=150),
@@ -107,6 +120,8 @@ def _apply_caps(node: Any) -> None:
                 text["maxLength"] = cap.chars
             if cap.pattern is not None and text is not None:
                 text["pattern"] = cap.pattern
+            if cap.enum is not None and text is not None:
+                text["enum"] = list(cap.enum)
     for v in node.values():
         _apply_caps(v)
 

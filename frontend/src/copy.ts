@@ -145,6 +145,17 @@ export const copy = {
     copyMarkdown: '마크다운 복사',
     copied: '복사했어요.',
   },
+  official: {
+    title: 'G2B 공고 정보',
+    lead: '나라장터 공고에 등록된 값을 그대로 보여 줘요.',
+    opening: '개찰',
+    assignedBudget: '배정예산(부가세 포함)',
+    estimatedPrice: '추정가격(부가세 제외)',
+    contractMethod: '입찰 방식',
+    awardMethod: '낙찰 방법',
+    none: '미정',
+    aiNote: '첨부 문서를 AI가 정리한 내용이에요. 원문에서 확인된 금액·날짜만 보여 줘요.',
+  },
   analysis: {
     overview: '사업 개요',
     requirements: '핵심 요구사항',

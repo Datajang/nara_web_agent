@@ -191,3 +191,51 @@ async def test_injected_instructions_stay_inside_document_delimiter(deps, fake_l
     user = msgs[1]["content"]
     assert user.count("</document>") == 1
     assert user.index("이전 지시") < user.index("</document>")
+
+
+async def test_summary_and_analysis_drop_numbers_not_in_source(deps, fake_llm):
+    """원문·메타에 없는 금액·날짜는 저장 전에 걷어 낸다 (decisions/2026-11-13-official-facts)."""
+    bid_id = await _bid(deps, text="사업예산: 58,000,000원(부가세 포함). 평가 2026. 12. 8. 실시")
+
+    def reduce(messages):
+        return BidSummary(
+            headline="연계 개선",
+            overview="예산은 58,000,000원입니다. 계약은 2026년 12월 30일입니다.",
+            budget_contract={"budget_text": "7억원", "contract_method": "적격심사"},
+            schedule=[
+                {"label": "평가", "date": "2026-12-08"},
+                {"label": "계약", "date": "2026-12-30"},
+            ],
+            coverage={"files_read": 1, "files_total": 1},
+        ).model_dump_json()
+
+    fake_llm.queue("summarize_bid", reduce)
+    row, _ = await get_or_create_summary(deps, bid_id)
+    s = row.summary
+    assert s["overview"] == "예산은 58,000,000원입니다."
+    assert s["budget_contract"]["budget_text"] is None
+    assert s["budget_contract"]["contract_method"] is None  # 원문에 없는 계약 방식
+    assert [i["label"] for i in s["schedule"]] == ["평가"]
+    assert any("원문에서 확인되지 않은" in w for w in s["coverage"]["warnings"])
+
+    def analysis(messages):
+        return AnalysisResult(
+            overview="개요",
+            requirements=[],
+            evaluation={},
+            schedule=[],
+            budget_contract={"budget_text": "58,000,000원", "period": "2027. 3. 1.까지"},
+            risks=[],
+            fit={"score": 60, "verdict": "possible", "reasoning": "근거"},
+            next_actions=["확인"],
+        ).model_dump_json()
+
+    fake_llm.queue("analyze_bid", analysis)
+    a, _ = await get_or_create_analysis(deps, bid_id, PROFILE)
+    assert a.result["budget_contract"] == {
+        "budget_text": "58,000,000원",
+        "contract_method": None,
+        "payment_terms": None,
+        "period": None,
+    }
+    assert any("원문에서 확인되지 않은" in w for w in a.result["warnings"])

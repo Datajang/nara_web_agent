@@ -20,6 +20,7 @@ from app.llm.prompts import render
 from app.llm.schemas import AnalysisResult, verdict_for
 from app.llm.structured import generate
 from app.llm.versions import ANALYSIS_PROMPT, prompt_version
+from app.pipeline.grounding import ground, unverified_warning
 from app.pipeline.singleflight import single_flight
 from app.pipeline.summarize import (
     _dedupe,
@@ -114,9 +115,13 @@ async def get_or_create_analysis(
         result = await generate(llm, "analyze_bid", msgs, AnalysisResult)
         _, docs, _ = await source_inputs(deps, bid)
         check_evidence(result.requirements, [d.text for d in docs], None)
+        removed = ground(
+            result, [*(d.text for d in docs), json.dumps(bid_meta(bid), ensure_ascii=False)]
+        )
         result.fit.verdict = verdict_for(result.fit.score)
         cov_warnings = summary.summary.get("coverage", {}).get("warnings", [])
-        result.warnings = _dedupe([*result.warnings, *cov_warnings])
+        mine = [unverified_warning(removed)] if removed else []
+        result.warnings = _dedupe([*result.warnings, *mine, *cov_warnings])
         async with deps.db.transaction() as s:
             await s.execute(
                 insert(Analysis)

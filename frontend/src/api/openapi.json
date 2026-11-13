@@ -2896,6 +2896,9 @@
               }
             ],
             "title": "Team Analysis Id"
+          },
+          "official": {
+            "$ref": "#/components/schemas/OfficialFacts"
           }
         },
         "type": "object",
@@ -2919,7 +2922,8 @@
           "related_bid_id",
           "files",
           "summary",
-          "my_analysis_id"
+          "my_analysis_id",
+          "official"
         ],
         "title": "BidDetail"
       },
@@ -4341,6 +4345,97 @@
         "type": "object",
         "title": "MyTeamOut",
         "description": "팀이 없으면 team=null이고 나머지는 비어 있다."
+      },
+      "OfficialFacts": {
+        "properties": {
+          "deadline_label": {
+            "type": "string",
+            "enum": [
+              "입찰 마감",
+              "의견 등록 마감"
+            ],
+            "title": "Deadline Label"
+          },
+          "deadline_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline At"
+          },
+          "opening_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opening At"
+          },
+          "assigned_budget": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Budget"
+          },
+          "estimated_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Price"
+          },
+          "contract_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contract Method"
+          },
+          "award_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Award Method"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deadline_label",
+          "deadline_at",
+          "opening_at",
+          "assigned_budget",
+          "estimated_price",
+          "contract_method",
+          "award_method"
+        ],
+        "title": "OfficialFacts"
       },
       "ProfileIn": {
         "properties": {

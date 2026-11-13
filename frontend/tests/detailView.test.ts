@@ -46,6 +46,53 @@ function base(extra: Record<string, unknown> = {}) {
 }
 
 describe('BidDetailView', () => {
+  it('G2B 공고 정보는 요약과 따로, 원 단위 그대로 (decisions/2026-11-13-official-facts)', async () => {
+    mockApi(
+      base({
+        'GET /api/v1/bids/b101': json({
+          ...DETAIL,
+          summary: {
+            headline: '연계 개선',
+            overview: '시스템을 개선한다.',
+            key_requirements: [],
+            evaluation: { method: null, items: [] },
+            schedule: [],
+            budget_contract: { budget_text: null, contract_method: null, payment_terms: null, period: null },
+            eligibility: [],
+            risks: [],
+            keywords: [],
+            coverage: { files_read: 1, files_total: 1, truncated: false, warnings: [] },
+          },
+          official: {
+            deadline_label: '입찰 마감',
+            deadline_at: '2026-11-24T01:00:00Z',
+            opening_at: '2026-11-24T02:00:00Z',
+            assigned_budget: 99000000,
+            estimated_price: 90000000,
+            contract_method: '제한경쟁',
+            award_method: '협상에 의한 낙찰자 결정',
+          },
+        }),
+      }),
+    )
+    m = await mountAt('/bids/b101')
+    const box = m.wrapper.get('[data-official]')
+    const t = box.text()
+    for (const s of [
+      copy.official.title,
+      '입찰 마감',
+      '2026-11-24 10:00',
+      copy.official.opening,
+      '99,000,000원',
+      copy.official.assignedBudget,
+      '90,000,000원',
+      '제한경쟁',
+      '협상에 의한 낙찰자 결정',
+    ])
+      expect(t).toContain(s)
+    expect(text(m.wrapper)).toContain(copy.official.aiNote) // 요약은 AI가 정리했다는 안내
+  })
+
   it('헤더·배지·관련 사전규격·첨부 상태·요약 안내', async () => {
     mockApi(base())
     m = await mountAt('/bids/b101')

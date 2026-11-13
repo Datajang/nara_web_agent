@@ -999,6 +999,7 @@ export interface components {
             my_analysis_id: number | null;
             /** Team Analysis Id */
             team_analysis_id?: number | null;
+            official: components["schemas"]["OfficialFacts"];
         };
         /** BidSummary */
         BidSummary: {
@@ -1549,6 +1550,26 @@ export interface components {
              * @default []
              */
             members: components["schemas"]["MemberOut"][];
+        };
+        /** OfficialFacts */
+        OfficialFacts: {
+            /**
+             * Deadline Label
+             * @enum {string}
+             */
+            deadline_label: "입찰 마감" | "의견 등록 마감";
+            /** Deadline At */
+            deadline_at: string | null;
+            /** Opening At */
+            opening_at: string | null;
+            /** Assigned Budget */
+            assigned_budget: number | null;
+            /** Estimated Price */
+            estimated_price: number | null;
+            /** Contract Method */
+            contract_method: string | null;
+            /** Award Method */
+            award_method: string | null;
         };
         /** ProfileIn */
         ProfileIn: {

@@ -20,9 +20,11 @@ import logging
 import re
 import time
 from collections.abc import Iterable
-from datetime import date, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+
+from app.pipeline.grounding import amounts, dates
 
 ROOT = Path(__file__).resolve().parent
 GOLDEN, RESULTS = ROOT / "golden", ROOT / "results"
@@ -37,39 +39,14 @@ PROFILES = {
     },
 }
 PROFILE_A_TEXT = str(PROFILES["A"]["description"])
+
 FIT_RANK = {"high": 2, "mid": 1, "low": 0}
 HIGH_RE = r"(AI|인공지능|빅데이터|데이터|챗봇|플랫폼|LLM|지능형)"
 MID_RE = r"(정보시스템|정보화|유지보수|고도화|소프트웨어|홈페이지|시스템)"
 
 # ---------- 지표 (순수 함수, tests/unit/test_run_eval.py) ----------
 
-_UNIT = {"억": 100_000_000, "천만": 10_000_000, "백만": 1_000_000, "만": 10_000, "천": 1_000}
-_KR_AMOUNT = re.compile(r"((?:\d[\d,]*(?:\.\d+)?\s*(?:억|천만|백만|만|천)\s*)+)원")
-_PLAIN_AMOUNT = re.compile(r"(?<![\d.])(\d{1,3}(?:,\d{3})+|\d{5,})\s*원")
-_DATE = re.compile(r"(20\d{2})\s*[-./년]\s*(\d{1,2})\s*[-./월]\s*(\d{1,2})")
-
-
-def amounts(text: str) -> set[int]:
-    """'100,000,000원', '1억 2천만원', '5,000만원' → 원 단위 정수. 원이 붙은 것만 금액으로 본다."""
-    out: set[int] = set()
-    for m in _KR_AMOUNT.finditer(text):
-        total = 0.0
-        for num, unit in re.findall(r"(\d[\d,]*(?:\.\d+)?)\s*(억|천만|백만|만|천)", m.group(1)):
-            total += float(num.replace(",", "")) * _UNIT[unit]
-        out.add(int(total))
-    for m in _PLAIN_AMOUNT.finditer(text):
-        out.add(int(m.group(1).replace(",", "")))
-    return out
-
-
-def dates(text: str) -> set[str]:
-    out: set[str] = set()
-    for y, mo, d in _DATE.findall(text):
-        try:
-            out.add(date(int(y), int(mo), int(d)).isoformat())
-        except ValueError:
-            continue
-    return out
+# 금액·날짜 해석은 서비스의 원문 대조와 같은 함수를 쓴다 (app/pipeline/grounding.py)
 
 
 def _strings(o: Any) -> Iterable[str]:
@@ -131,20 +108,37 @@ def _squash(s: str | None) -> str:
     return re.sub(r"\s+", "", s or "")
 
 
-def extraction(expect: dict[str, Any], summary: dict[str, Any]) -> dict[str, bool | None]:
-    """§12.5 추출 정확도. 라벨이 비어 있으면 None(채점 안 함)."""
+def _kst_day(iso: str | None) -> str | None:
+    if not iso:
+        return None
+    return datetime.fromisoformat(iso).astimezone(KST).date().isoformat()
+
+
+def extraction(
+    expect: dict[str, Any], summary: dict[str, Any], official: dict[str, Any] | None = None
+) -> dict[str, bool | None]:
+    """§12.5 추출 정확도. 라벨이 비어 있으면 None(채점 안 함).
+
+    화면에 보이는 값으로 채점한다: G2B 공고 정보(official, AI를 거치지 않음)
+    + 원문 대조를 통과한 요약.
+    """
+    of = official or {}
     bc = summary.get("budget_contract") or {}
     ev = summary.get("evaluation") or {}
     out: dict[str, bool | None] = {"budget": None, "deadline": None, "method": None}
     if expect.get("budget_won"):
         found = amounts(" ".join(_strings(bc)))
+        found |= {v for v in (of.get("assigned_budget"), of.get("estimated_price")) if v}
         out["budget"] = int(expect["budget_won"]) in found
     if expect.get("deadline"):
         days = {s.get("date") for s in summary.get("schedule") or []}
+        days.add(_kst_day(of.get("deadline_at")))
         out["deadline"] = expect["deadline"] in days
     if expect.get("method"):
         want = _squash(expect["method"])
         got = [_squash(ev.get("method")), _squash(bc.get("contract_method"))]
+        keys = ("award_method", "award_method_code", "contract_method")
+        got += [_squash(of.get(k)) for k in keys]
         out["method"] = any(want and (want in g or (g and g in want)) for g in got)
     return out
 
@@ -297,6 +291,14 @@ def _load_items(only: list[str] | None) -> list[dict[str, Any]]:
     return [it for it in items if not only or it["id"] in only]
 
 
+def _official(bid: Any) -> dict[str, Any]:
+    """화면의 G2B 공고 정보 + 낙찰 방법 코드명(라벨 '협상에 의한 계약'과 맞춰 보려고)."""
+    from app.bids.facts import official_facts
+
+    code = str((bid.raw or {}).get("sucsfbidMthdNm") or "").split("-", 1)[0]
+    return official_facts(bid).model_dump(mode="json") | {"award_method_code": code or None}
+
+
 async def cmd_run(label: str, only: list[str] | None, n_injection: int) -> dict[str, Any]:
     from app.bids.meta import bid_meta
     from app.db.models import Bid
@@ -345,7 +347,7 @@ async def cmd_run(label: str, only: list[str] | None, n_injection: int) -> dict[
             "files_read": summary.summary.get("coverage", {}).get("files_read"),
             "warnings": summary.summary.get("coverage", {}).get("warnings", []),
             "grounded": [found, total],
-            "extraction": extraction(it.get("expect") or {}, summary.summary),
+            "extraction": extraction(it.get("expect") or {}, summary.summary, _official(bid)),
             "filled": filled(summary.summary),
             "fit_score": analysis.result.get("fit", {}).get("score"),
             "headline": summary.summary.get("headline"),

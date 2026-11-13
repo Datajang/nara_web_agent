@@ -15,6 +15,7 @@ import FeedbackButtons from '@/components/bid/FeedbackButtons.vue'
 import FileList from '@/components/bid/FileList.vue'
 import MoneyText from '@/components/bid/MoneyText.vue'
 import ProgressSteps from '@/components/bid/ProgressSteps.vue'
+import OfficialFacts from '@/components/bid/OfficialFacts.vue'
 import SummaryFacts from '@/components/bid/SummaryFacts.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
@@ -267,6 +268,8 @@ async function toggleBookmark() {
         </div>
       </header>
 
+      <OfficialFacts v-if="bid.official" :facts="bid.official" />
+
       <section>
         <h3 class="mb-2 text-lg font-semibold">{{ copy.detail.files }}</h3>
         <FileList :files="bid.files" :downloading="downloading" @preview="openPreview" @download="download" />
@@ -275,6 +278,7 @@ async function toggleBookmark() {
       <section class="rounded-card border border-border bg-surface p-4">
         <h3 class="mb-2 text-lg font-semibold">{{ copy.detail.summary }}</h3>
         <template v-if="bid.summary">
+          <p class="mb-3 text-sm text-text-3">{{ copy.official.aiNote }}</p>
           <p class="mb-2 font-medium">{{ bid.summary.headline }}</p>
           <p class="whitespace-pre-line text-base text-text-2">{{ bid.summary.overview }}</p>
           <SummaryFacts :summary="bid.summary" />

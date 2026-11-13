@@ -7,6 +7,7 @@
 3. fit은 프로필에 적힌 내용만으로 판단하세요. 부족한 점(gaps)은 구체적으로 적으세요.
 4. next_actions는 담당자가 바로 할 수 있는 행동 3~5개입니다(예: 'OO 서류 확인', '컨소시엄 가능성 검토').
 5. warnings에는 summary.coverage.warnings를 그대로 포함하세요.
+6. 금액·날짜는 summary나 bid_meta에 있는 표기 그대로만 쓰세요. 원문에 없는 숫자는 화면에서 빠집니다.
 
 [사용자]
 <profile>{profile_description}</profile>

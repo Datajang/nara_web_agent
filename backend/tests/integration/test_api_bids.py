@@ -211,3 +211,19 @@ async def test_detail_links_related_prespec_both_ways(full_api):
     await c.aclose()
     assert r["related_bid_id"] == f"b{pid}" and p["related_bid_id"] == f"b{rid}"
     assert r["revision"] == 2 and r["prespec_reg_no"] == "R26BD00000077"
+
+
+async def test_detail_shows_g2b_facts_without_ai(full_api, fake_llm):
+    """docs/decisions/2026-11-13-official-facts.md: 마감·예산·계약 방법은 G2B 값 그대로."""
+    item = regular_item("R26BK72000009", NOW, deadline="2026-11-24 10:00:00", budget="90000000")
+    item.update(asignBdgtAmt="99000000", sucsfbidMthdNm="협상에의한계약-협상에 의한 낙찰자 결정")
+    (bid_id,) = await seed(full_api.ctx.deps, "regular", item)
+    c = await member(full_api, "facts@corp.example")
+    body = (await c.get(f"/api/v1/bids/b{bid_id}")).json()
+    await c.aclose()
+    assert body["official"]["deadline_label"] == "입찰 마감"
+    assert body["official"]["deadline_at"].startswith("2026-11-24T01:00:00")
+    assert body["official"]["assigned_budget"] == 99_000_000
+    assert body["official"]["estimated_price"] == 90_000_000
+    assert body["official"]["award_method"] == "협상에 의한 낙찰자 결정"
+    assert body["summary"] is None and sum(fake_llm.calls.values()) == 0  # 요약 없이도 보인다

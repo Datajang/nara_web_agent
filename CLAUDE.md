@@ -30,7 +30,7 @@ cd frontend && npm ci && npm run lint && npm run typecheck && npm run test && np
 - 마이그레이션: `uv run alembic -x url=$DATABASE_URL upgrade head`
 - API 스키마를 바꾸면: `cd backend && uv run python -m scripts.export_openapi && cd ../frontend && npm run gen:api` (pytest·CI가 최신 여부를 검사)
 - 개발 실행: 백엔드 `NARA_ENV_FILE=.env ENV=development MAIL_BACKEND=memory LLM_BACKEND=fake APP_ORIGIN=http://localhost:5173 COOKIE_SECURE=false uv run uvicorn app.main:app --port 8020`(실제 vLLM은 `LLM_BACKEND=vllm`), 프론트 `VITE_API_TARGET=http://127.0.0.1:8020 npm run dev`. 메일은 `GET /api/v1/_dev/mail`. 첫 관리자는 `uv run python -m app.cli create-admin --email <주소>`
-- E2E 스모크(§12.8): `uv run python -m scripts.seed_e2e`(E2E_ADMIN·E2E_ADMIN_PW, 별도 DB) → 백엔드(가짜 LLM, APP_ORIGIN=http://localhost:4173) → `npm run build && npx vite preview --port 4173` → `npx playwright test`. 순서는 CI `e2e` 잡과 같다.
+- E2E 스모크(§12.8): `uv run python -m scripts.seed_e2e`(E2E_ADMIN·E2E_ADMIN_PW, 초대 흐름용 E2E_MEMBER·E2E_MEMBER_PW, 별도 DB) → 백엔드(가짜 LLM, APP_ORIGIN=http://localhost:4173) → `npm run build && npx vite preview --port 4173` → `npx playwright test`. 순서는 CI `e2e` 잡과 같다.
 - 운영 서버 명령은 실행하지 않는다(사용자가 직접). 서버 작업은 `docs/ops/`에 명령으로 남긴다.
 - v1 코드 참조: `git show 61519ad:<경로>` (v2 브랜치에서는 삭제됨).
 

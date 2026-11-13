@@ -35,3 +35,25 @@ async def test_seed_refuses_production(full_api, monkeypatch):
     monkeypatch.setenv("ENV", "production")
     with pytest.raises(SystemExit):
         seed_e2e.guard()
+
+
+async def test_seed_adds_a_member_without_team_for_the_invite_flow(full_api):
+    member = ("e2e-member@corp.example", "e2e-member-password-1")
+    await seed_e2e.seed(
+        full_api.db, "e2e-admin@corp.example", "e2e-admin-password-1", now=NOW, member=member
+    )
+    async with full_api.client() as a, full_api.client() as m:
+        await login(a, "e2e-admin@corp.example", "e2e-admin-password-1")
+        assert (await login(m, *member)).status_code == 200
+        code = (await a.post("/api/v1/teams", json={"name": "E2E 팀"})).json()["team"][
+            "invite_code"
+        ]
+        assert (await m.post("/api/v1/teams/join", json={"code": code})).status_code == 200
+    # 다시 시드하면 초대 흐름을 처음부터 다시 할 수 있게 회원은 팀 밖으로
+    await seed_e2e.seed(
+        full_api.db, "e2e-admin@corp.example", "e2e-admin-password-1", now=NOW, member=member
+    )
+    async with full_api.client() as m:
+        await login(m, *member)
+        me = (await m.get("/api/v1/me")).json()
+    assert me["team"] is None and me["role"] == "member"

@@ -121,6 +121,8 @@ jobs:
       LOG_FORMAT: json
       E2E_ADMIN: e2e-admin@corp.example
       E2E_ADMIN_PW: e2e-admin-password-1
+      E2E_MEMBER: e2e-member@corp.example
+      E2E_MEMBER_PW: e2e-member-password-1
       E2E_BASE: http://localhost:4173
     steps:
       - uses: actions/checkout@v4

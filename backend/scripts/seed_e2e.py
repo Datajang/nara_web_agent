@@ -2,7 +2,8 @@
 
     E2E_ADMIN=e2e@corp.example E2E_ADMIN_PW=... NARA_ENV_FILE=.env uv run python -m scripts.seed_e2e
 
-- 관리자 1명(활성·인증됨), 가짜 공고 몇 건, 두 소스의 수집 범위(지금 + 1일까지)를 넣는다.
+- 관리자 1명(활성·인증됨), 초대 흐름용 일반 회원 1명(E2E_MEMBER, 시드마다 팀 밖으로),
+  가짜 공고 몇 건, 두 소스의 수집 범위(지금 + 1일까지)를 넣는다.
   범위가 검색 창을 덮으므로 검색이 G2B를 부르지 않는다(외부 호출 없음, 규칙 3).
 - 공고 형식은 테스트 가짜(tests.fakes.g2b)를 실제 매퍼로 넣어 운영과 같은 경로를 탄다.
 - 여러 번 실행해도 결과가 같다.
@@ -15,12 +16,14 @@ import os
 import sys
 from datetime import datetime, timedelta
 
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
+from app.auth.passwords import hash_password
 from app.cli import create_admin
 from app.collector.upsert import upsert_bids
 from app.config import get_settings
-from app.db.models import CollectorCoverage
+from app.db.models import CollectorCoverage, User
 from app.db.session import Database
 from app.deps import utcnow
 from app.g2b.mapper import to_record
@@ -39,9 +42,37 @@ def guard() -> None:
         raise SystemExit("seed_e2e는 운영(ENV=production)에서 실행하지 않습니다")
 
 
-async def seed(db: Database, email: str, password: str, *, now: datetime | None = None) -> None:
+async def _member(db: Database, email: str, password: str) -> None:
+    """활성·인증된 일반 회원. 이미 있으면 팀에서만 뺀다(초대 흐름을 매번 처음부터)."""
+    async with db.transaction() as s:
+        user = await s.scalar(select(User).where(User.email == email))
+        if user is None:
+            s.add(
+                User(
+                    email=email,
+                    password_hash=hash_password(password),
+                    display_name=email.split("@")[0],
+                    role="member",
+                    status="active",
+                    email_verified_at=utcnow(),
+                )
+            )
+        else:
+            user.team_id, user.team_role, user.team_joined_at = None, None, None
+
+
+async def seed(
+    db: Database,
+    email: str,
+    password: str,
+    *,
+    now: datetime | None = None,
+    member: tuple[str, str] | None = None,
+) -> None:
     now = now or utcnow()
     await create_admin(db, email, password)
+    if member is not None:
+        await _member(db, *member)
     items = [
         regular_item(f"R26BKE2E{i:05d}", now - timedelta(hours=6 * (i + 1)), title=title)
         for i, title in enumerate(TITLES)
@@ -70,7 +101,8 @@ async def _main() -> int:
     settings = get_settings()
     db = Database(settings.database_url, pool_size=2, lock_pool_size=1)
     try:
-        await seed(db, email, password)
+        m_email, m_pw = os.environ.get("E2E_MEMBER"), os.environ.get("E2E_MEMBER_PW")
+        await seed(db, email, password, member=(m_email, m_pw) if m_email and m_pw else None)
     finally:
         await db.dispose()
     print(f"seeded {len(TITLES)} bids")

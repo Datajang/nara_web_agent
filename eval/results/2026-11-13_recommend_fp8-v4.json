@@ -1,0 +1,8 @@
+{
+ "label": "fp8-v4",
+ "candidates": 150,
+ "scored": 150,
+ "seconds": 74.4,
+ "llm_calls": 9,
+ "within_5min": true
+}

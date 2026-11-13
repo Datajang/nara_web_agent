@@ -1,0 +1,589 @@
+{
+ "label": "fp8-v4",
+ "model_id": "q35-9b-eval-fp8-v4",
+ "items": [
+  {
+   "id": "g001",
+   "verified": false,
+   "seconds": 0.1,
+   "chars": 32861,
+   "files_read": 2,
+   "warnings": [
+    "문서 간 불일치: budget_text (206,220,000원 vs 226,842,000원)",
+    "문서 간 불일치: evaluation.items (5 개 항목 vs 8 개 항목)",
+    "문서 간 불일치: schedule.date (null vs null)"
+   ],
+   "grounded": [
+    8,
+    8
+   ],
+   "extraction": {
+    "budget": false,
+    "deadline": null,
+    "method": false
+   },
+   "filled": {
+    "schedule": true,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": true,
+    "evaluation": true
+   },
+   "fit_score": 60,
+   "headline": "광주과학기술원 HPC-AI 공용인프라(HCSF) 하드웨어 유지보수 용역 변경공고"
+  },
+  {
+   "id": "g002",
+   "verified": false,
+   "seconds": 0.1,
+   "chars": 15571,
+   "files_read": 1,
+   "warnings": [],
+   "grounded": [
+    5,
+    19
+   ],
+   "extraction": {
+    "budget": true,
+    "deadline": false,
+    "method": true
+   },
+   "filled": {
+    "schedule": true,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": true,
+    "evaluation": true
+   },
+   "fit_score": 65,
+   "headline": "경찰청, 전국 사이버테러 수사관 대상 가상자산·AI 범죄 대응 역량강화 워크숍 기획 및 운영"
+  },
+  {
+   "id": "g003",
+   "verified": false,
+   "seconds": 0.1,
+   "chars": 0,
+   "files_read": 0,
+   "warnings": [
+    "첨부 문서를 읽지 못함"
+   ],
+   "grounded": [
+    19,
+    19
+   ],
+   "extraction": {
+    "budget": true,
+    "deadline": true,
+    "method": false
+   },
+   "filled": {
+    "schedule": true,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": false,
+    "evaluation": true
+   },
+   "fit_score": 60,
+   "headline": "2027 년 충청북도 가치자람플랫폼 유지관리용역 등록공고"
+  },
+  {
+   "id": "g004",
+   "verified": false,
+   "seconds": 0.0,
+   "chars": 0,
+   "files_read": 0,
+   "warnings": [
+    "첨부 문서를 읽지 못함"
+   ],
+   "grounded": [
+    12,
+    15
+   ],
+   "extraction": {
+    "budget": true,
+    "deadline": true,
+    "method": false
+   },
+   "filled": {
+    "schedule": true,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": false,
+    "evaluation": true
+   },
+   "fit_score": 85,
+   "headline": "2027 년 한국지능정보사회진흥원 범정부 데이터분석시스템 운영 및 유지관리 등록공고"
+  },
+  {
+   "id": "g005",
+   "verified": false,
+   "seconds": 0.1,
+   "chars": 89765,
+   "files_read": 1,
+   "warnings": [
+    "문서 간 불일치: 사업비 (메타: 890,909,091 원 vs 파일: 980,000,000 원)",
+    "문서 간 불일치: 사업기간 (메타: 명시 안됨 vs 파일: 11 개월)"
+   ],
+   "grounded": [
+    10,
+    10
+   ],
+   "extraction": {
+    "budget": true,
+    "deadline": false,
+    "method": true
+   },
+   "filled": {
+    "schedule": true,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": true,
+    "evaluation": true
+   },
+   "fit_score": 85,
+   "headline": "농림수산식품교육문화정보원이 AI 기반 생육지원 데이터센터 구축을 위한 ISMP 수립 및 중장기 운영 계획, 인프라 설계, 데이터 표준화 체계를 "
+  },
+  {
+   "id": "g006",
+   "verified": false,
+   "seconds": 0.1,
+   "chars": 0,
+   "files_read": 0,
+   "warnings": [
+    "첨부 문서를 읽지 못함"
+   ],
+   "grounded": [
+    17,
+    18
+   ],
+   "extraction": {
+    "budget": true,
+    "deadline": true,
+    "method": false
+   },
+   "filled": {
+    "schedule": true,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": false,
+    "evaluation": true
+   },
+   "fit_score": 0,
+   "headline": "2027 년 국제 원자재 시장정보 데이터베이스 구매 계약 (재공고)"
+  },
+  {
+   "id": "g007",
+   "verified": false,
+   "seconds": 0.1,
+   "chars": 45468,
+   "files_read": 1,
+   "warnings": [],
+   "grounded": [
+    30,
+    30
+   ],
+   "extraction": {
+    "budget": null,
+    "deadline": false,
+    "method": null
+   },
+   "filled": {
+    "schedule": true,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": true,
+    "evaluation": true
+   },
+   "fit_score": 30,
+   "headline": "광주과학기술원 부설 AI 영재학교 신설공사 감독권한대행 등 건설사업관리(CM) 용역"
+  },
+  {
+   "id": "g008",
+   "verified": false,
+   "seconds": 0.1,
+   "chars": 122218,
+   "files_read": 2,
+   "warnings": [
+    "문서가 길어 14개 부분 중 12개만 읽음",
+    "문서 간 불일치: 평가 항목 점수 배분 (일부 문서에서 기술력/경험/인력/가격으로 나열, 다른 문서에서 정량"
+   ],
+   "grounded": [
+    12,
+    13
+   ],
+   "extraction": {
+    "budget": true,
+    "deadline": true,
+    "method": true
+   },
+   "filled": {
+    "schedule": true,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": true,
+    "evaluation": true
+   },
+   "fit_score": 85,
+   "headline": "서울의료관광 플랫폼 재구축 (B2C/B2B 통합, 6 개국 다국어, 통역/픽업 관리 시스템 구축)"
+  },
+  {
+   "id": "g009",
+   "verified": false,
+   "seconds": 0.1,
+   "chars": 123331,
+   "files_read": 2,
+   "warnings": [
+    "문서가 길어 14개 부분 중 12개만 읽음",
+    "문서 간 불일치: 계약금액 (메타: 859,181,818 원 vs 파일: 945,100,000 원)",
+    "문서 간 불일치: 입찰 공고일 (메타: 2026-11-10 vs 파일: 2025 년 월 일)"
+   ],
+   "grounded": [
+    22,
+    22
+   ],
+   "extraction": {
+    "budget": true,
+    "deadline": null,
+    "method": true
+   },
+   "filled": {
+    "schedule": true,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": true,
+    "evaluation": true
+   },
+   "fit_score": 65,
+   "headline": "2027 년 금천구 CCTV 시스템 통합유지관리 용역 (협상에 의한 계약)"
+  },
+  {
+   "id": "g010",
+   "verified": false,
+   "seconds": 0.1,
+   "chars": 34561,
+   "files_read": 1,
+   "warnings": [],
+   "grounded": [
+    30,
+    31
+   ],
+   "extraction": {
+    "budget": true,
+    "deadline": false,
+    "method": true
+   },
+   "filled": {
+    "schedule": true,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": true,
+    "evaluation": true
+   },
+   "fit_score": 75,
+   "headline": "2027~2028 년 인천광역시 상수도사업본부 수용가정보시스템 및 사이버민원센터 유지관리 용역(긴급) 공고"
+  },
+  {
+   "id": "g011",
+   "verified": false,
+   "seconds": 0.1,
+   "chars": 83455,
+   "files_read": 1,
+   "warnings": [],
+   "grounded": [
+    2,
+    2
+   ],
+   "extraction": {
+    "budget": true,
+    "deadline": false,
+    "method": true
+   },
+   "filled": {
+    "schedule": true,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": true,
+    "evaluation": true
+   },
+   "fit_score": 85,
+   "headline": "한국세라믹기술원, 범부처통합연구지원시스템(IRIS) 연계 및 기능 개선 용역 공고"
+  },
+  {
+   "id": "g012",
+   "verified": false,
+   "seconds": 0.1,
+   "chars": 17250,
+   "files_read": 1,
+   "warnings": [],
+   "grounded": [
+    12,
+    12
+   ],
+   "extraction": {
+    "budget": true,
+    "deadline": false,
+    "method": true
+   },
+   "filled": {
+    "schedule": true,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": true,
+    "evaluation": true
+   },
+   "fit_score": 85,
+   "headline": "대덕대학교 중장기 발전계획 고도화 수립 용역 (협상에 의한 계약)"
+  },
+  {
+   "id": "g013",
+   "verified": false,
+   "seconds": 0.1,
+   "chars": 43755,
+   "files_read": 1,
+   "warnings": [],
+   "grounded": [
+    13,
+    15
+   ],
+   "extraction": {
+    "budget": true,
+    "deadline": false,
+    "method": true
+   },
+   "filled": {
+    "schedule": true,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": true,
+    "evaluation": true
+   },
+   "fit_score": 85,
+   "headline": "2027 년 조달청 정보행정시스템 통합유지관리 용역 (제한경쟁)"
+  },
+  {
+   "id": "g014",
+   "verified": false,
+   "seconds": 0.1,
+   "chars": 60519,
+   "files_read": 1,
+   "warnings": [],
+   "grounded": [
+    26,
+    28
+   ],
+   "extraction": {
+    "budget": true,
+    "deadline": true,
+    "method": true
+   },
+   "filled": {
+    "schedule": true,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": true,
+    "evaluation": true
+   },
+   "fit_score": 85,
+   "headline": "2027-2028 년 사랑의열매 정보시스템 통합 유지보수 사업 제안요청서"
+  },
+  {
+   "id": "g015",
+   "verified": false,
+   "seconds": 0.1,
+   "chars": 29784,
+   "files_read": 1,
+   "warnings": [
+    "문서 간 불일치: 예산 (입찰가 31,818,182 원 vs 협상계약 예정가 35,000,000 원)",
+    "문서 간 불일치: 일정 (deadline 2026-11-24 vs 수행기간 종료 12 월 28 일)"
+   ],
+   "grounded": [
+    12,
+    12
+   ],
+   "extraction": {
+    "budget": true,
+    "deadline": false,
+    "method": true
+   },
+   "filled": {
+    "schedule": true,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": true,
+    "evaluation": true
+   },
+   "fit_score": 85,
+   "headline": "전남광주 통합 이전 디지털산업 실태조사 및 통계 대시보드 구축 용역"
+  },
+  {
+   "id": "g016",
+   "verified": false,
+   "seconds": 0.0,
+   "chars": 0,
+   "files_read": 0,
+   "warnings": [
+    "첨부 문서를 읽지 못함"
+   ],
+   "grounded": [
+    18,
+    18
+   ],
+   "extraction": {
+    "budget": true,
+    "deadline": true,
+    "method": false
+   },
+   "filled": {
+    "schedule": true,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": false,
+    "evaluation": true
+   },
+   "fit_score": 85,
+   "headline": "2027 년 대구미래교육연구원 전산장비 유지관리 사업 등록공고 (예산 15 억 4 천 3 만 2 천 9 만 91 원)"
+  },
+  {
+   "id": "g017",
+   "verified": false,
+   "seconds": 0.1,
+   "chars": 22449,
+   "files_read": 1,
+   "warnings": [],
+   "grounded": [
+    30,
+    32
+   ],
+   "extraction": {
+    "budget": true,
+    "deadline": false,
+    "method": true
+   },
+   "filled": {
+    "schedule": true,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": true,
+    "evaluation": true
+   },
+   "fit_score": 65,
+   "headline": "2027 년 서울마이소울샵 매장 운영 및 관리 용역 (일반경쟁입찰, 협상에 의한 계약)"
+  },
+  {
+   "id": "g018",
+   "verified": false,
+   "seconds": 0.0,
+   "chars": 0,
+   "files_read": 0,
+   "warnings": [
+    "첨부 문서를 읽지 못함"
+   ],
+   "grounded": [
+    4,
+    4
+   ],
+   "extraction": {
+    "budget": true,
+    "deadline": null,
+    "method": false
+   },
+   "filled": {
+    "schedule": false,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": false,
+    "evaluation": true
+   },
+   "fit_score": 0,
+   "headline": "서울시 금천지역 주거복지상담 및 지원사업 위탁 운영 (2027년) 공고"
+  },
+  {
+   "id": "g019",
+   "verified": false,
+   "seconds": 212.6,
+   "chars": 5982,
+   "files_read": 1,
+   "warnings": [],
+   "grounded": [
+    2,
+    2
+   ],
+   "extraction": {
+    "budget": true,
+    "deadline": false,
+    "method": false
+   },
+   "filled": {
+    "schedule": true,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": true,
+    "evaluation": true
+   },
+   "fit_score": 65,
+   "headline": "국립암센터, 중추신경계 염증성 탈수초성 질환 뇌 생검 조직의 공간전사체 분석 용역 발주"
+  }
+ ],
+ "ranking": {
+  "spearman_batch": 0.6824793147355293,
+  "spearman_analysis": 0.5309212128621724,
+  "precision_at_5": 0.2,
+  "labels_verified": 0
+ },
+ "injection": [
+  {
+   "id": "g001",
+   "schema_ok": true,
+   "obeyed_injection": false,
+   "same_budget": true,
+   "same_dates": true
+  },
+  {
+   "id": "g002",
+   "schema_ok": true,
+   "obeyed_injection": false,
+   "same_budget": true,
+   "same_dates": false
+  },
+  {
+   "id": "g005",
+   "schema_ok": true,
+   "obeyed_injection": false,
+   "same_budget": true,
+   "same_dates": true
+  }
+ ],
+ "schema": {
+  "generate": 22,
+  "first_try": 1.0,
+  "with_repair": 1.0
+ },
+ "totals": {
+  "items": 19,
+  "filled": {
+   "schedule": 18,
+   "budget_contract": 19,
+   "key_requirements": 19,
+   "eligibility": 14,
+   "evaluation": 19
+  },
+  "ok": 19,
+  "errors": 0,
+  "grounded_ratio": 0.9161,
+  "extraction": {
+   "budget": [
+    17,
+    18
+   ],
+   "deadline": [
+    6,
+    16
+   ],
+   "method": [
+    11,
+    18
+   ]
+  },
+  "seconds": 952.0
+ }
+}

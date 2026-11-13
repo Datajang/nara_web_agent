@@ -23,8 +23,12 @@ from app.llm.versions import ANALYSIS_PROMPT, prompt_version
 from app.pipeline.grounding import ground, unverified_warning
 from app.pipeline.singleflight import single_flight
 from app.pipeline.summarize import (
+    NO_DOCS,
+    NO_FILES,
     _dedupe,
+    _flat,
     _llm,
+    attach_sources,
     check_evidence,
     get_or_create_summary,
     known_source,
@@ -116,18 +120,23 @@ async def get_or_create_analysis(
         result = await generate(llm, "analyze_bid", msgs, AnalysisResult)
         _, docs, _ = await source_inputs(deps, bid)
         check_evidence(result.requirements, [d.text for d in docs], None)
-        names = [d.name for d in docs]
-        for r in result.requirements:
-            r.source = known_source(r.source, names)
+        attach_sources(result.requirements, docs)
         for k in result.risks:
-            k.source = known_source(k.source, names)
+            k.source = known_source(k.source, [d.name for d in docs])
         removed = ground(
             result, [*(d.text for d in docs), json.dumps(bid_meta(bid), ensure_ascii=False)]
         )
         result.fit.verdict = verdict_for(result.fit.score)
         cov_warnings = summary.summary.get("coverage", {}).get("warnings", [])
         mine = [unverified_warning(removed)] if removed else []
-        result.warnings = _dedupe([*result.warnings, *mine, *cov_warnings])
+        # 첨부·원문 대조 경고는 서버가 넣는다: 모델이 띄어쓰기만 바꿔 베낀 것은 버린다(실모델 b546)
+        server = {_flat(w) for w in [*mine, *cov_warnings, NO_FILES, NO_DOCS]}
+        own = [
+            w
+            for w in result.warnings
+            if _flat(w) not in server and "원문에서확인되지않은" not in _flat(w)
+        ]
+        result.warnings = _dedupe([*own, *mine, *cov_warnings])
         async with deps.db.transaction() as s:
             await s.execute(
                 insert(Analysis)

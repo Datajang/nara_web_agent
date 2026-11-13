@@ -270,6 +270,8 @@ async def test_requirement_source_is_a_real_file_name_or_nothing(deps, fake_llm)
             requirements=[
                 Requirement(text="모니터링", source="summary"),
                 Requirement(text="검색", source="제안요청서"),  # 확장자 빠진 파일명
+                # 실모델(b546)은 'bid_meta'·'other'·절 제목을 적었다 → 원문에 있는 evidence의 파일로
+                Requirement(text="플랫폼", source="bid_meta", evidence="AI 검색 플랫폼 구축"),
             ],
             evaluation={},
             schedule=[],
@@ -281,5 +283,44 @@ async def test_requirement_source_is_a_real_file_name_or_nothing(deps, fake_llm)
 
     fake_llm.queue("analyze_bid", analysis)
     a, _ = await get_or_create_analysis(deps, bid_id, PROFILE)
-    assert [r["source"] for r in a.result["requirements"]] == [None, "제안요청서.docx"]
+    assert [r["source"] for r in a.result["requirements"]] == [
+        None,
+        "제안요청서.docx",
+        "제안요청서.docx",
+    ]
     assert a.result["risks"][0]["source"] is None
+
+
+async def test_summary_requirement_source_is_set_by_the_server(deps, fake_llm):
+    """요약 map 단계는 어느 파일 청크인지 서버가 안다 → 모델이 쓴 근거 대신 그 파일명."""
+    bid_id = await _bid(deps)
+    facts = FileFacts(requirements=[Requirement(text="검색", source="2. 과업 범위")])
+    fake_llm.queue("summarize_file", facts.model_dump_json())
+    row, _ = await get_or_create_summary(deps, bid_id)
+    assert [r["source"] for r in row.summary["key_requirements"]] == ["제안요청서.docx"]
+
+
+async def test_analysis_drops_model_copies_of_server_warnings(deps, fake_llm):
+    """실모델(b546): 요약 경고를 '1 개'처럼 띄어 베껴 같은 경고가 두 번 나옴 → 서버 경고만."""
+    (bid_id,) = await seed(deps, "regular", regular_item("R26BK00000206", NOW))
+
+    def analysis(messages):
+        return AnalysisResult(
+            overview="개요",
+            requirements=[],
+            evaluation={},
+            schedule=[],
+            budget_contract={},
+            risks=[],
+            fit={"score": 60, "verdict": "possible", "reasoning": "근거"},
+            next_actions=["확인"],
+            warnings=[
+                "원문에서 확인되지 않은 숫자·날짜 1 개를 뺐어요",
+                "요약할 제안요청서·과업 문서가 없음 ",
+                "평가표 없음",
+            ],
+        ).model_dump_json()
+
+    fake_llm.queue("analyze_bid", analysis)
+    a, _ = await get_or_create_analysis(deps, bid_id, PROFILE)
+    assert a.result["warnings"] == ["평가표 없음", summarize.NO_DOCS]

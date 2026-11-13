@@ -164,6 +164,17 @@ def check_evidence(reqs: list[Requirement], sources: list[str], default_source: 
             r.source = default_source
 
 
+def attach_sources(reqs: list[Requirement], docs: Sequence[SourceDoc]) -> None:
+    """근거 파일명은 서버가 정한다: 원문에 있는 evidence의 파일, 아니면 실제 파일명일 때만 모델 값.
+    (2026-11-13 실모델 b546: 'bid_meta'·'other'·절 제목을 적음)"""
+    normed = [(d.name, _norm(d.text)) for d in docs]
+    names = [d.name for d in docs]
+    for r in reqs:
+        ev = _norm(r.evidence) if r.evidence else ""
+        found = next((n for n, t in normed if ev and ev in t), None)
+        r.source = found or known_source(r.source, names)
+
+
 def _dedupe(items: list[str]) -> list[str]:
     return list(dict.fromkeys(x for x in items if x))
 
@@ -177,6 +188,8 @@ async def _map_chunk(
         )
         facts = await generate(llm, "summarize_file", msgs, FileFacts)
         check_evidence(facts.requirements, [doc.text], doc.name)
+        for r in facts.requirements:  # 어느 파일 청크인지는 서버가 안다 (모델은 절 제목 등을 적음)
+            r.source = doc.name
         return facts
 
     try:
@@ -256,8 +269,7 @@ async def _summarize(
     if not read:
         warnings.append(NO_FILES if files else NO_DOCS)
     check_evidence(out.key_requirements, [d.text for d in readable], None)
-    for r in out.key_requirements:
-        r.source = known_source(r.source, [d.name for d in readable])
+    attach_sources(out.key_requirements, readable)
     removed = ground(
         out, [*(d.text for d in readable), json.dumps(bid_meta(bid), ensure_ascii=False)]
     )

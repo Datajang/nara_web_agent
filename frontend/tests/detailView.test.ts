@@ -286,6 +286,31 @@ describe('BidDetailView', () => {
     expect(m.router.currentRoute.value.path).toBe('/bids/b202')
   })
 
+  it('공고번호가 아닌 글자는 키워드로 공고 검색에 넘긴다', async () => {
+    const api = mockApi(base())
+    m = await mountAt('/bids/b101')
+    const input = m.wrapper.get('input[name="bid_no"]')
+    await input.setValue('  AI 유지보수 ')
+    ;(input.element as HTMLInputElement).form!.dispatchEvent(new Event('submit'))
+    await settle()
+    expect(m.router.currentRoute.value.path).toBe('/search')
+    expect(m.router.currentRoute.value.query.q).toBe('AI 유지보수')
+    expect(api.calls.some((c) => c.url.includes('/bids/lookup'))).toBe(false)
+  })
+
+  it.each(['R26BK00000202', 'r26bd00273663', '20240512345-00', '20240512345'])(
+    '공고번호 모양(%s)이면 번호로 찾는다',
+    async (no) => {
+      const api = mockApi(base({ 'GET /api/v1/bids/lookup': json({ bid_id: 'b202' }) }))
+      m = await mountAt('/bids/b101')
+      const input = m.wrapper.get('input[name="bid_no"]')
+      await input.setValue(no)
+      ;(input.element as HTMLInputElement).form!.dispatchEvent(new Event('submit'))
+      await settle()
+      expect(api.calls.some((c) => c.url.includes('/bids/lookup'))).toBe(true)
+    },
+  )
+
   it('공고번호로 열기: 나라장터 조회 실패는 번호 오류와 다르게 안내', async () => {
     mockApi(
       base({

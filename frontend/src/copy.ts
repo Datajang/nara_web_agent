@@ -121,7 +121,8 @@ export const copy = {
     cached: '저장된 결과 사용',
   },
   detail: {
-    lookupLabel: '공고번호로 열기',
+    lookupLabel: '공고번호 또는 키워드',
+    lookupHint: '공고번호면 바로 열고, 키워드면 공고 검색으로 찾아요.',
     lookupSubmit: '열기',
     lookupNotFound: '공고를 찾지 못했어요. 번호를 확인해 주세요.',
     notFound: '공고를 찾을 수 없어요. 주소를 확인하거나 검색에서 다시 찾아 주세요.',

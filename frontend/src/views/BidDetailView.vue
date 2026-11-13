@@ -48,13 +48,20 @@ const notFound = computed(
   () => detail.error.value instanceof ApiError && detail.error.value.status === 404,
 )
 
-// ---------- 공고번호로 열기 ----------
+// ---------- 공고번호로 열기 / 키워드는 공고 검색으로 ----------
+// 공고번호: 새 나라장터 R26BK01667536 꼴, 옛 20240512345(-00) 꼴. 나머지는 키워드로 본다.
+const BID_NO = /^([a-z]\d{2}[a-z]{2}\d{8}|\d{11})(-\d{1,3})?$/i
 const bidNo = ref('')
 const lookupError = ref('')
 async function lookup() {
   lookupError.value = ''
   const no = bidNo.value.trim()
   if (!no) return
+  if (!BID_NO.test(no)) {
+    bidNo.value = ''
+    await router.push({ path: '/search', query: { q: no } })
+    return
+  }
   try {
     const { bid_id } = await bidsApi.lookup(no)
     bidNo.value = ''
@@ -203,11 +210,12 @@ async function toggleBookmark() {
           v-model="bidNo"
           name="bid_no"
           maxlength="40"
-          class="h-10 w-64 rounded-control border border-border-input bg-surface px-3 text-base"
-          :aria-describedby="lookupError ? 'bid-no-error' : undefined"
+          class="h-10 w-72 max-w-full rounded-control border border-border-input bg-surface px-3 text-base"
+          :aria-describedby="lookupError ? 'bid-no-hint bid-no-error' : 'bid-no-hint'"
         />
       </div>
       <UiButton type="submit" variant="secondary">{{ copy.detail.lookupSubmit }}</UiButton>
+      <p id="bid-no-hint" class="w-full text-sm text-text-3">{{ copy.detail.lookupHint }}</p>
       <p v-if="lookupError" id="bid-no-error" class="w-full text-sm text-danger-fg" role="alert">
         {{ lookupError }}
       </p>

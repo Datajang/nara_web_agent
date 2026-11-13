@@ -20,8 +20,10 @@
  },
  "fit": "low",
  "tags": [
-  "regular"
+  "regular",
+  "no_text"
  ],
  "notes": "초안: 주거안심종합센터 서울시 금천지역주거복지상담 및 지원사업 위탁 운영(`27년)",
- "verified": false
+ "verified": false,
+ "draft_note": "초안2(Claude, 2026-11-13 원문 대조): 원문 없음(첨부 미추출) — 추출 채점 불가. 주거복지 위탁 운영"
 }

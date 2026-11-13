@@ -13,9 +13,9 @@
   ]
  },
  "expect": {
-  "budget_won": 45454545,
+  "budget_won": 50000000,
   "deadline": "2026-11-25",
-  "method": "일반경쟁",
+  "method": "협상에 의한 계약",
   "qualifications": []
  },
  "fit": "low",
@@ -23,5 +23,6 @@
   "regular"
  ],
  "notes": "초안(제목 판단 보정): 대덕대학교 중장기 발전계획 고도화 수립 용역",
- "verified": false
+ "verified": false,
+ "draft_note": "초안2(Claude, 2026-11-13 원문 대조): 예산 '예 산 액: 금50,000,000원(부가가치세 포함)'(G2B 45,454,545). 방식 '사업자 선정 방식: 협상에 의한 계약'. 대학 발전계획 수립"
 }

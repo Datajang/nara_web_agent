@@ -15,7 +15,7 @@
  "expect": {
   "budget_won": 34590000,
   "deadline": "2026-11-15",
-  "method": "",
+  "method": "적격심사",
   "qualifications": []
  },
  "fit": "low",
@@ -23,5 +23,6 @@
   "prespec"
  ],
  "notes": "초안: [시험분석] 중추신경계 염증성 탈수초성 질환 환자 뇌 생검 조직의 공간전사체  분석",
- "verified": false
+ "verified": false,
+ "draft_note": "초안2(Claude, 2026-11-13 원문 대조): 예산 '사업예산 : 34,590,000원'(G2B와 같음). 방식 원문 '적격심사'. 시험분석 용역"
 }

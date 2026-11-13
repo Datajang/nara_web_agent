@@ -15,13 +15,14 @@
  "expect": {
   "budget_won": 151100000,
   "deadline": "2026-11-15",
-  "method": "",
+  "method": "협상에 의한 계약",
   "qualifications": []
  },
- "fit": "high",
+ "fit": "mid",
  "tags": [
   "prespec"
  ],
  "notes": "초안: 서울의료관광 플랫폼 재구축",
- "verified": false
+ "verified": false,
+ "draft_note": "초안2(Claude, 2026-11-13 원문 대조): 예산 '배정예산액: 151,100,000원(부가세 포함)'(G2B와 같음). 마감 '마감일시: 2026. 11. 15' 일치. 방식 '협상에 의한 계약'. 관광 웹 플랫폼 재구축(AI 아님)"
 }

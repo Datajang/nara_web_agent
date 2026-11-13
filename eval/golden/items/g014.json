@@ -15,7 +15,7 @@
  "expect": {
   "budget_won": 2123600000,
   "deadline": "2026-11-15",
-  "method": "",
+  "method": "협상에 의한 계약",
   "qualifications": []
  },
  "fit": "mid",
@@ -23,5 +23,6 @@
   "prespec"
  ],
  "notes": "초안: 2027-2028년 사랑의열매 정보시스템 통합 유지보수 사업",
- "verified": false
+ "verified": false,
+ "draft_note": "초안2(Claude, 2026-11-13 원문 대조): 예산 '사업예산 : 2,123,600천원(VAT 및 SAP 라이선스 비용 포함)'(G2B와 같음). 방식 '일반경쟁입찰(협상에 의한 계약)'. 정보시스템 통합 유지보수"
 }

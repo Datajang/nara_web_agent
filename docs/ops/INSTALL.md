@@ -38,7 +38,9 @@ echo "VLLM_API_KEY=<LLM_API_KEY와 같은 값>" | sudo install -o root -g nara -
 ```bash
 sudo -u nara uv venv --python 3.12 /opt/nara/vllm-venv
 sudo -u nara uv pip install --python /opt/nara/vllm-venv/bin/python "vllm==0.19.1"
-sudo cp -a ~/.cache/huggingface/hub /var/lib/hf-cache/ && sudo chown -R nara:nara /var/lib/hf-cache
+# 쓰는 모델(19GB)만 복사. 캐시 전체(85GB, 2026-11-13)는 남은 디스크(69GB)를 넘는다
+sudo install -d -o nara -g nara /var/lib/hf-cache/hub
+sudo cp -a ~/.cache/huggingface/hub/models--Qwen--Qwen3.5-9B /var/lib/hf-cache/hub/ && sudo chown -R nara:nara /var/lib/hf-cache
 ```
 
 ## 5. 백업 키 (§11.5) — 개인키는 서버에 두지 않는다

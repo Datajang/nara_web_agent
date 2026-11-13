@@ -20,8 +20,10 @@
  },
  "fit": "low",
  "tags": [
-  "regular"
+  "regular",
+  "no_text"
  ],
  "notes": "초안: 2027년 대구미래교육연구원 전산장비 유지관리 사업",
- "verified": false
+ "verified": false,
+ "draft_note": "초안2(Claude, 2026-11-13 원문 대조): 원문 없음(첨부 미추출) — 추출 채점 불가. 전산장비 유지관리"
 }

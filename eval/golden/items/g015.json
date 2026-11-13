@@ -13,9 +13,9 @@
   ]
  },
  "expect": {
-  "budget_won": 31818182,
+  "budget_won": 35000000,
   "deadline": "2026-11-24",
-  "method": "제한경쟁",
+  "method": "협상에 의한 계약",
   "qualifications": []
  },
  "fit": "low",
@@ -23,5 +23,6 @@
   "regular"
  ],
  "notes": "초안: 전남광주 디지털산업 통계조사 용역",
- "verified": false
+ "verified": false,
+ "draft_note": "초안2(Claude, 2026-11-13 원문 대조): 예산 '금35,000,000원(…부가가치세 포함)'(G2B 31,818,182). 방식 '낙찰자 결정방법 : 협상에 의한 계약'. 통계조사"
 }

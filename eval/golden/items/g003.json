@@ -18,10 +18,12 @@
   "method": "수의계약",
   "qualifications": []
  },
- "fit": "high",
+ "fit": "mid",
  "tags": [
-  "regular"
+  "regular",
+  "no_text"
  ],
  "notes": "초안: 2027년 충청북도 가치자람플랫폼 유지관리용역",
- "verified": false
+ "verified": false,
+ "draft_note": "초안2(Claude, 2026-11-13 원문 대조): 원문 없음(첨부 미추출) — 추출 채점 불가, G2B 값 유지. 교육 플랫폼 유지관리라 경계"
 }

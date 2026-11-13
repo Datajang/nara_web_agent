@@ -13,7 +13,7 @@
   ]
  },
  "expect": {
-  "budget_won": 2495000000,
+  "budget_won": null,
   "deadline": "2026-11-15",
   "method": "",
   "qualifications": []
@@ -23,5 +23,6 @@
   "prespec"
  ],
  "notes": "초안(제목 판단 보정): GIST 부설 AI 영재학교 신설공사 감독권한대행 등 건설사업관리(CM)용역",
- "verified": false
+ "verified": false,
+ "draft_note": "초안2(Claude, 2026-11-13 원문 대조): 예산 '추정소요예산 : 용역비 산출금액에 따름'으로 원문에 금액 없음(G2B 2,495,000,000). 방식 원문에서 못 찾음. 건설사업관리"
 }

@@ -20,8 +20,10 @@
  },
  "fit": "high",
  "tags": [
-  "regular"
+  "regular",
+  "no_text"
  ],
  "notes": "초안: 2027년 범정부 데이터분석시스템 운영 및 유지관리",
- "verified": false
+ "verified": false,
+ "draft_note": "초안2(Claude, 2026-11-13 원문 대조): 원문 없음(첨부 미추출) — 추출 채점 불가, G2B 값 유지. 데이터분석시스템 운영이라 적합"
 }

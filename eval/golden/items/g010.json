@@ -13,15 +13,16 @@
   ]
  },
  "expect": {
-  "budget_won": 1116100000,
+  "budget_won": 1227710000,
   "deadline": "2026-11-26",
-  "method": "제한경쟁",
+  "method": "협상에 의한 계약",
   "qualifications": []
  },
- "fit": "mid",
+ "fit": "low",
  "tags": [
   "regular"
  ],
  "notes": "초안: 2027~2028년 수용가정보시스템 및 사이버민원센터 유지관리 용역(긴급) ",
- "verified": false
+ "verified": false,
+ "draft_note": "초안2(Claude, 2026-11-13 원문 대조): 예산 '사 업 비 : 1,227,710천원 범위 내(부가세 포함)'(G2B 1,116,100,000). 방식 '낙찰방법 : 협상에 의한 계약'. 수용가정보시스템 유지관리"
 }

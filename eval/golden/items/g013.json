@@ -13,9 +13,9 @@
   ]
  },
  "expect": {
-  "budget_won": 670900400,
+  "budget_won": 665000000,
   "deadline": "2026-11-15",
-  "method": "",
+  "method": "협상에 의한 계약",
   "qualifications": []
  },
  "fit": "mid",
@@ -23,5 +23,6 @@
   "prespec"
  ],
  "notes": "초안: 2027년 정보행정시스템 통합유지관리 용역",
- "verified": false
+ "verified": false,
+ "draft_note": "초안2(Claude, 2026-11-13 원문 대조): 예산 '사업금액: 665,000,000원 (부가세포함)'(G2B 670,900,400 — 원문과 다름, 확인 필요). 방식 '제한경쟁(협상에 의한 계약)'. 행정시스템 유지관리"
 }

@@ -207,8 +207,23 @@ def test_prompts_state_the_same_caps_so_text_is_not_cut_midway():
     ]:
         n = getattr(CAPS[key], unit)
         assert f"{n}{'개' if unit == 'items' else '자'} 이내" in file_p, key
+    assert "YYYY-MM-DD" in file_p  # 일정 날짜 형식 안내
     bid_p = str(
         render("summarize_bid", meta="m", facts_list="f", n_read=1, n_total=1, truncated=False)
     )
     assert f"{CAPS['BidSummary.key_requirements'].items}개 이내" in bid_p
     assert f"{CAPS['BidSummary.overview'].chars}자 이내" in bid_p
+
+
+async def test_schedule_date_is_forced_to_iso_date_or_null():
+    """2026-11-12 예시: date에 '협상 후'·'기술평가 원점수 8'처럼 글이 들어가 마감일 추출 0/16.
+    모델에 보내는 스키마에서 날짜 형식(YYYY-MM-DD)만 받게 하고, 모르면 null."""
+    from app.llm.schemas import FileFacts
+
+    llm = FakeLLM()
+    await generate(llm, "summarize_file", MSGS, FileFacts)
+    sent = llm.requests[-1]["json_schema"]
+    date = sent["$defs"]["ScheduleItem"]["properties"]["date"]
+    kinds = {b.get("type"): b for b in date["anyOf"]}
+    assert kinds["string"]["pattern"] == r"^\d{4}-\d{2}-\d{2}$"
+    assert "null" in kinds

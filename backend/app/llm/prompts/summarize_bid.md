@@ -9,6 +9,7 @@
 - 같은 항목이 중복되면 합치세요. 서로 다른 값이 있으면 모두 남기고 coverage.warnings에 '문서 간 불일치: 항목명'을 적으세요.
 - headline은 80자 이내, overview는 300자 이내 3~5문장입니다.
 - key_requirements는 중요한 것부터 8개 이내로 고르고, 각 text는 80자 이내 한 문장입니다.
+- 일정의 date는 YYYY-MM-DD 형식으로만 쓰고, 연월일이 모두 적혀 있지 않으면 null로 두고 원문 표기는 raw에 옮기세요.
 - keywords는 이 공고를 가장 잘 나타내는 한국어 명사구 5~10개입니다.
 - FileFacts가 없으면 메타만으로 작성하고 coverage.warnings에 '첨부 문서를 읽지 못함'을 넣으세요.
 

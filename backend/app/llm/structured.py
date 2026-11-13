@@ -39,6 +39,7 @@ TASKS: dict[str, TaskSpec] = {
 class Cap:
     items: int | None = None  # 목록 최대 개수 (maxItems)
     chars: int | None = None  # 문자열(목록이면 각 원소) 최대 글자 수 (maxLength)
+    pattern: str | None = None  # 문자열 형식 (정규식)
 
 
 # 모델에 보내는 스키마에만 거는 길이 상한 (2026-11-12 실측: summarize_file 실패 9/25건이
@@ -54,7 +55,8 @@ CAPS: dict[str, Cap] = {
     "Evaluation.method": Cap(chars=40),
     "Evaluation.items": Cap(items=10),
     "ScheduleItem.label": Cap(chars=30),
-    "ScheduleItem.date": Cap(chars=10),
+    # 날짜가 아니면 null (2026-11-12 예시: '협상 후' 같은 글이 들어가 마감일 추출 0/16)
+    "ScheduleItem.date": Cap(chars=10, pattern=r"^\d{4}-\d{2}-\d{2}$"),
     "ScheduleItem.raw": Cap(chars=40),
     "BudgetContract.budget_text": Cap(chars=80),
     "BudgetContract.contract_method": Cap(chars=80),
@@ -103,6 +105,8 @@ def _apply_caps(node: Any) -> None:
             text = _branch(arr["items"], "string") if arr is not None else _branch(prop, "string")
             if cap.chars is not None and text is not None:
                 text["maxLength"] = cap.chars
+            if cap.pattern is not None and text is not None:
+                text["pattern"] = cap.pattern
     for v in node.values():
         _apply_caps(v)
 

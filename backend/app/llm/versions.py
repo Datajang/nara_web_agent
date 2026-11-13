@@ -2,8 +2,8 @@
 분리된다 (예: v1+q35-9b). 프롬프트(llm/prompts/*.md)를 고치면 해당 값을 올린다.
 """
 
-# v3: 출력 길이 상한(CAPS)과 프롬프트 안내. v2: 모든 필드 required (둘 다 2026-11-12)
-PROMPT_VERSION = "v3"
+# v4: 일정 날짜 형식 강제(2026-11-13). v3: 출력 길이 상한(CAPS). v2: 모든 필드 required
+PROMPT_VERSION = "v4"
 SUMMARY_PROMPT = PROMPT_VERSION
 ANALYSIS_PROMPT = PROMPT_VERSION
 SCORE_PROMPT = PROMPT_VERSION

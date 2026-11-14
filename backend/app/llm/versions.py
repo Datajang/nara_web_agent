@@ -2,12 +2,13 @@
 분리된다 (예: v1+q35-9b). 프롬프트(llm/prompts/*.md)를 고치면 해당 값을 올린다.
 """
 
+# v9: 분석 적합도 점수 기준표·temperature 0 (2026-11-14)
 # v8: 근거 파일명은 서버가(map 청크 파일·evidence 위치), 모델이 베낀 서버 경고 제거 (2026-11-13)
 # v7: 첨부 선택(공고서 대체·한 문서 한 형식), 근거 파일명 확인, 첨부 경고는 서버가 (2026-11-13)
 # v6: 평가 방식 보기 (2026-11-13)
 # v5: G2B 공고 정보 메타·원문 대조·계약 방식 보기, v4: 일정 날짜 형식 (2026-11-13)
 # v3: 출력 길이 상한(CAPS), v2: 모든 필드 required (2026-11-12)
-PROMPT_VERSION = "v8"
+PROMPT_VERSION = "v9"
 SUMMARY_PROMPT = PROMPT_VERSION
 ANALYSIS_PROMPT = PROMPT_VERSION
 SCORE_PROMPT = PROMPT_VERSION

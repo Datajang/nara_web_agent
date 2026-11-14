@@ -30,4 +30,14 @@ def test_data_cannot_close_the_delimiter():
 
 
 def test_prompt_version_has_model_suffix():
-    assert prompt_version(PROMPT_VERSION, "q35-9b") == "v8+q35-9b"
+    assert prompt_version(PROMPT_VERSION, "q35-9b") == "v9+q35-9b"
+
+
+def test_analysis_uses_the_same_score_rubric_as_batch_scoring():
+    """2026-11-14 실측: 기준표 없는 분석은 같은 입력에 0~60점 흔들림 → 맞춤 추천과 같은 기준표."""
+    rubric = [
+        ln for ln in PROMPTS["score_bids"].system.splitlines() if ln.startswith("- ") and "~" in ln
+    ]
+    assert len(rubric) == 4
+    for ln in rubric:
+        assert ln in PROMPTS["analyze_bid"].system, ln

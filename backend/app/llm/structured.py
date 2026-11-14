@@ -29,7 +29,8 @@ TASKS: dict[str, TaskSpec] = {
     "summarize_file": TaskSpec(0.1, 4000),  # §8.3 출력 예산 (2026-11-12, strict 스키마)
     "summarize_bid": TaskSpec(0.1, 4000),
     "score_bids": TaskSpec(0.1, 1500),
-    "analyze_bid": TaskSpec(0.2, 3500),
+    # 2026-11-14: 0.2에서 같은 입력의 적합도가 최대 60점 흔들림 → 0 + 점수 기준표 (analyze_bid.md)
+    "analyze_bid": TaskSpec(0.0, 3500),
     "suggest_keywords": TaskSpec(0.2, 300),
     "assistant": TaskSpec(0.3, 1500),
 }

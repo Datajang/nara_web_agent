@@ -255,3 +255,8 @@ async def test_evaluation_method_is_one_of_fixed_choices():
     kinds = {b.get("type"): b for b in prop["method"]["anyOf"]}
     assert kinds["string"]["enum"] == list(EVAL_METHODS) and "null" in kinds
     assert "종합평가" in EVAL_METHODS and "협상에 의한 계약" in EVAL_METHODS
+
+
+def test_analysis_runs_without_sampling_noise():
+    """2026-11-14 실측: 분석 0.2에서 같은 입력의 적합도 범위 최대 60점 → 0 (기준표와 함께)."""
+    assert TASKS["analyze_bid"].temperature == 0.0

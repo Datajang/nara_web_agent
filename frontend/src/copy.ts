@@ -120,6 +120,13 @@ export const copy = {
     score: '점수 계산',
     cached: '저장된 결과 사용',
   },
+  progress: {
+    label: '분석 진행률',
+    elapsed: (t: string) => `경과 ${t}`,
+    remaining: (s: number) => (s < 60 ? '1분 이내 남음' : `약 ${Math.ceil(s / 60)}분 남음`),
+    almostDone: '거의 다 됐어요',
+    duration: (m: number, r: number) => (!m ? `${r}초` : r ? `${m}분 ${r}초` : `${m}분`),
+  },
   detail: {
     lookupLabel: '공고번호 또는 키워드',
     lookupHint: '공고번호면 바로 열고, 키워드면 공고 검색으로 찾아요.',

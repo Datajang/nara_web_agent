@@ -258,6 +258,38 @@ describe('BidDetailView', () => {
     expect(text(m.wrapper)).toContain(copy.analyze.inProgress)
   })
 
+  it('분석 중에는 로딩바(진행률·경과)를, 오류가 나면 숨긴다 (§7.5-4)', async () => {
+    mockApi(
+      base({
+        'POST /api/v1/bids/b101/analyze': sse(
+          [{ type: 'status', stage: 'summarize', message: '', progress: { done: 1, total: 2 } }],
+          { close: false },
+        ),
+      }),
+    )
+    m = await mountAt('/bids/b101')
+    await m.wrapper.findAll('button').find((b) => b.text() === copy.detail.analyzeSubmit)!.trigger('click')
+    await settle(10)
+    expect(m.wrapper.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('40')
+    m.wrapper.unmount()
+
+    mockApi(
+      base({
+        'POST /api/v1/bids/b101/analyze': sse(
+          [
+            { type: 'status', stage: 'summarize', message: '', progress: { done: 1, total: 2 } },
+            { type: 'error', code: 'llm_unavailable', message: 'x' },
+          ],
+          { close: false },
+        ),
+      }),
+    )
+    m = await mountAt('/bids/b101')
+    await m.wrapper.findAll('button').find((b) => b.text() === copy.detail.analyzeSubmit)!.trigger('click')
+    await settle(10)
+    expect(m.wrapper.find('[role="progressbar"]').exists()).toBe(false)
+  })
+
   it('프로필이 없으면 만들기 안내', async () => {
     mockApi(base({ 'GET /api/v1/profiles': json({ items: [] }) }))
     m = await mountAt('/bids/b101')

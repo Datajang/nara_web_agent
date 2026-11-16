@@ -14,6 +14,7 @@ import DeadlineStamp from '@/components/bid/DeadlineStamp.vue'
 import FeedbackButtons from '@/components/bid/FeedbackButtons.vue'
 import FileList from '@/components/bid/FileList.vue'
 import MoneyText from '@/components/bid/MoneyText.vue'
+import AnalyzeProgress from '@/components/bid/AnalyzeProgress.vue'
 import ProgressSteps from '@/components/bid/ProgressSteps.vue'
 import OfficialFacts from '@/components/bid/OfficialFacts.vue'
 import SummaryFacts from '@/components/bid/SummaryFacts.vue'
@@ -321,6 +322,10 @@ async function toggleBookmark() {
           :stages="[...STAGES]"
           :current="sse.streaming.value ? sse.stage.value : null"
           :cached="cachedStages"
+        />
+        <AnalyzeProgress
+          v-if="sse.streaming.value && !sse.error.value && sse.events.value.some((e) => e.type === 'status')"
+          :events="sse.events.value"
         />
         <div v-if="streamError" class="flex flex-col items-start gap-2" role="alert">
           <p class="text-base text-danger-fg">{{ streamError }}</p>

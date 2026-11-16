@@ -7,12 +7,12 @@ import pytest
 from sqlalchemy import select
 
 from app.awards import collector as awards
+from app.awards.reclassify import reclassify
 from app.collector import __main__ as collector_cli
 from app.db.models import BidAward, CollectorRun, OrgSettings, UsageLog
 from app.g2b.client import G2BBudgetExceeded, G2BClient, G2BIncomplete
 from app.ops.status import last_collector_ok
 from app.usage.budget import DbCallBudget
-from scripts.reclassify_awards import reclassify
 from tests.conftest import NOW, TEST_KEYS
 from tests.fakes.g2b import FakeG2B, award_item, regular_item
 from tests.helpers import seed

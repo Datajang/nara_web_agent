@@ -1,5 +1,15 @@
-// 주 메뉴 정의 (SPEC §10.3 사이드바 메뉴 6개).
-import { FolderOpen, House, MessageSquare, Search, Settings, ShieldCheck, Sparkles } from 'lucide-vue-next'
+// 주 메뉴 정의 (SPEC §10.3 사이드바 메뉴). 낙찰 메뉴는 맞춤 추천 다음(§15.7), 모바일은 '더보기' 안.
+import {
+  Building2,
+  FolderOpen,
+  House,
+  MessageSquare,
+  Search,
+  Settings,
+  ShieldCheck,
+  Sparkles,
+  Trophy,
+} from 'lucide-vue-next'
 import type { Component } from 'vue'
 import { copy } from '@/copy'
 
@@ -17,6 +27,8 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/', match: '/', exact: true, label: copy.nav.home, icon: House, mobile: true },
   { to: '/search', match: '/search', label: copy.nav.search, icon: Search, mobile: true },
   { to: '/recommend', match: '/recommend', label: copy.nav.recommend, icon: Sparkles, mobile: true },
+  { to: '/my-awards', match: '/my-awards', label: copy.nav.myAwards, icon: Trophy, mobile: false },
+  { to: '/companies', match: '/companies', label: copy.nav.companies, icon: Building2, mobile: false },
   { to: '/assistant', match: '/assistant', label: copy.nav.assistant, icon: MessageSquare, mobile: true },
   { to: '/library', match: '/library', label: copy.nav.library, icon: FolderOpen, mobile: true },
   { to: '/settings/profiles', match: '/settings', label: copy.nav.settings, icon: Settings, mobile: false },

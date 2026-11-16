@@ -11,4 +11,5 @@ export const ADMIN_NAV = [
   { to: '/admin/users', label: copy.nav.adminUsers },
   { to: '/admin/usage', label: copy.nav.adminUsage },
   { to: '/admin/collector', label: copy.nav.adminCollector },
+  { to: '/admin/company', label: copy.nav.adminCompany },
 ]

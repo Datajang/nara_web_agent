@@ -66,3 +66,14 @@ export function formatShortDate(iso: string): string {
 export function normalizedLength(text: string): number {
   return [...text.normalize('NFKC').replace(/\s+/g, ' ').trim()].length
 }
+
+/** KST 날짜 YYYY-MM-DD. */
+export function formatDate(iso: string): string {
+  const p = kstParts(new Date(iso))
+  return `${p.y}-${pad(p.m)}-${pad(p.d)}`
+}
+
+/** 백분율 숫자(87.5 → '87.5', 87 → '87'). 소수 한 자리까지. */
+export function formatPct(value: number): string {
+  return trimDecimal(Math.round(value * 10) / 10)
+}

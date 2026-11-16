@@ -228,7 +228,9 @@ class UsageLog(Base):
     __tablename__ = "usage_logs"
     __table_args__ = (
         CheckConstraint(
-            "event IN ('search','recommend','analyze','assistant_turn','collector')", name="event"
+            "event IN ('search','recommend','analyze','assistant_turn','collector',"
+            "'company_search')",
+            name="event",
         ),
         Index("ix_usage_logs_created_at", "created_at"),
     )

@@ -11,7 +11,6 @@ from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import (
-    ARRAY,
     BigInteger,
     Boolean,
     CheckConstraint,
@@ -27,6 +26,7 @@ from sqlalchemy import (
     func,
     text,
 )
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, pk, ts_now

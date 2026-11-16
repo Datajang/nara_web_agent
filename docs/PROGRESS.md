@@ -87,3 +87,9 @@
 - **한 일**: 마이그레이션 0008(`companies`·`bid_awards`·`bid_participants`·`bid_joint_members`·`org_settings`·`watched_companies`, 개인정보·raw 없음), `ENDPOINTS`에 awards·opening_compt·contracts, 키 `NARA_AWARD_API_KEY`→`NARA_API_KEY`, 낙찰 몫 예산 `G2B_AWARDS_DAILY_BUDGET`(usage_logs `cache.source`로 집계), `app/awards/`(화이트리스트 매퍼·분야 분류·upsert·수집기), CLI `--source awards`, `scripts/reclassify_awards.py`, systemd `nara-collector-awards.timer`(매일 04:30 증분→백필). 테스트 먼저 → pytest 520 통과. 실제 30일 수집 7,098행·9회, 14일 재수집 갱신 0·새 행 5·5회.
 - **달라진 결정**: 조회 기간은 분이 아니라 **KST 날짜 7개**(첫 실제 수집의 07 오류로 발견, 3회로 확인) → 창을 KST 자정에 맞춤. 일부 페이지만 받은 창은 `G2BIncomplete`로 실패. `/readyz` 마지막 수집은 공고 소스만 (`docs/decisions/2026-11-16-awards-probe.md`).
 - **남은 문제**: 운영 서버에서 `nara-collector-awards.timer` 활성화(`docs/ops/RUNBOOK.md`). 5년 백필은 아직 시작 안 함(timer가 하루 300회씩, 약 2일). SPEC §15.2~§15.4 수정 제안. 다음은 P9(회사 설정·우리 수주 현황·업체 검색).
+
+## P9 — 회사 설정 · 우리 수주 현황 · 업체 검색 (2026-11-16, 완료·태그 전)
+
+- **한 일**: API 7개(§15.6)와 조회 서비스 `app/awards/service.py`(기간을 수집 완료 범위로 자름, 요약·연도별·수요기관별·분야·커서 목록·업체 검색), 마이그레이션 0009(`company_search` 사용 기록), 화면 `/admin/company`(사업자번호 → 이름 찾기, 분야 키워드, 수집 기간, 연도별 진행률·오늘 호출량)·`/my-awards`·`/companies`(URL 동기화), 사이드바 '우리 수주 현황'·'업체 검색', 관리자 하위 메뉴 '회사 설정'. 테스트 → pytest 532·vitest 196·Playwright 3 통과. 캡처 `frontend/test-results/p9-*.png`.
+- **달라진 결정**: 기간 축은 등록일시, 수집 안 된 해는 0이 아니라 '수집 중', `/company` → `/admin/company`, 검색 기록은 검색어 없이 방식·결과 수만 (`docs/decisions/2026-11-16-p9-company-awards.md`).
+- **남은 문제**: 개발 DB에 우리 회사는 아직 미설정(관리자가 화면에서). '비교'·'관심 경쟁사' 버튼은 P10. SPEC §15.6·§15.7 수정 제안.

@@ -67,6 +67,18 @@ const routes: RouteRecordRaw[] = [
         meta: { title: copy.nav.recommend },
       },
       {
+        path: 'my-awards',
+        component: () => import('@/views/MyAwardsView.vue'),
+        meta: { title: copy.nav.myAwards },
+      },
+      {
+        path: 'companies',
+        component: () => import('@/views/CompaniesView.vue'),
+        meta: { title: copy.nav.companies },
+      },
+      // §15.7의 /company는 관리 영역 하위 메뉴와 맞춰 /admin/company에 둔다
+      { path: 'company', redirect: '/admin/company' },
+      {
         path: 'bids/:bidId',
         component: () => import('@/views/BidDetailView.vue'),
         meta: { title: copy.detail.analyzeTitle },
@@ -102,6 +114,11 @@ const routes: RouteRecordRaw[] = [
         path: 'admin/usage',
         component: () => import('@/views/admin/UsageView.vue'),
         meta: { requiresAdmin: true, title: copy.admin.usageTitle },
+      },
+      {
+        path: 'admin/company',
+        component: () => import('@/views/admin/CompanyView.vue'),
+        meta: { requiresAdmin: true, title: copy.company.title },
       },
       {
         path: 'admin/collector',

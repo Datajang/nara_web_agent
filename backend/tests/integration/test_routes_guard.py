@@ -19,7 +19,8 @@ PUBLIC = {
     ("POST", "/api/v1/auth/password/reset"),
     ("GET", "/healthz"),
 }
-ADMIN_ALLOWED = re.compile(r"^/api/v1/admin/(users|usage|collector)(/|$)")
+# company: 우리 회사 설정 (§15.6). 다른 사용자의 개인 자원은 여전히 없다
+ADMIN_ALLOWED = re.compile(r"^/api/v1/admin/(users|usage|collector|company)(/|$)")
 
 
 def _calls(dependant):

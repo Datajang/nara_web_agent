@@ -1,0 +1,16 @@
+# P9 회사 설정 · 우리 수주 현황 · 업체 검색
+- 명세 위치: §15.6 API, §15.7 화면, §15.9 개인정보, §15.11 P9
+- 결과: API 7개(`GET /company`, `POST /admin/company/lookup`, `PUT /admin/company`, `GET /awards/summary`, `GET /awards`, `GET /companies/search`, `GET /companies/{bizno}`), 화면 3개(`/admin/company`, `/my-awards`, `/companies`), 마이그레이션 0009. 테스트 pytest 532·vitest 196·Playwright 3(새 `e2e/awards.spec.ts`)
+- 결정:
+  - **기간 축은 등록일시(registered_at)**: 수집 커버리지가 같은 축이라 '0건'과 '수집 중'을 정확히 가른다. 목록의 '낙찰일'은 최종낙찰일(없으면 등록일)을 보여 준다
+  - 요청 기간 중 수집되지 않은 부분은 세지 않고 `period.collecting=true`, 일부만 수집된 해는 건수 대신 '수집 중'(건수가 있으면 함께). 요청 끝이 `covered_to`보다 36시간 이내면 수집 완료로 본다(timer가 하루 한 번)
+  - 경로 `/company`(§15.7)는 관리자 하위 메뉴와 맞춰 `/admin/company`로 두고 `/company`는 그리로 보낸다
+  - `GET /awards/summary`와 `GET /awards`는 `bizno`(선택, 기본 우리 회사)를 받는다. 회사가 없으면 404 `not_configured`
+  - 업체 검색 기록은 `usage_logs.event='company_search'`(0009), 검색어는 남기지 않고 방식(`bizno`/`name`)·결과 수만. 사용자당 분당 60회
+  - 업체명 검색은 법인 표기(주식회사·(주)·㈜ 등)·공백·기호를 뺀 `name_norm` 부분일치, 두 글자 이상. 낙찰 많은 순
+  - `PUT /admin/company`: 이름을 비우면 수집된 낙찰의 상호로, 없으면 422(`our_name`). 분야 사전이 바뀌면 재분류를 백그라운드로 시작(`app/awards/reclassify.py`, 스크립트도 같은 함수). 백필 범위는 수집기가 매번 `backfill_years`로 다시 계획하므로 따로 저장하지 않는다
+  - 관리자 경로 범위 검사(`test_routes_guard`)에 `company` 추가(§15.6)
+  - '우리 회사와 비교'·'관심 경쟁사로 추가' 버튼은 P10에서 붙인다(P9 지시)
+  - 바닥 고정 문구는 '사내 참고용'만, '공개된 나라장터 낙찰 기준'은 화면 머리 배지
+- 로컬 E2E: 이 VM의 Chromium 헤드리스에 `libgbm.so.1`이 없어 이전 세션이 풀어 둔 라이브러리를 `LD_LIBRARY_PATH`로 지정해 실행(CI는 `--with-deps`로 설치)
+- 명세 수정 필요: 있음 — §15.6에 `bizno` 쿼리·`not_configured`, §15.7 경로 `/admin/company`, 기간 축(등록일시) 한 줄

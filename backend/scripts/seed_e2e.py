@@ -6,6 +6,8 @@
   가짜 공고 몇 건, 두 소스의 수집 범위(지금 + 1일까지)를 넣는다.
   범위가 검색 창을 덮으므로 검색이 G2B를 부르지 않는다(외부 호출 없음, 규칙 3).
 - 공고 형식은 테스트 가짜(tests.fakes.g2b)를 실제 매퍼로 넣어 운영과 같은 경로를 탄다.
+- P9: 우리 회사(E2E_OUR_BIZNO)와 경쟁사의 낙찰 몇 건, 낙찰 수집 범위(400일). 회사 설정은 넣지 않는다
+  (E2E가 화면에서 사업자번호로 이름을 찾아 저장한다).
 - 여러 번 실행해도 결과가 같다.
 """
 
@@ -20,6 +22,8 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
 from app.auth.passwords import hash_password
+from app.awards.mapper import to_award
+from app.awards.store import upsert_awards
 from app.cli import create_admin
 from app.collector.upsert import upsert_bids
 from app.config import get_settings
@@ -27,7 +31,19 @@ from app.db.models import CollectorCoverage, User
 from app.db.session import Database
 from app.deps import utcnow
 from app.g2b.mapper import to_record
-from tests.fakes.g2b import regular_item
+from tests.fakes.g2b import award_item, regular_item
+
+E2E_OUR_BIZNO = "1234567890"
+E2E_OUR_NAME = "(주)이투이예시"
+E2E_RIVAL_BIZNO = "2345678901"
+E2E_RIVAL_NAME = "가온데이터시스템(주)"
+AWARDS = [  # (공고번호, 며칠 전, 사업자번호, 상호, 사업명, 금액)
+    ("R26BKE2A00001", 5, E2E_OUR_BIZNO, E2E_OUR_NAME, "E2E 데이터 정비 사업", "120000000"),
+    ("R26BKE2A00002", 40, E2E_OUR_BIZNO, E2E_OUR_NAME, "E2E AI 분석 플랫폼 구축", "300000000"),
+    ("R25BKE2A00003", 300, E2E_OUR_BIZNO, E2E_OUR_NAME, "E2E 통계 시스템 유지관리", "80000000"),
+    ("R26BKE2A00004", 10, E2E_RIVAL_BIZNO, E2E_RIVAL_NAME, "E2E 클라우드 전환 사업", "500000000"),
+    ("R26BKE2A00005", 60, E2E_RIVAL_BIZNO, E2E_RIVAL_NAME, "E2E 데이터 품질 진단", "90000000"),
+]
 
 TITLES = [
     "E2E 클라우드 전환 컨설팅 용역",
@@ -77,12 +93,17 @@ async def seed(
         regular_item(f"R26BKE2E{i:05d}", now - timedelta(hours=6 * (i + 1)), title=title)
         for i, title in enumerate(TITLES)
     ]
+    awards = [
+        award_item(no, now - timedelta(days=d), bizno=b, name=n, title=t, amount=a)
+        for no, d, b, n, t, a in AWARDS
+    ]
     async with db.transaction() as s:
         await upsert_bids(s, [to_record("regular", it) for it in items])
-        for source in ("regular", "prespec"):
+        await upsert_awards(s, [r for r in map(to_award, awards) if r is not None], {})
+        for source, days in (("regular", 100), ("prespec", 100), ("awards", 400)):
             values = {
                 "source": source,
-                "covered_from": now - timedelta(days=100),
+                "covered_from": now - timedelta(days=days),
                 "covered_to": now + timedelta(days=1),
             }
             await s.execute(

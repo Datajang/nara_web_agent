@@ -886,6 +886,462 @@
         }
       }
     },
+    "/api/v1/company": {
+      "get": {
+        "tags": [
+          "awards"
+        ],
+        "summary": "Get Company Settings",
+        "operationId": "get_company_settings_api_v1_company_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/company/lookup": {
+      "post": {
+        "tags": [
+          "awards"
+        ],
+        "summary": "Lookup Company",
+        "operationId": "lookup_company_api_v1_admin_company_lookup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BiznoIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyLookupOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/company": {
+      "put": {
+        "tags": [
+          "awards"
+        ],
+        "summary": "Put Company Settings",
+        "description": "저장. 백필 범위는 수집기가 매번 backfill_years로 다시 계획하므로 다음 실행부터 반영된다.\n분야 사전이 바뀌면 재분류(DB만)를 백그라운드로 시작한다.",
+        "operationId": "put_company_settings_api_v1_admin_company_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompanySettingsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/awards/summary": {
+      "get": {
+        "tags": [
+          "awards"
+        ],
+        "summary": "Get Awards Summary",
+        "operationId": "get_awards_summary_api_v1_awards_summary_get",
+        "parameters": [
+          {
+            "name": "bizno",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^\\d{10}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bizno"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AwardSummaryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/awards": {
+      "get": {
+        "tags": [
+          "awards"
+        ],
+        "summary": "Get Awards",
+        "operationId": "get_awards_api_v1_awards_get",
+        "parameters": [
+          {
+            "name": "bizno",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^\\d{10}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bizno"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "name": "field",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 30
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Field"
+            }
+          },
+          {
+            "name": "org",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 20
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Org"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AwardListOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/companies/search": {
+      "get": {
+        "tags": [
+          "awards"
+        ],
+        "summary": "Search Companies",
+        "operationId": "search_companies_api_v1_companies_search_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanySearchOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/companies/{bizno}": {
+      "get": {
+        "tags": [
+          "awards"
+        ],
+        "summary": "Get Company",
+        "operationId": "get_company_api_v1_companies__bizno__get",
+        "parameters": [
+          {
+            "name": "bizno",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{10}$",
+              "title": "Bizno"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AwardSummaryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/bids/search": {
       "post": {
         "tags": [
@@ -2606,6 +3062,422 @@
         ],
         "title": "AnalyzeIn"
       },
+      "AwardCoverageOut": {
+        "properties": {
+          "covered_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Covered From"
+          },
+          "covered_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Covered To"
+          },
+          "target_from": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Target From"
+          },
+          "collecting": {
+            "type": "boolean",
+            "title": "Collecting"
+          }
+        },
+        "type": "object",
+        "required": [
+          "covered_from",
+          "covered_to",
+          "target_from",
+          "collecting"
+        ],
+        "title": "AwardCoverageOut"
+      },
+      "AwardListOut": {
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/PeriodOut"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AwardOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "total",
+          "items",
+          "next_cursor"
+        ],
+        "title": "AwardListOut"
+      },
+      "AwardOut": {
+        "properties": {
+          "bid_ntce_no": {
+            "type": "string",
+            "title": "Bid Ntce No"
+          },
+          "bid_ntce_ord": {
+            "type": "string",
+            "title": "Bid Ntce Ord"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "bizno": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bizno"
+          },
+          "winner_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Winner Name"
+          },
+          "award_amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Award Amount"
+          },
+          "g2b_award_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "G2B Award Rate"
+          },
+          "estimated_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Price"
+          },
+          "award_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Award Ratio"
+          },
+          "participant_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Count"
+          },
+          "dminstt_cd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dminstt Cd"
+          },
+          "dminstt_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dminstt Name"
+          },
+          "opened_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opened At"
+          },
+          "awarded_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Awarded On"
+          },
+          "registered_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Registered At"
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fields"
+          },
+          "is_joint": {
+            "type": "boolean",
+            "title": "Is Joint"
+          },
+          "bid_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bid Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bid_ntce_no",
+          "bid_ntce_ord",
+          "title",
+          "bizno",
+          "winner_name",
+          "award_amount",
+          "g2b_award_rate",
+          "estimated_price",
+          "award_ratio",
+          "participant_count",
+          "dminstt_cd",
+          "dminstt_name",
+          "opened_at",
+          "awarded_on",
+          "registered_at",
+          "fields",
+          "is_joint",
+          "bid_id"
+        ],
+        "title": "AwardOut"
+      },
+      "AwardSummaryOut": {
+        "properties": {
+          "bizno": {
+            "type": "string",
+            "title": "Bizno"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "is_us": {
+            "type": "boolean",
+            "title": "Is Us"
+          },
+          "period": {
+            "$ref": "#/components/schemas/PeriodOut"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "amount_sum": {
+            "type": "integer",
+            "title": "Amount Sum"
+          },
+          "amount_avg": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Avg"
+          },
+          "org_count": {
+            "type": "integer",
+            "title": "Org Count"
+          },
+          "g2b_rate_median": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "G2B Rate Median"
+          },
+          "ratio_median": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ratio Median"
+          },
+          "ratio_known": {
+            "type": "integer",
+            "title": "Ratio Known"
+          },
+          "joint_count": {
+            "type": "integer",
+            "title": "Joint Count"
+          },
+          "first_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First At"
+          },
+          "last_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last At"
+          },
+          "by_year": {
+            "items": {
+              "$ref": "#/components/schemas/YearRowOut"
+            },
+            "type": "array",
+            "title": "By Year"
+          },
+          "by_org": {
+            "items": {
+              "$ref": "#/components/schemas/OrgRowOut"
+            },
+            "type": "array",
+            "title": "By Org"
+          },
+          "by_field": {
+            "items": {
+              "$ref": "#/components/schemas/FieldRowOut"
+            },
+            "type": "array",
+            "title": "By Field"
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fields"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bizno",
+          "name",
+          "is_us",
+          "period",
+          "count",
+          "amount_sum",
+          "amount_avg",
+          "org_count",
+          "g2b_rate_median",
+          "ratio_median",
+          "ratio_known",
+          "joint_count",
+          "first_at",
+          "last_at",
+          "by_year",
+          "by_org",
+          "by_field",
+          "fields"
+        ],
+        "title": "AwardSummaryOut"
+      },
       "BidCard": {
         "properties": {
           "bid_id": {
@@ -3066,6 +3938,19 @@
         ],
         "title": "BidSummary"
       },
+      "BiznoIn": {
+        "properties": {
+          "bizno": {
+            "type": "string",
+            "title": "Bizno"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bizno"
+        ],
+        "title": "BiznoIn"
+      },
       "BookmarkIn": {
         "properties": {
           "note": {
@@ -3341,6 +4226,250 @@
           "finished_at"
         ],
         "title": "CollectorRunOut"
+      },
+      "CompanyHitOut": {
+        "properties": {
+          "bizno": {
+            "type": "string",
+            "title": "Bizno"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "award_count": {
+            "type": "integer",
+            "title": "Award Count"
+          },
+          "last_award_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Award At"
+          },
+          "is_us": {
+            "type": "boolean",
+            "title": "Is Us"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bizno",
+          "name",
+          "award_count",
+          "last_award_at",
+          "is_us"
+        ],
+        "title": "CompanyHitOut"
+      },
+      "CompanyLookupOut": {
+        "properties": {
+          "found": {
+            "type": "boolean",
+            "title": "Found"
+          },
+          "bizno": {
+            "type": "string",
+            "title": "Bizno"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "award_count": {
+            "type": "integer",
+            "title": "Award Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "found",
+          "bizno"
+        ],
+        "title": "CompanyLookupOut"
+      },
+      "CompanyOut": {
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "title": "Configured"
+          },
+          "our_bizno": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Our Bizno"
+          },
+          "our_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Our Name"
+          },
+          "field_keywords": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Field Keywords"
+          },
+          "backfill_years": {
+            "type": "integer",
+            "title": "Backfill Years"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/AwardCoverageOut"
+          },
+          "years": {
+            "items": {
+              "$ref": "#/components/schemas/YearProgressOut"
+            },
+            "type": "array",
+            "title": "Years"
+          },
+          "calls_today": {
+            "type": "integer",
+            "title": "Calls Today"
+          },
+          "calls_budget": {
+            "type": "integer",
+            "title": "Calls Budget"
+          },
+          "unidentified_count": {
+            "type": "integer",
+            "title": "Unidentified Count"
+          },
+          "reclassify_started": {
+            "type": "boolean",
+            "title": "Reclassify Started",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "configured",
+          "our_bizno",
+          "our_name",
+          "field_keywords",
+          "backfill_years",
+          "updated_at",
+          "coverage",
+          "years",
+          "calls_today",
+          "calls_budget",
+          "unidentified_count"
+        ],
+        "title": "CompanyOut",
+        "description": "GET /company: 우리 회사 설정과 수집 현황."
+      },
+      "CompanySearchOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CompanyHitOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "CompanySearchOut"
+      },
+      "CompanySettingsIn": {
+        "properties": {
+          "our_bizno": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Our Bizno"
+          },
+          "our_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Our Name"
+          },
+          "field_keywords": {
+            "additionalProperties": {
+              "items": {
+                "type": "string",
+                "maxLength": 30,
+                "minLength": 1
+              },
+              "type": "array",
+              "maxItems": 20
+            },
+            "propertyNames": {
+              "maxLength": 30,
+              "minLength": 1
+            },
+            "type": "object",
+            "maxProperties": 20,
+            "title": "Field Keywords"
+          },
+          "backfill_years": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Backfill Years",
+            "default": 5
+          }
+        },
+        "type": "object",
+        "title": "CompanySettingsIn"
       },
       "ConversationIn": {
         "properties": {
@@ -3928,6 +5057,24 @@
           "count"
         ],
         "title": "FeedbackRow"
+      },
+      "FieldRowOut": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "count"
+        ],
+        "title": "FieldRowOut"
       },
       "FileOut": {
         "properties": {
@@ -4648,6 +5795,100 @@
           "award_method"
         ],
         "title": "OfficialFacts"
+      },
+      "OrgRowOut": {
+        "properties": {
+          "dminstt_cd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dminstt Cd"
+          },
+          "dminstt_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dminstt Name"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "amount_sum": {
+            "type": "integer",
+            "title": "Amount Sum"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dminstt_cd",
+          "dminstt_name",
+          "count",
+          "amount_sum"
+        ],
+        "title": "OrgRowOut"
+      },
+      "PeriodOut": {
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date",
+            "title": "From"
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "title": "To"
+          },
+          "counted_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counted From"
+          },
+          "counted_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counted To"
+          },
+          "collecting": {
+            "type": "boolean",
+            "title": "Collecting"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "counted_from",
+          "counted_to",
+          "collecting"
+        ],
+        "title": "PeriodOut",
+        "description": "요청 기간과 실제로 센 기간(KST 날짜). counted_*가 null이면 수집된 부분이 없다."
       },
       "ProfileIn": {
         "properties": {
@@ -5683,6 +6924,66 @@
           "status"
         ],
         "title": "VerifyOut"
+      },
+      "YearProgressOut": {
+        "properties": {
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          },
+          "ratio": {
+            "type": "number",
+            "title": "Ratio"
+          }
+        },
+        "type": "object",
+        "required": [
+          "year",
+          "ratio"
+        ],
+        "title": "YearProgressOut"
+      },
+      "YearRowOut": {
+        "properties": {
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          },
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count"
+          },
+          "amount_sum": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Sum"
+          },
+          "collecting": {
+            "type": "boolean",
+            "title": "Collecting"
+          }
+        },
+        "type": "object",
+        "required": [
+          "year",
+          "count",
+          "amount_sum",
+          "collecting"
+        ],
+        "title": "YearRowOut"
       },
       "ActionEvent": {
         "properties": {

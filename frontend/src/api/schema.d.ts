@@ -335,6 +335,129 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/company": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Company Settings */
+        get: operations["get_company_settings_api_v1_company_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/company/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Lookup Company */
+        post: operations["lookup_company_api_v1_admin_company_lookup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/company": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Company Settings
+         * @description 저장. 백필 범위는 수집기가 매번 backfill_years로 다시 계획하므로 다음 실행부터 반영된다.
+         *     분야 사전이 바뀌면 재분류(DB만)를 백그라운드로 시작한다.
+         */
+        put: operations["put_company_settings_api_v1_admin_company_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/awards/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Awards Summary */
+        get: operations["get_awards_summary_api_v1_awards_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/awards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Awards */
+        get: operations["get_awards_api_v1_awards_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/companies/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search Companies */
+        get: operations["search_companies_api_v1_companies_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/companies/{bizno}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Company */
+        get: operations["get_company_api_v1_companies__bizno__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/bids/search": {
         parameters: {
             query?: never;
@@ -902,6 +1025,110 @@ export interface components {
             /** Profile Id */
             profile_id: number;
         };
+        /** AwardCoverageOut */
+        AwardCoverageOut: {
+            /** Covered From */
+            covered_from: string | null;
+            /** Covered To */
+            covered_to: string | null;
+            /**
+             * Target From
+             * Format: date-time
+             */
+            target_from: string;
+            /** Collecting */
+            collecting: boolean;
+        };
+        /** AwardListOut */
+        AwardListOut: {
+            period: components["schemas"]["PeriodOut"];
+            /** Total */
+            total: number;
+            /** Items */
+            items: components["schemas"]["AwardOut"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** AwardOut */
+        AwardOut: {
+            /** Bid Ntce No */
+            bid_ntce_no: string;
+            /** Bid Ntce Ord */
+            bid_ntce_ord: string;
+            /** Title */
+            title: string;
+            /** Bizno */
+            bizno: string | null;
+            /** Winner Name */
+            winner_name: string | null;
+            /** Award Amount */
+            award_amount: number | null;
+            /** G2B Award Rate */
+            g2b_award_rate: number | null;
+            /** Estimated Price */
+            estimated_price: number | null;
+            /** Award Ratio */
+            award_ratio: number | null;
+            /** Participant Count */
+            participant_count: number | null;
+            /** Dminstt Cd */
+            dminstt_cd: string | null;
+            /** Dminstt Name */
+            dminstt_name: string | null;
+            /** Opened At */
+            opened_at: string | null;
+            /** Awarded On */
+            awarded_on: string | null;
+            /**
+             * Registered At
+             * Format: date-time
+             */
+            registered_at: string;
+            /** Fields */
+            fields: string[];
+            /** Is Joint */
+            is_joint: boolean;
+            /** Bid Id */
+            bid_id: string | null;
+        };
+        /** AwardSummaryOut */
+        AwardSummaryOut: {
+            /** Bizno */
+            bizno: string;
+            /** Name */
+            name: string;
+            /** Is Us */
+            is_us: boolean;
+            period: components["schemas"]["PeriodOut"];
+            /** Count */
+            count: number;
+            /** Amount Sum */
+            amount_sum: number;
+            /** Amount Avg */
+            amount_avg: number | null;
+            /** Org Count */
+            org_count: number;
+            /** G2B Rate Median */
+            g2b_rate_median: number | null;
+            /** Ratio Median */
+            ratio_median: number | null;
+            /** Ratio Known */
+            ratio_known: number;
+            /** Joint Count */
+            joint_count: number;
+            /** First At */
+            first_at: string | null;
+            /** Last At */
+            last_at: string | null;
+            /** By Year */
+            by_year: components["schemas"]["YearRowOut"][];
+            /** By Org */
+            by_org: components["schemas"]["OrgRowOut"][];
+            /** By Field */
+            by_field: components["schemas"]["FieldRowOut"][];
+            /** Fields */
+            fields: string[];
+        };
         /** BidCard */
         BidCard: {
             /** Bid Id */
@@ -1057,6 +1284,11 @@ export interface components {
              */
             scope: string[];
         };
+        /** BiznoIn */
+        BiznoIn: {
+            /** Bizno */
+            bizno: string;
+        };
         /** BookmarkIn */
         BookmarkIn: {
             /**
@@ -1171,6 +1403,88 @@ export interface components {
             started_at: string;
             /** Finished At */
             finished_at: string | null;
+        };
+        /** CompanyHitOut */
+        CompanyHitOut: {
+            /** Bizno */
+            bizno: string;
+            /** Name */
+            name: string;
+            /** Award Count */
+            award_count: number;
+            /** Last Award At */
+            last_award_at: string | null;
+            /** Is Us */
+            is_us: boolean;
+        };
+        /** CompanyLookupOut */
+        CompanyLookupOut: {
+            /** Found */
+            found: boolean;
+            /** Bizno */
+            bizno: string;
+            /** Name */
+            name?: string | null;
+            /**
+             * Award Count
+             * @default 0
+             */
+            award_count: number;
+        };
+        /**
+         * CompanyOut
+         * @description GET /company: 우리 회사 설정과 수집 현황.
+         */
+        CompanyOut: {
+            /** Configured */
+            configured: boolean;
+            /** Our Bizno */
+            our_bizno: string | null;
+            /** Our Name */
+            our_name: string | null;
+            /** Field Keywords */
+            field_keywords: {
+                [key: string]: string[];
+            };
+            /** Backfill Years */
+            backfill_years: number;
+            /** Updated At */
+            updated_at: string | null;
+            coverage: components["schemas"]["AwardCoverageOut"];
+            /** Years */
+            years: components["schemas"]["YearProgressOut"][];
+            /** Calls Today */
+            calls_today: number;
+            /** Calls Budget */
+            calls_budget: number;
+            /** Unidentified Count */
+            unidentified_count: number;
+            /**
+             * Reclassify Started
+             * @default false
+             */
+            reclassify_started: boolean;
+        };
+        /** CompanySearchOut */
+        CompanySearchOut: {
+            /** Items */
+            items: components["schemas"]["CompanyHitOut"][];
+        };
+        /** CompanySettingsIn */
+        CompanySettingsIn: {
+            /** Our Bizno */
+            our_bizno?: string | null;
+            /** Our Name */
+            our_name?: string | null;
+            /** Field Keywords */
+            field_keywords?: {
+                [key: string]: string[];
+            };
+            /**
+             * Backfill Years
+             * @default 5
+             */
+            backfill_years: number;
         };
         /** ConversationIn */
         ConversationIn: {
@@ -1385,6 +1699,13 @@ export interface components {
             rating: number;
             /** Reason */
             reason: string | null;
+            /** Count */
+            count: number;
+        };
+        /** FieldRowOut */
+        FieldRowOut: {
+            /** Field */
+            field: string;
             /** Count */
             count: number;
         };
@@ -1636,6 +1957,39 @@ export interface components {
             contract_method: string | null;
             /** Award Method */
             award_method: string | null;
+        };
+        /** OrgRowOut */
+        OrgRowOut: {
+            /** Dminstt Cd */
+            dminstt_cd: string | null;
+            /** Dminstt Name */
+            dminstt_name: string | null;
+            /** Count */
+            count: number;
+            /** Amount Sum */
+            amount_sum: number;
+        };
+        /**
+         * PeriodOut
+         * @description 요청 기간과 실제로 센 기간(KST 날짜). counted_*가 null이면 수집된 부분이 없다.
+         */
+        PeriodOut: {
+            /**
+             * From
+             * Format: date
+             */
+            from: string;
+            /**
+             * To
+             * Format: date
+             */
+            to: string;
+            /** Counted From */
+            counted_from: string | null;
+            /** Counted To */
+            counted_to: string | null;
+            /** Collecting */
+            collecting: boolean;
         };
         /** ProfileIn */
         ProfileIn: {
@@ -2049,6 +2403,24 @@ export interface components {
              * @enum {string}
              */
             status: "pending_verification" | "pending_approval" | "active" | "disabled";
+        };
+        /** YearProgressOut */
+        YearProgressOut: {
+            /** Year */
+            year: number;
+            /** Ratio */
+            ratio: number;
+        };
+        /** YearRowOut */
+        YearRowOut: {
+            /** Year */
+            year: number;
+            /** Count */
+            count: number | null;
+            /** Amount Sum */
+            amount_sum: number | null;
+            /** Collecting */
+            collecting: boolean;
         };
         /** ActionEvent */
         ActionEvent: {
@@ -2870,6 +3242,227 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FeedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_company_settings_api_v1_company_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyOut"];
+                };
+            };
+        };
+    };
+    lookup_company_api_v1_admin_company_lookup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BiznoIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyLookupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_company_settings_api_v1_admin_company_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompanySettingsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_awards_summary_api_v1_awards_summary_get: {
+        parameters: {
+            query?: {
+                bizno?: string | null;
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AwardSummaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_awards_api_v1_awards_get: {
+        parameters: {
+            query?: {
+                bizno?: string | null;
+                from?: string | null;
+                to?: string | null;
+                field?: string | null;
+                org?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AwardListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_companies_api_v1_companies_search_get: {
+        parameters: {
+            query: {
+                q: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanySearchOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_company_api_v1_companies__bizno__get: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: never;
+            path: {
+                bizno: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AwardSummaryOut"];
                 };
             };
             /** @description Validation Error */

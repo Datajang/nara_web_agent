@@ -3,7 +3,7 @@
 import pytest
 from sqlalchemy import func, select
 
-from app.db.models import Bid, CollectorCoverage
+from app.db.models import Bid, BidAward, CollectorCoverage
 from scripts import seed_e2e
 from tests.conftest import NOW
 from tests.helpers import login, make_profile, sse
@@ -14,8 +14,9 @@ async def test_seed_is_idempotent_and_searchable_offline(full_api, fake_g2b):
         await seed_e2e.seed(full_api.db, "e2e-admin@corp.example", "e2e-admin-password-1", now=NOW)
     async with full_api.db.session() as s:
         assert await s.scalar(select(func.count()).select_from(Bid)) == len(seed_e2e.TITLES)
+        assert await s.scalar(select(func.count()).select_from(BidAward)) == len(seed_e2e.AWARDS)
         cov = (await s.scalars(select(CollectorCoverage))).all()
-    assert {c.source for c in cov} == {"regular", "prespec"}
+    assert {c.source for c in cov} == {"regular", "prespec", "awards"}
     assert all(c.covered_to > NOW for c in cov)  # 검색 창이 커버리지 안 → G2B를 부르지 않는다
 
     async with full_api.client() as c:
@@ -57,3 +58,17 @@ async def test_seed_adds_a_member_without_team_for_the_invite_flow(full_api):
         await login(m, *member)
         me = (await m.get("/api/v1/me")).json()
     assert me["team"] is None and me["role"] == "member"
+
+
+async def test_seed_awards_are_found_by_company_lookup(full_api):
+    """P9 E2E: 사업자번호로 이름 찾기 → 우리 수주 현황 → 업체 검색이 외부 호출 없이 된다."""
+    await seed_e2e.seed(full_api.db, "e2e-admin@corp.example", "e2e-admin-password-1", now=NOW)
+    async with full_api.client() as c:
+        await login(c, "e2e-admin@corp.example", "e2e-admin-password-1")
+        r = await c.post("/api/v1/admin/company/lookup", json={"bizno": seed_e2e.E2E_OUR_BIZNO})
+        assert r.json()["name"] == seed_e2e.E2E_OUR_NAME
+        await c.put("/api/v1/admin/company", json={"our_bizno": seed_e2e.E2E_OUR_BIZNO})
+        sm = (await c.get("/api/v1/awards/summary")).json()
+        hits = (await c.get("/api/v1/companies/search?q=가온")).json()["items"]
+    assert sm["count"] == 3
+    assert [h["bizno"] for h in hits] == [seed_e2e.E2E_RIVAL_BIZNO]

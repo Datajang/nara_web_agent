@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Requirement(BaseModel):
@@ -57,7 +57,9 @@ class Coverage(BaseModel):
     warnings: list[str] = []
 
 
-class BidSummary(BaseModel):
+class BidSummaryDraft(BaseModel):  # reduce(summarize_bid) LLM 출력. CAPS는 BidSummary 이름으로
+    model_config = ConfigDict(title="BidSummary")
+
     headline: str  # 80자 이내
     overview: str  # 3~5문장
     key_requirements: list[Requirement] = []
@@ -68,6 +70,12 @@ class BidSummary(BaseModel):
     risks: list[str] = []
     keywords: list[str] = []
     coverage: Coverage
+
+
+class BidSummary(BidSummaryDraft):  # 저장·API 모양
+    scope: list[
+        str
+    ] = []  # 과업 범위·주요 기능: 조각별 FileFacts.scope를 서버가 합침 (분석 입력, v10)
 
 
 class ScoreItem(BaseModel):
@@ -86,7 +94,38 @@ class Risk(BaseModel):
     source: str | None = None
 
 
+class Understanding(BaseModel):  # 사업 이해 (v10)
+    purpose: str  # 목적·배경
+    scope: list[str] = []  # 과업 범위·주요 기능
+    conditions: list[str] = []  # 수행 조건(산출물·투입 인력·기간). 금액·날짜는 요약 카드에
+
+
 class Fit(BaseModel):
+    score: int = Field(ge=0, le=100)
+    verdict: Literal["strong", "possible", "weak"]
+    reasoning: str
+
+
+class TeamNeeds(BaseModel):  # 우리 팀에 필요한 것 (프로필에 적힌 사실만 근거)
+    have: list[str] = []  # 이미 갖춘 것
+    need: list[str] = []  # 보완할 것
+
+
+class AnalysisOut(BaseModel):  # LLM 출력. 순서 = §7.5 화면 순서 (v10, 2026-11-16)
+    understanding: Understanding
+    fit: Fit
+    team_needs: TeamNeeds
+    profile_missing: list[str] = []  # 이 공고 판단에 필요한데 프로필에 없는 정보
+    risks: list[Risk]
+    next_actions: list[str]  # 다음 할 일 제안 (3~5개)
+    warnings: list[str] = []
+
+
+class AnalysisResult(AnalysisOut):  # 저장·API 모양
+    profile_brief: bool = False  # 팀 소개가 짧아 간략 분석(서버가 정함)
+
+
+class LegacyFit(BaseModel):
     score: int = Field(ge=0, le=100)
     verdict: Literal["strong", "possible", "weak"]
     strengths: list[str] = []
@@ -94,16 +133,19 @@ class Fit(BaseModel):
     reasoning: str
 
 
-class AnalysisResult(BaseModel):  # 순서 = 7.5 화면 순서
-    overview: str  # 사업 개요
-    requirements: list[Requirement]  # 핵심 요구사항
-    evaluation: Evaluation  # 평가 기준·배점
-    schedule: list[ScheduleItem]  # 일정
-    budget_contract: BudgetContract  # 예산·계약 조건
-    risks: list[Risk]  # 리스크·유의사항
-    fit: Fit  # 우리 팀 적합도
-    next_actions: list[str]  # 다음 할 일 제안 (3~5개)
+class LegacyAnalysisResult(BaseModel):  # v9 이하에 저장된 분석 (내 기록에서 계속 열림)
+    overview: str
+    requirements: list[Requirement]
+    evaluation: Evaluation
+    schedule: list[ScheduleItem]
+    budget_contract: BudgetContract
+    risks: list[Risk]
+    fit: LegacyFit
+    next_actions: list[str]
     warnings: list[str] = []
+
+
+AnyAnalysis = AnalysisResult | LegacyAnalysisResult
 
 
 class KeywordSuggestion(BaseModel):

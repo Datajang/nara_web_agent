@@ -833,7 +833,8 @@ export interface components {
             bid_id: string;
             /** Profile Id */
             profile_id: number | null;
-            analysis: components["schemas"]["AnalysisResult"];
+            /** Analysis */
+            analysis: components["schemas"]["AnalysisResult"] | components["schemas"]["LegacyAnalysisResult"];
             /** Markdown */
             markdown: string;
             /**
@@ -851,17 +852,16 @@ export interface components {
         };
         /** AnalysisResult */
         AnalysisResult: {
-            /** Overview */
-            overview: string;
-            /** Requirements */
-            requirements: components["schemas"]["Requirement"][];
-            evaluation: components["schemas"]["Evaluation"];
-            /** Schedule */
-            schedule: components["schemas"]["ScheduleItem"][];
-            budget_contract: components["schemas"]["BudgetContract"];
+            understanding: components["schemas"]["Understanding"];
+            fit: components["schemas"]["Fit"];
+            team_needs: components["schemas"]["TeamNeeds"];
+            /**
+             * Profile Missing
+             * @default []
+             */
+            profile_missing: string[];
             /** Risks */
             risks: components["schemas"]["Risk"][];
-            fit: components["schemas"]["Fit"];
             /** Next Actions */
             next_actions: string[];
             /**
@@ -869,6 +869,11 @@ export interface components {
              * @default []
              */
             warnings: string[];
+            /**
+             * Profile Brief
+             * @default false
+             */
+            profile_brief: boolean;
         };
         /** AnalysisSummaryOut */
         AnalysisSummaryOut: {
@@ -1046,6 +1051,11 @@ export interface components {
              */
             keywords: string[];
             coverage: components["schemas"]["Coverage"];
+            /**
+             * Scope
+             * @default []
+             */
+            scope: string[];
         };
         /** BookmarkIn */
         BookmarkIn: {
@@ -1415,16 +1425,6 @@ export interface components {
              * @enum {string}
              */
             verdict: "strong" | "possible" | "weak";
-            /**
-             * Strengths
-             * @default []
-             */
-            strengths: string[];
-            /**
-             * Gaps
-             * @default []
-             */
-            gaps: string[];
             /** Reasoning */
             reasoning: string;
         };
@@ -1447,6 +1447,49 @@ export interface components {
         KeywordsOut: {
             /** Keywords */
             keywords: string[];
+        };
+        /** LegacyAnalysisResult */
+        LegacyAnalysisResult: {
+            /** Overview */
+            overview: string;
+            /** Requirements */
+            requirements: components["schemas"]["Requirement"][];
+            evaluation: components["schemas"]["Evaluation"];
+            /** Schedule */
+            schedule: components["schemas"]["ScheduleItem"][];
+            budget_contract: components["schemas"]["BudgetContract"];
+            /** Risks */
+            risks: components["schemas"]["Risk"][];
+            fit: components["schemas"]["LegacyFit"];
+            /** Next Actions */
+            next_actions: string[];
+            /**
+             * Warnings
+             * @default []
+             */
+            warnings: string[];
+        };
+        /** LegacyFit */
+        LegacyFit: {
+            /** Score */
+            score: number;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "strong" | "possible" | "weak";
+            /**
+             * Strengths
+             * @default []
+             */
+            strengths: string[];
+            /**
+             * Gaps
+             * @default []
+             */
+            gaps: string[];
+            /** Reasoning */
+            reasoning: string;
         };
         /** LoginIn */
         LoginIn: {
@@ -1894,6 +1937,19 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** TeamNeeds */
+        TeamNeeds: {
+            /**
+             * Have
+             * @default []
+             */
+            have: string[];
+            /**
+             * Need
+             * @default []
+             */
+            need: string[];
+        };
         /** TeamOut */
         TeamOut: {
             /** Id */
@@ -1907,6 +1963,21 @@ export interface components {
         TokenIn: {
             /** Token */
             token: string;
+        };
+        /** Understanding */
+        Understanding: {
+            /** Purpose */
+            purpose: string;
+            /**
+             * Scope
+             * @default []
+             */
+            scope: string[];
+            /**
+             * Conditions
+             * @default []
+             */
+            conditions: string[];
         };
         /** UsageOut */
         UsageOut: {
@@ -2037,7 +2108,8 @@ export interface components {
             type: "result";
             /** Analysis Id */
             analysis_id: number;
-            analysis: components["schemas"]["AnalysisResult"];
+            /** Analysis */
+            analysis: components["schemas"]["AnalysisResult"] | components["schemas"]["LegacyAnalysisResult"];
             /** Markdown */
             markdown: string;
             /** From Cache */

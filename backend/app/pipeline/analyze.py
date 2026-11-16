@@ -2,7 +2,7 @@
 
 - fit.verdict는 서버가 score에서 다시 계산한다 (80↑ strong, 60~79 possible, 60↓ weak).
 - warnings에는 요약의 coverage.warnings를 항상 포함한다.
-- requirements의 evidence는 원문에 실제로 있는 문자열만 남긴다.
+- 요약과 겹치는 요구사항·평가·일정·예산은 다루지 않는다(v10, 요약 카드에 있음).
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from app.db.models import Analysis, Bid
 from app.deps import Deps
 from app.llm import usage
 from app.llm.prompts import render
-from app.llm.schemas import AnalysisResult, verdict_for
+from app.llm.schemas import AnalysisOut, AnalysisResult, verdict_for
 from app.llm.structured import generate
 from app.llm.versions import ANALYSIS_PROMPT, prompt_version
 from app.pipeline.grounding import ground, unverified_warning
@@ -28,8 +28,6 @@ from app.pipeline.summarize import (
     _dedupe,
     _flat,
     _llm,
-    attach_sources,
-    check_evidence,
     get_or_create_summary,
     known_source,
     source_inputs,
@@ -45,39 +43,23 @@ def _bullets(items: list[str]) -> str:
 
 
 def render_markdown(r: AnalysisResult) -> str:
-    """§7.5 화면 순서와 같은 순서의 마크다운 (내보내기·북마크 미리보기용)."""
-    reqs = [f"{x.text}" + (f" (근거: {x.source})" if x.source else "") for x in r.requirements]
-    evals = [
-        f"{e.name}"
-        + (f": {e.points:g}점" if e.points is not None else "")
-        + (f" — {e.note}" if e.note else "")
-        for e in r.evaluation.items
-    ]
-    sched = [f"{s.label}: {s.date or s.raw or '미정'}" for s in r.schedule]
-    bc = r.budget_contract
-    money = [
-        f"{label}: {value}"
-        for label, value in (
-            ("예산", bc.budget_text),
-            ("계약 방법", bc.contract_method),
-            ("대금 지급", bc.payment_terms),
-            ("기간", bc.period),
-        )
-        if value
-    ]
+    """§7.5 화면 순서와 같은 순서의 마크다운 (내보내기·북마크 미리보기용, v10)."""
+    u, fit, needs = r.understanding, r.fit, r.team_needs
     risks = [f"[{SEVERITY_KO[x.severity]}] {x.text}" for x in r.risks]
-    fit = r.fit
     parts = [
-        f"## 사업 개요\n{r.overview}",
-        f"## 핵심 요구사항\n{_bullets(reqs)}",
-        "## 평가 기준·배점\n"
-        + (f"방식: {r.evaluation.method}\n" if r.evaluation.method else "")
-        + _bullets(evals),
-        f"## 일정\n{_bullets(sched)}",
-        f"## 예산·계약 조건\n{_bullets(money)}",
+        f"## 사업 이해\n{u.purpose}\n\n과업 범위·주요 기능\n{_bullets(u.scope)}"
+        f"\n\n수행 조건\n{_bullets(u.conditions)}",
+        f"## 우리 팀 적합도\n**{fit.score}점 ({VERDICT_KO[fit.verdict]})** {fit.reasoning}",
+        f"## 우리 팀에 필요한 것\n이미 갖춘 것\n{_bullets(needs.have)}"
+        f"\n\n보완할 것\n{_bullets(needs.need)}",
+    ]
+    if r.profile_brief or r.profile_missing:
+        parts.append(
+            "## 프로필 보완\n프로필 정보가 더 상세히 있으면 정확한 분석이 가능해요."
+            + (f"\n{_bullets(r.profile_missing)}" if r.profile_missing else "")
+        )
+    parts += [
         f"## 리스크·유의사항\n{_bullets(risks)}",
-        f"## 우리 팀 적합도\n**{fit.score}점 ({VERDICT_KO[fit.verdict]})** {fit.reasoning}\n\n"
-        f"강점\n{_bullets(fit.strengths)}\n\n보완할 점\n{_bullets(fit.gaps)}",
         f"## 다음 할 일\n{_bullets(r.next_actions)}",
     ]
     if r.warnings:
@@ -122,10 +104,9 @@ async def get_or_create_analysis(
             meta=json.dumps(bid_meta(bid), ensure_ascii=False),
             bid_summary_json=json.dumps(summary.summary, ensure_ascii=False),
         )
-        result = await generate(llm, "analyze_bid", msgs, AnalysisResult)
+        out = await generate(llm, "analyze_bid", msgs, AnalysisOut)
+        result = AnalysisResult(**out.model_dump())
         _, docs, _ = await source_inputs(deps, bid)
-        check_evidence(result.requirements, [d.text for d in docs], None)
-        attach_sources(result.requirements, docs)
         for k in result.risks:
             k.source = known_source(k.source, [d.name for d in docs])
         removed = ground(

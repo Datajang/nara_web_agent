@@ -4,7 +4,7 @@ import json
 
 from app.llm.fake import FakeLLM
 from app.llm.prompts import render
-from app.llm.schemas import AnalysisResult, BidSummary, FileFacts, KeywordSuggestion, ScoreBatch
+from app.llm.schemas import AnalysisOut, BidSummary, FileFacts, KeywordSuggestion, ScoreBatch
 from app.llm.structured import generate
 
 
@@ -45,7 +45,7 @@ async def test_default_outputs_validate_against_schemas():
             meta=meta,
             bid_summary_json=summary.model_dump_json(),
         ),
-        AnalysisResult,
+        AnalysisOut,
     )
     kw = await generate(
         llm,
@@ -56,5 +56,5 @@ async def test_default_outputs_validate_against_schemas():
     assert summary.headline.startswith("AI 플랫폼")
     assert [s.bid_id for s in scores.scores] == ["b1", "b2"]
     assert scores.scores[0].score > scores.scores[1].score  # 프로필과 겹치는 제목이 높다
-    assert analysis.overview and 1 <= len(kw.keywords) <= 10
+    assert analysis.understanding.purpose and 1 <= len(kw.keywords) <= 10
     assert llm.calls["summarize_file"] == 1

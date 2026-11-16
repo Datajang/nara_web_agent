@@ -10,7 +10,7 @@ from sqlalchemy import select
 from app.db.models import BidScore
 from app.llm import usage
 from app.llm.base import LLMContextTooLong, LLMUnavailable
-from app.llm.schemas import AnalysisResult, BidSummary, FileFacts, Requirement
+from app.llm.schemas import AnalysisOut, BidSummary, FileFacts, Requirement
 from app.pipeline import summarize
 from app.pipeline.analyze import get_or_create_analysis
 from app.pipeline.scoring import get_or_create_scores
@@ -126,28 +126,29 @@ async def test_context_too_long_halves_chunk_once(deps, fake_llm):
     assert row.summary["coverage"]["files_read"] == 1
 
 
+def _analysis_json(**over) -> str:
+    """v10 분석 출력(AnalysisOut) 기본값 + 덮어쓰기."""
+    base = {
+        "understanding": {"purpose": "개요"},
+        "fit": {"score": 60, "verdict": "possible", "reasoning": "근거"},
+        "team_needs": {},
+        "risks": [],
+        "next_actions": ["확인"],
+    }
+    return AnalysisOut.model_validate(base | over).model_dump_json()
+
+
 async def test_analysis_recomputes_verdict_and_renders_markdown(deps, fake_llm):
     (bid_id,) = await seed(deps, "regular", regular_item("R26BK00000203", NOW))
 
-    def wrong_verdict(messages):
-        r = AnalysisResult(
-            overview="개요",
-            requirements=[],
-            evaluation={},
-            schedule=[],
-            budget_contract={},
-            risks=[],
-            fit={"score": 85, "verdict": "weak", "reasoning": "근거"},
-            next_actions=["확인"],
-        )
-        return r.model_dump_json()
-
-    fake_llm.queue("analyze_bid", wrong_verdict)
+    fake_llm.queue(
+        "analyze_bid", _analysis_json(fit={"score": 85, "verdict": "weak", "reasoning": "근거"})
+    )
     row, _ = await get_or_create_analysis(deps, bid_id, PROFILE)
     assert row.result["fit"]["verdict"] == "strong"  # 85점 → strong (§8.4)
     assert summarize.NO_DOCS in row.result["warnings"]  # coverage.warnings 포함 (첨부 없음)
     heads = re.findall(r"^## (.+)$", row.markdown, re.M)
-    assert heads[:3] == ["사업 개요", "핵심 요구사항", "평가 기준·배점"]
+    assert heads[:3] == ["사업 이해", "우리 팀 적합도", "우리 팀에 필요한 것"]
     assert "프로필" not in row.markdown or PROFILE not in row.markdown
 
 
@@ -246,26 +247,11 @@ async def test_summary_and_analysis_drop_numbers_not_in_source(deps, fake_llm):
     assert [i["label"] for i in s["schedule"]] == ["평가"]
     assert any("원문에서 확인되지 않은" in w for w in s["coverage"]["warnings"])
 
-    def analysis(messages):
-        return AnalysisResult(
-            overview="개요",
-            requirements=[],
-            evaluation={},
-            schedule=[],
-            budget_contract={"budget_text": "58,000,000원", "period": "2027. 3. 1.까지"},
-            risks=[],
-            fit={"score": 60, "verdict": "possible", "reasoning": "근거"},
-            next_actions=["확인"],
-        ).model_dump_json()
-
-    fake_llm.queue("analyze_bid", analysis)
+    understanding = {"purpose": "예산 58,000,000원", "conditions": ["2027. 3. 1.까지 완료"]}
+    fake_llm.queue("analyze_bid", _analysis_json(understanding=understanding))
     a, _ = await get_or_create_analysis(deps, bid_id, PROFILE)
-    assert a.result["budget_contract"] == {
-        "budget_text": "58,000,000원",
-        "contract_method": None,
-        "payment_terms": None,
-        "period": None,
-    }
+    assert a.result["understanding"]["purpose"] == "예산 58,000,000원"
+    assert a.result["understanding"]["conditions"] == []
     assert any("원문에서 확인되지 않은" in w for w in a.result["warnings"])
 
 
@@ -287,35 +273,16 @@ async def test_notice_is_summarized_when_there_is_no_rfp(deps, fake_llm):
     assert len(sent) == 1 and "공고서" in sent[0] and "신청서 양식" not in sent[0]
 
 
-async def test_requirement_source_is_a_real_file_name_or_nothing(deps, fake_llm):
+async def test_risk_source_is_a_real_file_name_or_nothing(deps, fake_llm):
     """2026-11-13: 분석 입력이 요약이라 근거에 'summary'를 적음 → 읽은 파일명일 때만."""
     bid_id = await _bid(deps)
-
-    def analysis(messages):
-        return AnalysisResult(
-            overview="개요",
-            requirements=[
-                Requirement(text="모니터링", source="summary"),
-                Requirement(text="검색", source="제안요청서"),  # 확장자 빠진 파일명
-                # 실모델(b546)은 'bid_meta'·'other'·절 제목을 적었다 → 원문에 있는 evidence의 파일로
-                Requirement(text="플랫폼", source="bid_meta", evidence="AI 검색 플랫폼 구축"),
-            ],
-            evaluation={},
-            schedule=[],
-            budget_contract={},
-            risks=[{"text": "일정 촉박", "severity": "high", "source": "bid_summary_json"}],
-            fit={"score": 60, "verdict": "possible", "reasoning": "근거"},
-            next_actions=["확인"],
-        ).model_dump_json()
-
-    fake_llm.queue("analyze_bid", analysis)
-    a, _ = await get_or_create_analysis(deps, bid_id, PROFILE)
-    assert [r["source"] for r in a.result["requirements"]] == [
-        None,
-        "제안요청서.docx",
-        "제안요청서.docx",
+    risks = [
+        {"text": "일정 촉박", "severity": "high", "source": "bid_summary_json"},
+        {"text": "검수", "severity": "mid", "source": "제안요청서"},  # 확장자 빠진 파일명
     ]
-    assert a.result["risks"][0]["source"] is None
+    fake_llm.queue("analyze_bid", _analysis_json(risks=risks))
+    a, _ = await get_or_create_analysis(deps, bid_id, PROFILE)
+    assert [r["source"] for r in a.result["risks"]] == [None, "제안요청서.docx"]
 
 
 async def test_summary_requirement_source_is_set_by_the_server(deps, fake_llm):
@@ -331,23 +298,69 @@ async def test_analysis_drops_model_copies_of_server_warnings(deps, fake_llm):
     """실모델(b546): 요약 경고를 '1 개'처럼 띄어 베껴 같은 경고가 두 번 나옴 → 서버 경고만."""
     (bid_id,) = await seed(deps, "regular", regular_item("R26BK00000206", NOW))
 
-    def analysis(messages):
-        return AnalysisResult(
-            overview="개요",
-            requirements=[],
-            evaluation={},
-            schedule=[],
-            budget_contract={},
-            risks=[],
-            fit={"score": 60, "verdict": "possible", "reasoning": "근거"},
-            next_actions=["확인"],
-            warnings=[
-                "원문에서 확인되지 않은 숫자·날짜 1 개를 뺐어요",
-                "요약할 제안요청서·과업 문서가 없음 ",
-                "평가표 없음",
-            ],
-        ).model_dump_json()
-
-    fake_llm.queue("analyze_bid", analysis)
+    warnings = [
+        "원문에서 확인되지 않은 숫자·날짜 1 개를 뺐어요",
+        "요약할 제안요청서·과업 문서가 없음 ",
+        "평가표 없음",
+    ]
+    fake_llm.queue("analyze_bid", _analysis_json(warnings=warnings))
     a, _ = await get_or_create_analysis(deps, bid_id, PROFILE)
     assert a.result["warnings"] == ["평가표 없음", summarize.NO_DOCS]
+
+
+def test_markdown_follows_new_order():
+    """v10: 사업 이해 → 적합도 → 필요한 것 → (프로필 보완) → 리스크 → 다음 할 일."""
+    from app.llm.schemas import AnalysisResult
+    from app.pipeline.analyze import render_markdown
+
+    r = AnalysisResult.model_validate(
+        {
+            "understanding": {"purpose": "민원 분석", "scope": ["검색"], "conditions": ["PM 1명"]},
+            "fit": {"score": 70, "verdict": "possible", "reasoning": "일부 일치"},
+            "team_needs": {"have": ["검색 경험"], "need": ["공공 실적"]},
+            "profile_missing": ["PM 자격 보유 여부"],
+            "risks": [{"text": "일정 촉박", "severity": "high"}],
+            "next_actions": ["자격 확인"],
+            "profile_brief": True,
+        }
+    )
+    md = render_markdown(r)
+    heads = [line[3:] for line in md.splitlines() if line.startswith("## ")]
+    assert heads == ["사업 이해", "우리 팀 적합도", "우리 팀에 필요한 것", "프로필 보완",
+                     "리스크·유의사항", "다음 할 일"]  # fmt: skip
+    assert "PM 1명" in md and "PM 자격 보유 여부" in md and "공공 실적" in md
+
+
+async def test_summary_scope_is_merged_by_the_server(deps, fake_llm):
+    """v10: 조각별 과업 범위(FileFacts.scope)를 서버가 합쳐 요약에 남긴다(분석 입력, 8개까지).
+    reduce 출력에 넣으면 최악 출력이 4,000토큰을 넘어 모델에 맡기지 않는다."""
+    bid_id = await _bid(deps)
+    facts = FileFacts(
+        scope=["검색 플랫폼 구축", "검색 플랫폼  구축", *[f"기능 {i}" for i in range(9)]]
+    )
+    fake_llm.queue("summarize_file", facts.model_dump_json())
+    row, _ = await get_or_create_summary(deps, bid_id)
+    assert row.summary["scope"] == ["검색 플랫폼 구축", *[f"기능 {i}" for i in range(7)]]
+    reduce_req = next(r for r in reversed(fake_llm.requests) if r.get("task") == "summarize_bid")
+    assert "scope" not in reduce_req["json_schema"]["properties"]
+
+
+async def test_assistant_analyze_tool_reads_the_new_analysis(deps, fake_llm):
+    """v10: 조수의 analyze_bid 도구 결과는 사업 이해(purpose)를 싣는다(overview는 없어짐)."""
+    from app.conversations.tools import TurnProfile, make_executor
+    from app.db.models.personal import Profile
+    from app.profiles.hashing import profile_hash
+    from tests.helpers import create_user
+
+    bid_id = await _bid(deps)
+    uid = await create_user(deps.db, "tool@corp.example")
+    async with deps.db.transaction() as s:
+        p = Profile(user_id=uid, name="팀", description=PROFILE, profile_hash=profile_hash(PROFILE))
+        s.add(p)
+        await s.flush()
+        pid = p.id
+    run = make_executor(deps, uid, TurnProfile(pid, PROFILE, []))
+    out = await run("analyze_bid", {"bid_id": f"b{bid_id}"})
+    payload = json.loads(out.text)
+    assert payload["purpose"] and "overview" not in payload
+    assert set(payload["fit"]) == {"score", "verdict"}

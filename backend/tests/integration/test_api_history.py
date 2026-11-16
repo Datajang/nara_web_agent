@@ -96,10 +96,44 @@ async def test_deleting_my_analysis_keeps_shared_row(full_api):
     assert listed["total"] == 1 and listed["items"][0]["bid"]["bid_id"] == f"b{bid_id}"
     assert listed["items"][0]["profile_name"] == "우리 팀"  # §7.7 사용한 프로필명
     assert detail["analysis"]["fit"]["verdict"] in {"strong", "possible", "weak"}
-    assert detail["markdown"].startswith("## 사업 개요")
+    assert detail["markdown"].startswith("## 사업 이해")
     assert after["total"] == 0
     async with full_api.db.session() as s:
         assert await s.scalar(select(func.count()).select_from(Analysis)) == 1
+
+
+V9_RESULT = {  # PROMPT_VERSION v9 이하에 저장된 분석 모양 (내 기록에서 계속 열려야 함)
+    "overview": "민원 분석 시스템 구축",
+    "requirements": [
+        {"text": "형태소 분석", "kind": "technical", "evidence": None, "source": None},
+    ],
+    "evaluation": {"method": "협상에 의한 계약", "items": []},
+    "schedule": [],
+    "budget_contract": {
+        "budget_text": None, "contract_method": None, "payment_terms": None, "period": None,
+    },
+    "risks": [],
+    "fit": {
+        "score": 70, "verdict": "possible", "strengths": ["검색"], "gaps": [], "reasoning": "일부",
+    },
+    "next_actions": ["자격 확인"],
+    "warnings": [],
+}  # fmt: skip
+
+
+async def test_old_analysis_still_opens(full_api):
+    (bid_id,) = await seed(full_api.ctx.deps, "regular", regular_item("R26BK96000009", NOW))
+    c = await member(full_api, "old@corp.example")
+    pid = await make_profile(c)
+    aid = (await sse(c, f"/api/v1/bids/b{bid_id}/analyze", {"profile_id": pid}))[-2]["analysis_id"]
+    async with full_api.db.transaction() as s:
+        (await s.get_one(Analysis, aid)).result = V9_RESULT
+    r = await c.get(f"/api/v1/analyses/{aid}")
+    listed = (await c.get("/api/v1/analyses")).json()
+    await c.aclose()
+    assert r.status_code == 200
+    assert r.json()["analysis"]["requirements"][0]["text"] == "형태소 분석"
+    assert listed["items"][0]["fit_score"] == 70
 
 
 async def test_search_runs_list_and_delete(full_api):

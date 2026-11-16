@@ -153,7 +153,12 @@ def _longest(node, defs):
 
 
 @pytest.mark.parametrize(
-    "task,model", [("summarize_file", "FileFacts"), ("summarize_bid", "BidSummary")]
+    "task,model",
+    [
+        ("summarize_file", "FileFacts"),
+        ("summarize_bid", "BidSummaryDraft"),
+        ("analyze_bid", "AnalysisOut"),
+    ],
 )
 async def test_worst_case_output_fits_the_token_budget(task, model):
     from app.llm import schemas
@@ -260,3 +265,17 @@ async def test_evaluation_method_is_one_of_fixed_choices():
 def test_analysis_runs_without_sampling_noise():
     """2026-11-14 실측: 분석 0.2에서 같은 입력의 적합도 범위 최대 60점 → 0 (기준표와 함께)."""
     assert TASKS["analyze_bid"].temperature == 0.0
+
+
+def test_analysis_caps_apply():
+    """v10 분석: 사업 이해·필요한 것·프로필 보완에도 길이 상한."""
+    from app.llm.schemas import AnalysisOut
+    from app.llm.structured import model_schema
+
+    js = model_schema(AnalysisOut)
+    defs = js["$defs"]
+    assert js["properties"]["profile_missing"]["maxItems"] == 5
+    assert defs["Understanding"]["properties"]["scope"]["maxItems"] == 8
+    assert defs["TeamNeeds"]["properties"]["need"]["maxItems"] == 5
+    assert "profile_brief" not in js["properties"]  # 서버가 정하는 값은 모델에 묻지 않는다
+    assert set(defs["Fit"]["properties"]) == {"score", "verdict", "reasoning"}

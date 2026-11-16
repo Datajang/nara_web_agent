@@ -2371,7 +2371,15 @@
             "title": "Profile Id"
           },
           "analysis": {
-            "$ref": "#/components/schemas/AnalysisResult"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnalysisResult"
+              },
+              {
+                "$ref": "#/components/schemas/LegacyAnalysisResult"
+              }
+            ],
+            "title": "Analysis"
           },
           "markdown": {
             "type": "string",
@@ -2417,29 +2425,22 @@
       },
       "AnalysisResult": {
         "properties": {
-          "overview": {
-            "title": "Overview",
-            "type": "string"
+          "understanding": {
+            "$ref": "#/components/schemas/Understanding"
           },
-          "requirements": {
+          "fit": {
+            "$ref": "#/components/schemas/Fit"
+          },
+          "team_needs": {
+            "$ref": "#/components/schemas/TeamNeeds"
+          },
+          "profile_missing": {
+            "default": [],
             "items": {
-              "$ref": "#/components/schemas/Requirement"
+              "type": "string"
             },
-            "title": "Requirements",
+            "title": "Profile Missing",
             "type": "array"
-          },
-          "evaluation": {
-            "$ref": "#/components/schemas/Evaluation"
-          },
-          "schedule": {
-            "items": {
-              "$ref": "#/components/schemas/ScheduleItem"
-            },
-            "title": "Schedule",
-            "type": "array"
-          },
-          "budget_contract": {
-            "$ref": "#/components/schemas/BudgetContract"
           },
           "risks": {
             "items": {
@@ -2447,9 +2448,6 @@
             },
             "title": "Risks",
             "type": "array"
-          },
-          "fit": {
-            "$ref": "#/components/schemas/Fit"
           },
           "next_actions": {
             "items": {
@@ -2465,16 +2463,18 @@
             },
             "title": "Warnings",
             "type": "array"
+          },
+          "profile_brief": {
+            "default": false,
+            "title": "Profile Brief",
+            "type": "boolean"
           }
         },
         "required": [
-          "overview",
-          "requirements",
-          "evaluation",
-          "schedule",
-          "budget_contract",
-          "risks",
+          "understanding",
           "fit",
+          "team_needs",
+          "risks",
           "next_actions"
         ],
         "title": "AnalysisResult",
@@ -2997,6 +2997,14 @@
           },
           "coverage": {
             "$ref": "#/components/schemas/Coverage"
+          },
+          "scope": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scope",
+            "default": []
           }
         },
         "type": "object",
@@ -3948,22 +3956,6 @@
             "title": "Verdict",
             "type": "string"
           },
-          "strengths": {
-            "default": [],
-            "items": {
-              "type": "string"
-            },
-            "title": "Strengths",
-            "type": "array"
-          },
-          "gaps": {
-            "default": [],
-            "items": {
-              "type": "string"
-            },
-            "title": "Gaps",
-            "type": "array"
-          },
           "reasoning": {
             "title": "Reasoning",
             "type": "string"
@@ -4036,6 +4028,117 @@
           "keywords"
         ],
         "title": "KeywordsOut"
+      },
+      "LegacyAnalysisResult": {
+        "properties": {
+          "overview": {
+            "title": "Overview",
+            "type": "string"
+          },
+          "requirements": {
+            "items": {
+              "$ref": "#/components/schemas/Requirement"
+            },
+            "title": "Requirements",
+            "type": "array"
+          },
+          "evaluation": {
+            "$ref": "#/components/schemas/Evaluation"
+          },
+          "schedule": {
+            "items": {
+              "$ref": "#/components/schemas/ScheduleItem"
+            },
+            "title": "Schedule",
+            "type": "array"
+          },
+          "budget_contract": {
+            "$ref": "#/components/schemas/BudgetContract"
+          },
+          "risks": {
+            "items": {
+              "$ref": "#/components/schemas/Risk"
+            },
+            "title": "Risks",
+            "type": "array"
+          },
+          "fit": {
+            "$ref": "#/components/schemas/LegacyFit"
+          },
+          "next_actions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Next Actions",
+            "type": "array"
+          },
+          "warnings": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "overview",
+          "requirements",
+          "evaluation",
+          "schedule",
+          "budget_contract",
+          "risks",
+          "fit",
+          "next_actions"
+        ],
+        "title": "LegacyAnalysisResult",
+        "type": "object"
+      },
+      "LegacyFit": {
+        "properties": {
+          "score": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Score",
+            "type": "integer"
+          },
+          "verdict": {
+            "enum": [
+              "strong",
+              "possible",
+              "weak"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          },
+          "strengths": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Strengths",
+            "type": "array"
+          },
+          "gaps": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Gaps",
+            "type": "array"
+          },
+          "reasoning": {
+            "title": "Reasoning",
+            "type": "string"
+          }
+        },
+        "required": [
+          "score",
+          "verdict",
+          "reasoning"
+        ],
+        "title": "LegacyFit",
+        "type": "object"
       },
       "LoginIn": {
         "properties": {
@@ -5255,6 +5358,28 @@
         ],
         "title": "TeamIn"
       },
+      "TeamNeeds": {
+        "properties": {
+          "have": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Have",
+            "type": "array"
+          },
+          "need": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Need",
+            "type": "array"
+          }
+        },
+        "title": "TeamNeeds",
+        "type": "object"
+      },
       "TeamOut": {
         "properties": {
           "id": {
@@ -5292,6 +5417,35 @@
           "token"
         ],
         "title": "TokenIn"
+      },
+      "Understanding": {
+        "properties": {
+          "purpose": {
+            "title": "Purpose",
+            "type": "string"
+          },
+          "scope": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Scope",
+            "type": "array"
+          },
+          "conditions": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Conditions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "purpose"
+        ],
+        "title": "Understanding",
+        "type": "object"
       },
       "UsageOut": {
         "properties": {
@@ -5582,7 +5736,15 @@
             "type": "integer"
           },
           "analysis": {
-            "$ref": "#/components/schemas/AnalysisResult"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnalysisResult"
+              },
+              {
+                "$ref": "#/components/schemas/LegacyAnalysisResult"
+              }
+            ],
+            "title": "Analysis"
           },
           "markdown": {
             "title": "Markdown",

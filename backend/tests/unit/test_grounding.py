@@ -11,6 +11,8 @@ from app.llm.schemas import (
     Requirement,
     Risk,
     ScheduleItem,
+    TeamNeeds,
+    Understanding,
 )
 from app.pipeline.grounding import amounts, dates, ground
 
@@ -94,19 +96,17 @@ def test_meta_values_count_as_source():
 
 def test_analysis_result_is_grounded_too():
     a = AnalysisResult(
-        overview="평가는 2026. 12. 8.에 열립니다. 계약금은 7억원입니다.",
-        requirements=[],
-        evaluation=Evaluation(method="협상에 의한 계약"),
-        schedule=[],
-        budget_contract=BudgetContract(),
-        risks=[Risk(text="2027년 1월 5일까지 납품"), Risk(text="보안 서약 필요")],
-        fit=Fit(
-            score=70, verdict="possible", strengths=[], gaps=[], reasoning="예산 3억원 규모라 적합."
+        understanding=Understanding(
+            purpose="평가는 2026. 12. 8.에 열립니다. 계약금은 7억원입니다.",
+            conditions=["투입 인력 3명"],
         ),
+        fit=Fit(score=70, verdict="possible", reasoning="예산 3억원 규모라 적합."),
+        team_needs=TeamNeeds(),
+        risks=[Risk(text="2027년 1월 5일까지 납품"), Risk(text="보안 서약 필요")],
         next_actions=["2026-12-01까지 질의서 제출"],
     )
     assert ground(a, SRC) == 4
-    assert a.overview == "평가는 2026. 12. 8.에 열립니다."
+    assert a.understanding.purpose == "평가는 2026. 12. 8.에 열립니다."
     assert [r.text for r in a.risks] == ["보안 서약 필요"]
     assert a.fit.reasoning == "" and a.next_actions == []
 

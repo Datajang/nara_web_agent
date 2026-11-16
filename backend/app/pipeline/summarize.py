@@ -31,7 +31,7 @@ from app.llm import usage
 from app.llm.base import LLMClient, LLMContextTooLong, LLMInvalidOutput, LLMUnavailable
 from app.llm.prompts import render
 from app.llm.schemas import BidSummary as BidSummaryOut
-from app.llm.schemas import Coverage, FileFacts, Requirement
+from app.llm.schemas import BidSummaryDraft, Coverage, FileFacts, Requirement
 from app.llm.structured import generate
 from app.llm.tokens import TokenCounter, load_counter
 from app.llm.versions import SUMMARY_PROMPT, prompt_version
@@ -211,6 +211,20 @@ async def _map_chunk(
     return out, warns
 
 
+SCOPE_MAX = 8
+
+
+def merge_scope(facts: list[FileFacts]) -> list[str]:
+    """조각별 과업 범위를 순서대로 합친다(띄어쓰기만 다른 것은 하나로). 분석 입력용 (v10)."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for s in (s for f in facts for s in f.scope):
+        if s.strip() and (key := _flat(s)) not in seen:
+            seen.add(key)
+            out.append(s.strip())
+    return out[:SCOPE_MAX]
+
+
 async def _summarize(
     deps: Deps, llm: LLMClient, bid: Bid, docs: list[SourceDoc], files: list[BidFile]
 ) -> BidSummaryOut:
@@ -274,7 +288,8 @@ async def _summarize(
             n_total=len(files),
             truncated=truncated,
         )
-        return await generate(llm, "summarize_bid", msgs, BidSummaryOut)
+        draft = await generate(llm, "summarize_bid", msgs, BidSummaryDraft)
+        return BidSummaryOut(**draft.model_dump(), scope=merge_scope(facts))
 
     try:
         out = await reduce(facts)

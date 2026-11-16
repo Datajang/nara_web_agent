@@ -26,8 +26,8 @@ from app.llm.base import (
     ToolCalls,
 )
 from app.llm.schemas import (
-    AnalysisResult,
-    BidSummary,
+    AnalysisOut,
+    BidSummaryDraft,
     Coverage,
     FileFacts,
     Fit,
@@ -36,6 +36,8 @@ from app.llm.schemas import (
     Risk,
     ScoreBatch,
     ScoreItem,
+    TeamNeeds,
+    Understanding,
 )
 
 Scripted = str | Exception | Callable[[list[Message]], str]
@@ -90,7 +92,7 @@ def _bid_summary(user: str) -> dict[str, Any]:
     cov = dict(re.findall(r"(\w+)=(\w+)", _tag(user, "coverage")))
     title = str(meta.get("title") or "제목 없음")
     reqs = [r for f in facts for r in f.get("requirements", [])][:10]
-    return BidSummary(
+    return BidSummaryDraft(
         headline=title[:80],
         overview=f"{title} 공고입니다. 발주기관은 {meta.get('org') or '미상'}입니다.",
         key_requirements=[Requirement.model_validate(r) for r in reqs],
@@ -118,14 +120,15 @@ def _analysis(user: str) -> dict[str, Any]:
     summary = json.loads(_tag(user, "summary") or "{}")
     meta = json.loads(_tag(user, "bid_meta") or "{}")
     score = _overlap_score(profile, f"{meta.get('title', '')} {summary.get('overview', '')}")
-    return AnalysisResult(
-        overview=summary.get("overview") or "문서에서 확인되지 않음",
-        requirements=summary.get("key_requirements", []),
-        evaluation=summary.get("evaluation", {}),
-        schedule=summary.get("schedule", []),
-        budget_contract=summary.get("budget_contract", {}),
-        risks=[Risk(text=r) for r in summary.get("risks", [])],
+    return AnalysisOut(
+        understanding=Understanding(
+            purpose=summary.get("overview") or "문서에서 확인되지 않음",
+            scope=summary.get("scope", []),
+        ),
         fit=Fit(score=score, verdict="possible", reasoning="프로필과 공고 제목의 일치도로 판단"),
+        team_needs=TeamNeeds(have=["프로필과 겹치는 경험"], need=["참가자격 확인"]),
+        profile_missing=["유사 사업 실적"] if "<profile_detail>brief" in user else [],
+        risks=[Risk(text=r) for r in summary.get("risks", [])],
         next_actions=["제안요청서 확인", "참가자격 확인", "제출 일정 확인"],
         warnings=summary.get("coverage", {}).get("warnings", []),
     ).model_dump()

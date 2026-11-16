@@ -141,7 +141,8 @@ def make_executor(deps: Deps, user_id: int, profile: TurnProfile | None) -> Tool
             payload = {
                 "bid_id": bid_ref(bid.id),
                 "fit": {"score": r["fit"]["score"], "verdict": r["fit"]["verdict"]},
-                "overview": r["overview"],
+                "purpose": r["understanding"]["purpose"],
+                "team_needs": r["team_needs"],
                 "next_actions": r["next_actions"][:5],
                 "warnings": r["warnings"][:3],
             }

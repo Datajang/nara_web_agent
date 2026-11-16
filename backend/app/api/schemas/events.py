@@ -7,7 +7,7 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, Field
 
 from app.bids.cards import BidCard
-from app.llm.schemas import AnalysisResult
+from app.llm.schemas import AnyAnalysis
 
 Stage = Literal["search", "files", "extract", "summarize", "analyze", "score"]
 
@@ -40,7 +40,7 @@ class CardsEvent(BaseModel):
 class ResultEvent(BaseModel):
     type: Literal["result"]
     analysis_id: int
-    analysis: AnalysisResult
+    analysis: AnyAnalysis
     markdown: str
     from_cache: bool
 

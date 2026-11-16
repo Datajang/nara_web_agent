@@ -8,7 +8,7 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, Field, StringConstraints, model_validator
 
 from app.bids.cards import BidCard
-from app.llm.schemas import AnalysisResult
+from app.llm.schemas import AnyAnalysis
 
 
 class SearchRunOut(BaseModel):
@@ -52,7 +52,7 @@ class AnalysisDetail(BaseModel):
     analysis_id: int
     bid_id: str
     profile_id: int | None
-    analysis: AnalysisResult
+    analysis: AnyAnalysis  # v9 이하 저장분은 LegacyAnalysisResult 모양
     markdown: str
     created_at: datetime
 

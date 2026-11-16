@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query, Response, status
+from pydantic import TypeAdapter
 
 from app.api.common import load_bid, model_id
 from app.api.deps import ActiveUser, Ctx, DbSession
@@ -22,8 +23,10 @@ from app.api.schemas.history import (
 from app.bids.cards import build_cards
 from app.db.models import SearchRun
 from app.history import repo
-from app.llm.schemas import AnalysisResult
+from app.llm.schemas import AnyAnalysis
 from app.llm.versions import bid_ref
+
+_ANALYSIS: TypeAdapter[AnyAnalysis] = TypeAdapter(AnyAnalysis)
 
 router = APIRouter(tags=["history"])
 Limit = Annotated[int, Query(ge=1, le=100)]
@@ -117,7 +120,7 @@ async def get_analysis(analysis_id: int, user: ActiveUser, s: DbSession) -> Anal
         analysis_id=a.id,
         bid_id=bid_ref(a.bid_id),
         profile_id=ua.profile_id,
-        analysis=AnalysisResult.model_validate(a.result),
+        analysis=_ANALYSIS.validate_python(a.result),
         markdown=a.markdown,
         created_at=ua.created_at,
     )

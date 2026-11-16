@@ -1,0 +1,15 @@
+# P10 비교 · 강점/약점 · 경쟁사 레이더 · 관심 경쟁사
+- 명세 위치: §15.5 지표와 판정 규칙, §15.6 API, §15.7 화면, §15.11 P10
+- 결과: 판정 순수 함수 `backend/app/analysis/competitors.py`(LLM 없음), 조회 `app/awards/competitors.py`, API `GET /compare/{bizno}`·`GET /competitors/candidates`·`GET /competitors/watch`·`PUT·DELETE /competitors/watch/{bizno}`, 화면 `/competitors`(레이더)·`/competitors/:bizno`(비교), 업체 검색의 '우리 회사와 비교'·'관심 경쟁사' 버튼. 테스트 pytest 568(경계값 30)·vitest 200·Playwright 3
+- 결정:
+  - 판정 값은 `up`·`same`·`down`·`info`(앞섬·비슷·뒤처짐·참고) + `small_sample`(표본 적음). 분야 합 3건 미만은 `info`+표본 적음, 맞붙은 공고 0건은 `info`+표본 적음, 1~4건은 판정+표본 적음
+  - 분야 항목 키는 `field:<태그>`, 라벨은 태그 이름. 강점·약점은 `|rel|`(=(우리−상대)/max) 큰 순, 같으면 키 순으로 최대 5개 — 같은 입력이면 같은 출력
+  - 판정은 두 회사의 낙찰 행(SQL로 같은 기간을 읽음)에 대한 순수 함수. 레이더 겹침도는 SQL 한 번(`_CANDIDATES_SQL`)으로 계산해 상위 N개만 읽는다
+  - 비교 기간: 낙찰 커버리지는 업체 구분 없이 하나라 P9 기간(수집 완료 범위로 자른 기간)을 그대로 쓰고 `note='두 회사 모두 수집 완료된 기간'`
+  - 맞대결은 `bid_participants`에 두 회사가 모두 있는 공고만 센다. 지금은 비어 있어 항상 '참고'이고 P11(개찰 결과 온디맨드)에서 늘어난다. 화면에 그 한계를 적는다
+  - 레이더 필터(분야·수요기관)는 우리와 후보 모두에 건다. 낙찰 2건 미만·겹침 0인 업체는 뺀다. 필터는 URL(`?field=`, `?org=`)에 남긴다
+  - 관심 경쟁사 목록은 `GET /competitors/watch`(명세 표의 'GET·PUT·DELETE /competitors/watch/{bizno}' 중 GET은 목록), PUT은 멱등, 없는 업체는 404
+  - 우리 회사와 같은 업체 비교는 400. 건수 0이면 평균은 0으로 비율 규칙에 넣는다
+  - 두 계열 막대는 범주 색 고정 순서 `--series-1`(우리)·`--series-2`(상대) + 범례 + 값 글자. '한눈에 보기'는 단위가 달라 줄마다 축을 따로, 연도별은 공통 축
+  - 공동수급 파트너·AI 해설은 자리만('준비 중', P11)
+- 명세 수정 필요: 있음 — §15.6에 `GET /competitors/watch`(목록)·판정 값 `info`·`small_sample`, §15.5 맞대결 0건은 '참고'

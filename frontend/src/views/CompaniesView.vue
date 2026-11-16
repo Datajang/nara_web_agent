@@ -3,13 +3,15 @@
 // 조건은 URL(?q=, ?bizno=)에 남겨 새로고침·링크 공유 때 복원한다. 비교·관심 경쟁사는 P10.
 import { useQuery } from '@tanstack/vue-query'
 import { computed, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { awardsApi, formatBizno, normalizeBizno } from '@/api/awards'
 import { ApiError } from '@/api/client'
 import AwardsBasis from '@/components/awards/AwardsBasis.vue'
 import AwardsFootnote from '@/components/awards/AwardsFootnote.vue'
 import AwardSummaryView from '@/components/awards/AwardSummaryView.vue'
 import AwardTable from '@/components/awards/AwardTable.vue'
+import WatchButton from '@/components/awards/WatchButton.vue'
+import { competitorsApi } from '@/api/competitors'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiInput from '@/components/ui/UiInput.vue'
@@ -51,6 +53,8 @@ const detail = useQuery({
   queryFn: () => awardsApi.companySummary(bizno.value as string),
   enabled: computed(() => bizno.value !== null),
 })
+const watchedList = useQuery({ queryKey: ['competitors', 'watch'], queryFn: competitorsApi.watched })
+const watchedSet = computed(() => new Set((watchedList.data.value?.items ?? []).map((w) => w.bizno)))
 const field = ref('')
 const org = ref('')
 watch(bizno, () => {
@@ -114,6 +118,14 @@ function pick(b: string) {
               <span class="ml-2 text-sm font-normal text-text-2 tabular">{{ copy.companies.biznoLabel(formatBizno(detail.data.value.bizno)) }}</span>
             </p>
             <AwardsBasis :period="detail.data.value.period" />
+            <div v-if="!detail.data.value.is_us" class="flex flex-wrap gap-2">
+              <RouterLink
+                :to="`/competitors/${detail.data.value.bizno}`"
+                class="inline-flex h-8 items-center rounded-control bg-primary px-3 text-sm font-medium text-white hover:bg-primary-hover"
+                data-compare-link
+              >{{ copy.competitors.compareWithUs }}</RouterLink>
+              <WatchButton :bizno="detail.data.value.bizno" :watched="watchedSet.has(detail.data.value.bizno)" />
+            </div>
           </header>
           <AwardSummaryView v-model:field="field" v-model:org="org" :summary="detail.data.value" />
           <AwardTable v-model:field="field" v-model:org="org" :summary="detail.data.value" :bizno="detail.data.value.bizno" />

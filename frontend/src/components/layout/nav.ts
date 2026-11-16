@@ -8,6 +8,7 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
+  Swords,
   Trophy,
 } from 'lucide-vue-next'
 import type { Component } from 'vue'
@@ -29,6 +30,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/recommend', match: '/recommend', label: copy.nav.recommend, icon: Sparkles, mobile: true },
   { to: '/my-awards', match: '/my-awards', label: copy.nav.myAwards, icon: Trophy, mobile: false },
   { to: '/companies', match: '/companies', label: copy.nav.companies, icon: Building2, mobile: false },
+  { to: '/competitors', match: '/competitors', label: copy.nav.competitors, icon: Swords, mobile: false },
   { to: '/assistant', match: '/assistant', label: copy.nav.assistant, icon: MessageSquare, mobile: true },
   { to: '/library', match: '/library', label: copy.nav.library, icon: FolderOpen, mobile: true },
   { to: '/settings/profiles', match: '/settings', label: copy.nav.settings, icon: Settings, mobile: false },

@@ -1,6 +1,7 @@
-// P9 시나리오 (SPEC §15.11 P9): 회사 설정(사업자번호 → 이름 자동) → 우리 수주 현황 → 업체 검색 → 낙찰 목록.
+// P9·P10 시나리오 (SPEC §15.11): 회사 설정(사업자번호 → 이름 자동) → 우리 수주 현황 → 업체 검색 → 낙찰 목록
+// → 우리 회사와 비교(강점·약점·판정 표) → 경쟁사 레이더 → 관심 경쟁사 추가·빼기.
 // 데이터: backend `python -m scripts.seed_e2e`(낙찰 5건, 수집 범위 400일). 외부 호출 없음.
-// 화면 캡처는 test-results/p9-*.png (git 제외).
+// 화면 캡처는 test-results/p9-*.png, p10-*.png (git 제외).
 import { expect, test } from '@playwright/test'
 import { copy } from '../src/copy'
 
@@ -55,6 +56,26 @@ test('회사 설정부터 업체 검색 낙찰 목록까지', async ({ page }) =
   // 새로고침해도 같은 업체가 열린다(URL 동기화)
   await page.reload()
   await expect(page.getByText('E2E 데이터 품질 진단')).toBeVisible()
+
+  // P10: 우리 회사와 비교 — 맨 위 강점·약점, 판정 배지는 글자와 함께
+  await page.getByRole('link', { name: copy.competitors.compareWithUs }).click()
+  await page.waitForURL('**/competitors/2345678901')
+  await expect(page.getByRole('heading', { name: copy.competitors.strengths })).toBeVisible()
+  await expect(page.getByRole('heading', { name: copy.competitors.weaknesses })).toBeVisible()
+  const countRow = page.locator('[data-row="count"]')
+  await expect(countRow).toContainText(copy.competitors.verdicts.up) // 시드: 우리 3건 vs 가온 2건 → +33%
+  await page.screenshot({ path: 'test-results/p10-compare.png', fullPage: true })
+
+  // 경쟁사 레이더 → 관심 경쟁사 추가 → 목록에서 빼기(다시 돌려도 같은 상태)
+  await page.getByRole('link', { name: copy.nav.competitors }).click()
+  await page.waitForURL('**/competitors')
+  const rival = page.locator('[data-candidates] tbody tr', { hasText: '가온데이터시스템(주)' })
+  await expect(rival).toBeVisible()
+  await rival.getByRole('button', { name: copy.competitors.watchAdd }).click()
+  await expect(page.locator('[data-watch-list]')).toContainText('가온데이터시스템(주)')
+  await page.screenshot({ path: 'test-results/p10-radar.png', fullPage: true })
+  await page.locator('[data-watch-list]').getByRole('button', { name: copy.competitors.watchRemove }).click()
+  await expect(page.getByText(copy.competitors.noWatched)).toBeVisible()
 
   expect(errors).toEqual([])
 })

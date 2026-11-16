@@ -458,6 +458,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/compare/{bizno}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Compare */
+        get: operations["get_compare_api_v1_compare__bizno__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/competitors/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Candidates */
+        get: operations["get_candidates_api_v1_competitors_candidates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/competitors/watch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Watched */
+        get: operations["get_watched_api_v1_competitors_watch_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/competitors/watch/{bizno}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Watched
+         * @description 관심 경쟁사 등록(서비스 전체 공유, 이미 있으면 그대로).
+         */
+        put: operations["put_watched_api_v1_competitors_watch__bizno__put"];
+        post?: never;
+        /** Delete Watched */
+        delete: operations["delete_watched_api_v1_competitors_watch__bizno__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/bids/search": {
         parameters: {
             query?: never;
@@ -1340,6 +1412,34 @@ export interface components {
              */
             period: string | null;
         };
+        /** CandidateListOut */
+        CandidateListOut: {
+            period: components["schemas"]["PeriodOut"];
+            us: components["schemas"]["CompanyRefOut"];
+            /** Our Count */
+            our_count: number;
+            /** Items */
+            items: components["schemas"]["CandidateOut"][];
+        };
+        /** CandidateOut */
+        CandidateOut: {
+            /** Bizno */
+            bizno: string;
+            /** Name */
+            name: string;
+            /** Overlap */
+            overlap: number;
+            /** Org Overlap */
+            org_overlap: number;
+            /** Field Overlap */
+            field_overlap: number;
+            /** Award Count */
+            award_count: number;
+            /** Last Award At */
+            last_award_at: string | null;
+            /** Watched */
+            watched: boolean;
+        };
         /** CollectorRunIn */
         CollectorRunIn: {
             /**
@@ -1465,6 +1565,13 @@ export interface components {
              */
             reclassify_started: boolean;
         };
+        /** CompanyRefOut */
+        CompanyRefOut: {
+            /** Bizno */
+            bizno: string;
+            /** Name */
+            name: string;
+        };
         /** CompanySearchOut */
         CompanySearchOut: {
             /** Items */
@@ -1485,6 +1592,46 @@ export interface components {
              * @default 5
              */
             backfill_years: number;
+        };
+        /** CompareCoverageOut */
+        CompareCoverageOut: {
+            /** Complete From */
+            complete_from: string | null;
+            /** Collecting */
+            collecting: boolean;
+        };
+        /** CompareOut */
+        CompareOut: {
+            period: components["schemas"]["PeriodOut"];
+            /** Note */
+            note: string;
+            us: components["schemas"]["CompanyRefOut"];
+            them: components["schemas"]["CompanyRefOut"];
+            /** Verdicts */
+            verdicts: components["schemas"]["VerdictOut"][];
+            /** Strengths */
+            strengths: string[];
+            /** Weaknesses */
+            weaknesses: string[];
+            coverage: components["schemas"]["CompareCoverageOut"];
+            head_to_head: components["schemas"]["HeadToHeadOut"];
+            /** By Year */
+            by_year: components["schemas"]["CompareYearOut"][];
+            /** Shared Orgs */
+            shared_orgs: components["schemas"]["SharedOrgOut"][];
+            /** Watched */
+            watched: boolean;
+        };
+        /** CompareYearOut */
+        CompareYearOut: {
+            /** Year */
+            year: number;
+            /** Us */
+            us: number | null;
+            /** Them */
+            them: number | null;
+            /** Collecting */
+            collecting: boolean;
         };
         /** ConversationIn */
         ConversationIn: {
@@ -1755,6 +1902,15 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HeadToHeadOut */
+        HeadToHeadOut: {
+            /** Matched */
+            matched: number;
+            /** Us Wins */
+            us_wins: number;
+            /** Them Wins */
+            them_wins: number;
         };
         /** JoinIn */
         JoinIn: {
@@ -2302,6 +2458,17 @@ export interface components {
              */
             created_at: string;
         };
+        /** SharedOrgOut */
+        SharedOrgOut: {
+            /** Dminstt Cd */
+            dminstt_cd: string;
+            /** Dminstt Name */
+            dminstt_name: string | null;
+            /** Us */
+            us: number;
+            /** Them */
+            them: number;
+        };
         /** TeamIn */
         TeamIn: {
             /** Name */
@@ -2396,6 +2563,29 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /** VerdictOut */
+        VerdictOut: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Us */
+            us: number | null;
+            /** Them */
+            them: number | null;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "up" | "same" | "down" | "info";
+            /**
+             * Rule
+             * @enum {string}
+             */
+            rule: "ratio_20" | "field_2x" | "head_to_head" | "info";
+            /** Small Sample */
+            small_sample: boolean;
+        };
         /** VerifyOut */
         VerifyOut: {
             /**
@@ -2403,6 +2593,27 @@ export interface components {
              * @enum {string}
              */
             status: "pending_verification" | "pending_approval" | "active" | "disabled";
+        };
+        /** WatchedListOut */
+        WatchedListOut: {
+            /** Items */
+            items: components["schemas"]["WatchedOut"][];
+        };
+        /** WatchedOut */
+        WatchedOut: {
+            /** Bizno */
+            bizno: string;
+            /** Name */
+            name: string;
+            /**
+             * Added At
+             * Format: date-time
+             */
+            added_at: string;
+            /** Award Count */
+            award_count: number;
+            /** Last Award At */
+            last_award_at: string | null;
         };
         /** YearProgressOut */
         YearProgressOut: {
@@ -3464,6 +3675,150 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AwardSummaryOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_compare_api_v1_compare__bizno__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bizno: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompareOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_candidates_api_v1_competitors_candidates_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                field?: string | null;
+                org?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_watched_api_v1_competitors_watch_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchedListOut"];
+                };
+            };
+        };
+    };
+    put_watched_api_v1_competitors_watch__bizno__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bizno: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchedListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_watched_api_v1_competitors_watch__bizno__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bizno: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

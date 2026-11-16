@@ -207,7 +207,7 @@ class Summary:
     by_field: list[FieldRow] = field(default_factory=list)
 
 
-def _in_period(bizno: str, p: Period) -> list[ColumnElement[bool]]:
+def period_conds(bizno: str, p: Period) -> list[ColumnElement[bool]]:
     """이 업체 · 센 기간(등록일시) 조건."""
     return [
         BidAward.bizno == bizno,
@@ -231,7 +231,7 @@ async def summarize(s: AsyncSession, bizno: str, p: Period) -> Summary:
                     func.count().filter(BidAward.is_joint),
                     func.min(BidAward.registered_at),
                     func.max(BidAward.registered_at),
-                ).where(*_in_period(bizno, p))
+                ).where(*period_conds(bizno, p))
             )
         ).one()
         (n, total, orgs, rate_med, ratio_med, ratio_n, joint, first, last) = row
@@ -251,7 +251,7 @@ async def summarize(s: AsyncSession, bizno: str, p: Period) -> Summary:
                         func.count(),
                         func.coalesce(func.sum(BidAward.award_amount), 0),
                     )
-                    .where(*_in_period(bizno, p))
+                    .where(*period_conds(bizno, p))
                     .group_by(BidAward.dminstt_cd)
                     .order_by(func.count().desc(), func.max(BidAward.dminstt_name))
                     .limit(TOP_ORGS)
@@ -259,7 +259,7 @@ async def summarize(s: AsyncSession, bizno: str, p: Period) -> Summary:
             ).all()
         ]
         tag = func.unnest(BidAward.fields).label("tag")
-        sub = select(tag).where(*_in_period(bizno, p)).subquery()
+        sub = select(tag).where(*period_conds(bizno, p)).subquery()
         out.by_field = [
             FieldRow(t, int(c))
             for t, c in (
@@ -270,11 +270,11 @@ async def summarize(s: AsyncSession, bizno: str, p: Period) -> Summary:
                 )
             ).all()
         ]
-    out.by_year = await _by_year(s, bizno, p)
+    out.by_year = await count_by_year(s, bizno, p)
     return out
 
 
-async def _by_year(s: AsyncSession, bizno: str, p: Period) -> list[YearRow]:
+async def count_by_year(s: AsyncSession, bizno: str, p: Period) -> list[YearRow]:
     counted: dict[int, tuple[int, int]] = {}
     if p.eff_from is not None:
         year = func.extract("year", func.timezone("Asia/Seoul", BidAward.registered_at))
@@ -283,7 +283,7 @@ async def _by_year(s: AsyncSession, bizno: str, p: Period) -> list[YearRow]:
             for y, c, a in (
                 await s.execute(
                     select(year, func.count(), func.coalesce(func.sum(BidAward.award_amount), 0))
-                    .where(*_in_period(bizno, p))
+                    .where(*period_conds(bizno, p))
                     .group_by(year)
                 )
             ).all()
@@ -351,7 +351,7 @@ async def list_awards(
     if org:
         conds.append(BidAward.dminstt_cd == org)
     total = await s.scalar(
-        select(func.count()).select_from(BidAward).where(*_in_period(bizno, p), *conds)
+        select(func.count()).select_from(BidAward).where(*period_conds(bizno, p), *conds)
     )
     page_conds = list(conds)
     if cursor is not None:
@@ -364,7 +364,7 @@ async def list_awards(
         )
     stmt = (
         select(BidAward, Bid.id)
-        .where(*_in_period(bizno, p))
+        .where(*period_conds(bizno, p))
         .outerjoin(Bid, Bid.bid_key == literal("regular:") + BidAward.bid_ntce_no)
         .where(*page_conds)
         .order_by(BidAward.registered_at.desc(), BidAward.id.desc())

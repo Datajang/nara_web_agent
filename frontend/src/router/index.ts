@@ -76,6 +76,16 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/CompaniesView.vue'),
         meta: { title: copy.nav.companies },
       },
+      {
+        path: 'competitors',
+        component: () => import('@/views/CompetitorsView.vue'),
+        meta: { title: copy.competitors.title },
+      },
+      {
+        path: 'competitors/:bizno(\\d{10})',
+        component: () => import('@/views/CompareView.vue'),
+        meta: { title: copy.competitors.compareTitle },
+      },
       // §15.7의 /company는 관리 영역 하위 메뉴와 맞춰 /admin/company에 둔다
       { path: 'company', redirect: '/admin/company' },
       {

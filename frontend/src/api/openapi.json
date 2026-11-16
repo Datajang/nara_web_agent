@@ -1342,6 +1342,227 @@
         }
       }
     },
+    "/api/v1/compare/{bizno}": {
+      "get": {
+        "tags": [
+          "competitors"
+        ],
+        "summary": "Get Compare",
+        "operationId": "get_compare_api_v1_compare__bizno__get",
+        "parameters": [
+          {
+            "name": "bizno",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{10}$",
+              "title": "Bizno"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompareOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/competitors/candidates": {
+      "get": {
+        "tags": [
+          "competitors"
+        ],
+        "summary": "Get Candidates",
+        "operationId": "get_candidates_api_v1_competitors_candidates_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "field",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 30
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Field"
+            }
+          },
+          {
+            "name": "org",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 20
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Org"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateListOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/competitors/watch": {
+      "get": {
+        "tags": [
+          "competitors"
+        ],
+        "summary": "Get Watched",
+        "operationId": "get_watched_api_v1_competitors_watch_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchedListOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/competitors/watch/{bizno}": {
+      "put": {
+        "tags": [
+          "competitors"
+        ],
+        "summary": "Put Watched",
+        "description": "관심 경쟁사 등록(서비스 전체 공유, 이미 있으면 그대로).",
+        "operationId": "put_watched_api_v1_competitors_watch__bizno__put",
+        "parameters": [
+          {
+            "name": "bizno",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{10}$",
+              "title": "Bizno"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchedListOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "competitors"
+        ],
+        "summary": "Delete Watched",
+        "operationId": "delete_watched_api_v1_competitors_watch__bizno__delete",
+        "parameters": [
+          {
+            "name": "bizno",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{10}$",
+              "title": "Bizno"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/bids/search": {
       "post": {
         "tags": [
@@ -4079,6 +4300,91 @@
         "title": "BudgetContract",
         "type": "object"
       },
+      "CandidateListOut": {
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/PeriodOut"
+          },
+          "us": {
+            "$ref": "#/components/schemas/CompanyRefOut"
+          },
+          "our_count": {
+            "type": "integer",
+            "title": "Our Count"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "us",
+          "our_count",
+          "items"
+        ],
+        "title": "CandidateListOut"
+      },
+      "CandidateOut": {
+        "properties": {
+          "bizno": {
+            "type": "string",
+            "title": "Bizno"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "overlap": {
+            "type": "number",
+            "title": "Overlap"
+          },
+          "org_overlap": {
+            "type": "number",
+            "title": "Org Overlap"
+          },
+          "field_overlap": {
+            "type": "number",
+            "title": "Field Overlap"
+          },
+          "award_count": {
+            "type": "integer",
+            "title": "Award Count"
+          },
+          "last_award_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Award At"
+          },
+          "watched": {
+            "type": "boolean",
+            "title": "Watched"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bizno",
+          "name",
+          "overlap",
+          "org_overlap",
+          "field_overlap",
+          "award_count",
+          "last_award_at",
+          "watched"
+        ],
+        "title": "CandidateOut"
+      },
       "CollectorRunIn": {
         "properties": {
           "mode": {
@@ -4401,6 +4707,24 @@
         "title": "CompanyOut",
         "description": "GET /company: 우리 회사 설정과 수집 현황."
       },
+      "CompanyRefOut": {
+        "properties": {
+          "bizno": {
+            "type": "string",
+            "title": "Bizno"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bizno",
+          "name"
+        ],
+        "title": "CompanyRefOut"
+      },
       "CompanySearchOut": {
         "properties": {
           "items": {
@@ -4470,6 +4794,152 @@
         },
         "type": "object",
         "title": "CompanySettingsIn"
+      },
+      "CompareCoverageOut": {
+        "properties": {
+          "complete_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Complete From"
+          },
+          "collecting": {
+            "type": "boolean",
+            "title": "Collecting"
+          }
+        },
+        "type": "object",
+        "required": [
+          "complete_from",
+          "collecting"
+        ],
+        "title": "CompareCoverageOut"
+      },
+      "CompareOut": {
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/PeriodOut"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          },
+          "us": {
+            "$ref": "#/components/schemas/CompanyRefOut"
+          },
+          "them": {
+            "$ref": "#/components/schemas/CompanyRefOut"
+          },
+          "verdicts": {
+            "items": {
+              "$ref": "#/components/schemas/VerdictOut"
+            },
+            "type": "array",
+            "title": "Verdicts"
+          },
+          "strengths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Strengths"
+          },
+          "weaknesses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Weaknesses"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/CompareCoverageOut"
+          },
+          "head_to_head": {
+            "$ref": "#/components/schemas/HeadToHeadOut"
+          },
+          "by_year": {
+            "items": {
+              "$ref": "#/components/schemas/CompareYearOut"
+            },
+            "type": "array",
+            "title": "By Year"
+          },
+          "shared_orgs": {
+            "items": {
+              "$ref": "#/components/schemas/SharedOrgOut"
+            },
+            "type": "array",
+            "title": "Shared Orgs"
+          },
+          "watched": {
+            "type": "boolean",
+            "title": "Watched"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "note",
+          "us",
+          "them",
+          "verdicts",
+          "strengths",
+          "weaknesses",
+          "coverage",
+          "head_to_head",
+          "by_year",
+          "shared_orgs",
+          "watched"
+        ],
+        "title": "CompareOut"
+      },
+      "CompareYearOut": {
+        "properties": {
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          },
+          "us": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Us"
+          },
+          "them": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Them"
+          },
+          "collecting": {
+            "type": "boolean",
+            "title": "Collecting"
+          }
+        },
+        "type": "object",
+        "required": [
+          "year",
+          "us",
+          "them",
+          "collecting"
+        ],
+        "title": "CompareYearOut"
       },
       "ConversationIn": {
         "properties": {
@@ -5190,6 +5660,29 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HeadToHeadOut": {
+        "properties": {
+          "matched": {
+            "type": "integer",
+            "title": "Matched"
+          },
+          "us_wins": {
+            "type": "integer",
+            "title": "Us Wins"
+          },
+          "them_wins": {
+            "type": "integer",
+            "title": "Them Wins"
+          }
+        },
+        "type": "object",
+        "required": [
+          "matched",
+          "us_wins",
+          "them_wins"
+        ],
+        "title": "HeadToHeadOut"
       },
       "JoinIn": {
         "properties": {
@@ -6679,6 +7172,41 @@
         ],
         "title": "SearchRunOut"
       },
+      "SharedOrgOut": {
+        "properties": {
+          "dminstt_cd": {
+            "type": "string",
+            "title": "Dminstt Cd"
+          },
+          "dminstt_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dminstt Name"
+          },
+          "us": {
+            "type": "integer",
+            "title": "Us"
+          },
+          "them": {
+            "type": "integer",
+            "title": "Them"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dminstt_cd",
+          "dminstt_name",
+          "us",
+          "them"
+        ],
+        "title": "SharedOrgOut"
+      },
       "TeamIn": {
         "properties": {
           "name": {
@@ -6906,6 +7434,75 @@
         ],
         "title": "ValidationError"
       },
+      "VerdictOut": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "us": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Us"
+          },
+          "them": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Them"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "up",
+              "same",
+              "down",
+              "info"
+            ],
+            "title": "Verdict"
+          },
+          "rule": {
+            "type": "string",
+            "enum": [
+              "ratio_20",
+              "field_2x",
+              "head_to_head",
+              "info"
+            ],
+            "title": "Rule"
+          },
+          "small_sample": {
+            "type": "boolean",
+            "title": "Small Sample"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "us",
+          "them",
+          "verdict",
+          "rule",
+          "small_sample"
+        ],
+        "title": "VerdictOut"
+      },
       "VerifyOut": {
         "properties": {
           "status": {
@@ -6924,6 +7521,64 @@
           "status"
         ],
         "title": "VerifyOut"
+      },
+      "WatchedListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WatchedOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "WatchedListOut"
+      },
+      "WatchedOut": {
+        "properties": {
+          "bizno": {
+            "type": "string",
+            "title": "Bizno"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "added_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Added At"
+          },
+          "award_count": {
+            "type": "integer",
+            "title": "Award Count"
+          },
+          "last_award_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Award At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bizno",
+          "name",
+          "added_at",
+          "award_count",
+          "last_award_at"
+        ],
+        "title": "WatchedOut"
       },
       "YearProgressOut": {
         "properties": {

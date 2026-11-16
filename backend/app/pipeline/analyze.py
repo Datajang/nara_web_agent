@@ -42,6 +42,11 @@ def _bullets(items: list[str]) -> str:
     return "\n".join(f"- {x}" for x in items) if items else "- 문서에서 확인되지 않음"
 
 
+def is_brief(profile_text: str, min_chars: int) -> bool:
+    """팀 소개(정규화 후)가 짧으면 간략 분석 + '프로필을 더 상세히' 안내 (2026-11-16)."""
+    return len(normalize_profile(profile_text)) < min_chars
+
+
 def render_markdown(r: AnalysisResult) -> str:
     """§7.5 화면 순서와 같은 순서의 마크다운 (내보내기·북마크 미리보기용, v10)."""
     u, fit, needs = r.understanding, r.fit, r.team_needs
@@ -95,17 +100,20 @@ async def get_or_create_analysis(
         expected_s=deps.settings.analyze_expected_s,
     )
 
+    brief = is_brief(profile_text, deps.settings.profile_min_chars)
+
     async def compute() -> Analysis:
         async with deps.db.session() as s:
             bid = await s.get_one(Bid, bid_id)
         msgs = render(
             "analyze_bid",
             profile_description=normalize_profile(profile_text),
+            profile_detail="brief" if brief else "detailed",
             meta=json.dumps(bid_meta(bid), ensure_ascii=False),
             bid_summary_json=json.dumps(summary.summary, ensure_ascii=False),
         )
         out = await generate(llm, "analyze_bid", msgs, AnalysisOut)
-        result = AnalysisResult(**out.model_dump())
+        result = AnalysisResult(**out.model_dump(), profile_brief=brief)
         _, docs, _ = await source_inputs(deps, bid)
         for k in result.risks:
             k.source = known_source(k.source, [d.name for d in docs])

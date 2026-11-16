@@ -30,7 +30,7 @@ def test_data_cannot_close_the_delimiter():
 
 
 def test_prompt_version_has_model_suffix():
-    assert prompt_version(PROMPT_VERSION, "q35-9b") == "v9+q35-9b"
+    assert prompt_version(PROMPT_VERSION, "q35-9b") == "v10+q35-9b"
 
 
 def test_analysis_uses_the_same_score_rubric_as_batch_scoring():
@@ -41,3 +41,12 @@ def test_analysis_uses_the_same_score_rubric_as_batch_scoring():
     assert len(rubric) == 4
     for ln in rubric:
         assert ln in PROMPTS["analyze_bid"].system, ln
+
+
+def test_analysis_prompt_explains_v10_sections():
+    """v10: 사업 이해·필요한 것·프로필 보완. 금액·날짜는 요약 카드에 있으니 쓰지 않는다."""
+    system, user = PROMPTS["analyze_bid"].system, PROMPTS["analyze_bid"].user
+    assert "<profile_detail>{profile_detail}</profile_detail>" in user
+    for word in ("understanding", "team_needs", "profile_missing", "brief", "3개 이하"):
+        assert word in system, word
+    assert "requirements와 risks" not in system  # 예전 규칙(요구사항 근거)이 남지 않음

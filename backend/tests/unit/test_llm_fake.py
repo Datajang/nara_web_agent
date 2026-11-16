@@ -42,6 +42,7 @@ async def test_default_outputs_validate_against_schemas():
         render(
             "analyze_bid",
             profile_description="AI 개발",
+            profile_detail="brief",
             meta=meta,
             bid_summary_json=summary.model_dump_json(),
         ),

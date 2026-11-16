@@ -364,3 +364,25 @@ async def test_assistant_analyze_tool_reads_the_new_analysis(deps, fake_llm):
     payload = json.loads(out.text)
     assert payload["purpose"] and "overview" not in payload
     assert set(payload["fit"]) == {"score", "verdict"}
+
+
+@pytest.mark.parametrize("n,brief", [(199, True), (200, False)])
+async def test_profile_brief_threshold(deps, fake_llm, n, brief):
+    """팀 소개(정규화 후)가 profile_min_chars(200) 미만이면 간략 분석 + 안내 (2026-11-16)."""
+    bid_id = await _bid(deps, no=f"R26BK0000099{n % 10}")
+    profile = "가" * n
+    a, _ = await get_or_create_analysis(deps, bid_id, profile)
+    assert a.result["profile_brief"] is brief
+    _, msgs = next(p for p in reversed(fake_llm.payloads) if p[0] == "analyze_bid")
+    detail = "brief" if brief else "detailed"
+    assert f"<profile_detail>{detail}</profile_detail>" in msgs[1]["content"]
+
+
+async def test_analysis_has_only_new_sections(deps, fake_llm):
+    """v10: 요약 카드와 겹치는 요구사항·평가·일정·예산은 분석에 없다."""
+    bid_id = await _bid(deps)
+    a, _ = await get_or_create_analysis(deps, bid_id, PROFILE)
+    assert set(a.result) == {
+        "understanding", "fit", "team_needs", "profile_missing",
+        "risks", "next_actions", "warnings", "profile_brief",
+    }  # fmt: skip

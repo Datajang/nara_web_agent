@@ -9,6 +9,9 @@
    카드도 남은 ID로만 만든다. 지운 ID는 warnings로 messages.parts에 남긴다.
 6. 텍스트 조각만 token으로 내보내고 도구 인자·결과는 클라이언트로 보내지 않는다.
 7. 도구 호출을 해석하지 못하면 도구 없이 답하게 하고 검색 탭 안내 문장을 덧붙인다.
+8. 낙찰·경쟁사 도구(§15.8)를 쓴 답은 숫자를 도구 결과와 대조한다(explain_check, 해설과 같은 검증기).
+   스트리밍이라 지울 수는 없어서, 맞지 않는 숫자·글로 쓴 배수가 있으면 확인 안내를 덧붙이고
+   warnings에 남긴다 (2026-11-16 실제 모델: 억 단위 변환 오류·'2배' 같은 계산이 나옴).
 """
 
 from __future__ import annotations
@@ -19,6 +22,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.analysis.explain_check import multipliers, unsupported
 from app.llm import usage
 from app.llm.base import LLMClient, Message, StreamUsage, TextDelta, ToolCall, ToolCalls
 from app.llm.prompts import fence, system_text
@@ -28,6 +32,11 @@ MAX_ROUNDS = 4
 HISTORY = 12
 PROFILE_CHARS = 500
 FALLBACK_HINT = "도구를 쓰지 못해 일반 답변으로 대신했어요. 정확한 공고는 검색 탭에서 찾아 주세요."
+NUMBER_HINT = (
+    "※ 위 답의 일부 숫자는 조회 결과와 맞는지 확인되지 않았어요. 정확한 값은 '업체 검색'·'경쟁사' "
+    "화면에서 확인해 주세요."
+)
+NUMBER_CHECKED = frozenset({"search_companies", "get_company_awards", "compare_companies"})
 _REF = re.compile(r"(\[)?(?<![A-Za-z0-9])b(\d+)(?![0-9])(?(1)\]|)")
 _TAIL = re.compile(r"(\[?(?<![A-Za-z0-9])b\d*|\[)$")
 
@@ -93,18 +102,24 @@ TOOLS: list[dict[str, Any]] = [
     ),
     _schema(
         "get_company_awards",
-        "업체의 낙찰 요약과 최근 낙찰 목록을 본다. bizno를 빼면 우리 회사",
+        "업체의 낙찰 요약과 최근 낙찰 목록을 본다. 업체는 bizno(사업자번호) 또는 name(업체명). "
+        "둘 다 빼면 우리 회사",
         {
             "bizno": {"type": "string", "pattern": "^[0-9]{10}$"},
+            "name": {"type": "string", "maxLength": 100},
             "limit": {"type": "integer", "minimum": 1, "maximum": 20},
         },
         [],
     ),
     _schema(
         "compare_companies",
-        "우리 회사와 다른 업체의 낙찰을 비교한 항목별 판정(규칙으로 계산)을 본다",
-        {"bizno": {"type": "string", "pattern": "^[0-9]{10}$"}},
-        ["bizno"],
+        "우리 회사(설정돼 있어 따로 주지 않음)와 다른 업체의 낙찰을 비교한 항목별 판정"
+        "(규칙으로 계산)을 본다. 상대 업체는 bizno(사업자번호) 또는 name(업체명)",
+        {
+            "bizno": {"type": "string", "pattern": "^[0-9]{10}$"},
+            "name": {"type": "string", "maxLength": 100},
+        },
+        [],
     ),
     _schema(
         "navigate",
@@ -230,6 +245,7 @@ async def run_turn(
     actions: list[dict[str, Any]] = []
     removed: list[str] = []
     emitted: list[str] = []
+    checked: list[Any] = []  # 숫자를 대조할 도구 결과(낙찰·경쟁사)
     fallback = False
 
     def out(text: str) -> None:
@@ -316,16 +332,28 @@ async def run_turn(
             if outcome.action is not None:
                 actions.append(outcome.action)
             tool_log.append({"name": call.name, "args": args, "summary": outcome.summary})
+            if call.name in NUMBER_CHECKED:
+                try:
+                    checked.append(json.loads(outcome.text))
+                except ValueError:
+                    checked.append(outcome.text)
             messages.append(_tool_message(call.id, outcome.text))
 
     if fallback:
         out(f"\n\n{FALLBACK_HINT}")
+    number_warnings: list[str] = []
+    if checked:
+        answer = "".join(emitted)
+        bad = [*unsupported([answer], checked), *multipliers([answer])]
+        if bad:
+            out(f"\n\n{NUMBER_HINT}")
+            number_warnings.append(f"조회 결과에 없는 숫자·표현: {', '.join(bad[:10])}")
     content = "".join(emitted)
     cards = [int(m.group(2)) for m in _REF.finditer(content) if int(m.group(2)) in seen]
     return TurnResult(
         content=content,
         card_ids=list(dict.fromkeys(cards)),
-        warnings=[f"존재하지 않는 공고 ID 제거: {r}" for r in removed],
+        warnings=[f"존재하지 않는 공고 ID 제거: {r}" for r in removed] + number_warnings,
         tool_log=tool_log,
         actions=actions,
     )

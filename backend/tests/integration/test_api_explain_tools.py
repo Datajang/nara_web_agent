@@ -60,9 +60,13 @@ async def test_explain_uses_only_compare_json_and_every_number_is_in_it(full_api
     ev, events = await _explain(a)
     await a.aclose()
     assert ev["verified"] is True and ev["explanation"]["points"]
-    # 모델 입력 = 비교 응답(화면 상태 watched 제외), 다른 데이터 없음
+    # 모델 입력 = 비교 응답(화면 상태 watched 제외, 기간은 실제로 센 범위만), 다른 데이터 없음
     sent = _input_of(fake_llm)
-    assert sent == {k: v for k, v in compare.items() if k != "watched"}
+    p = compare["period"]
+    assert sent["period"] == {k: p[k] for k in ("counted_from", "counted_to", "collecting")}
+    assert {k: v for k, v in sent.items() if k != "period"} == {
+        k: v for k, v in compare.items() if k not in ("watched", "period")
+    }
     assert "compare_json" in PROMPTS["compare_explain"].user
     texts = [ev["explanation"]["summary"], *ev["explanation"]["points"]]
     assert unsupported(texts, sent) == []
@@ -122,3 +126,40 @@ async def test_assistant_company_tools_match_api(full_api):
     short = json.loads((await run("search_companies", {"q": "가"})).text)
     assert "error" in same and "error" in missing and "error" in short
     assert (await run("compare_companies", {"bizno": OTHER})).summary.startswith("compare_")
+
+
+async def test_company_tools_resolve_names_like_the_real_model_sends(full_api):
+    """실제 모델은 이름만 알 때 compare_companies에 이름을 넣는다 → 업체 검색으로 찾는다."""
+    a = await _setup(full_api)
+    api_compare = (await a.get(f"/api/v1/compare/{THEM}")).json()
+    api_summary = (await a.get(f"/api/v1/companies/{THEM}")).json()
+    await a.aclose()
+    run = make_executor(full_api.ctx.deps, 1, None)
+    by_name = json.loads((await run("compare_companies", {"name": "가온"})).text)
+    awards = json.loads((await run("get_company_awards", {"name": "가온"})).text)
+    missing = json.loads((await run("compare_companies", {"name": "없는업체이름"})).text)
+    assert by_name == api_compare and awards["summary"] == api_summary
+    assert "error" in missing and missing["candidates"] == []
+
+
+async def test_second_failure_drops_only_bad_points_when_enough_remain(full_api, fake_llm):
+    """두 번째도 걸리면 걸린 point만 뺀다(요약이 깨끗하고 깨끗한 point가 2개 이상일 때)."""
+    a = await _setup(full_api)
+    three = json.dumps(
+        {
+            "summary": "가온과 비교했어요.",
+            "points": [
+                "낙찰 건수는 3건 대 5건이에요.",
+                "파트너가 4.7곳이에요.",
+                "수요기관 수는 2곳 대 1곳이에요.",
+            ],
+        }
+    )
+    fake_llm.queue("compare_explain", three, three)
+    ev, _ = await _explain(a)
+    await a.aclose()
+    assert ev["verified"] is True
+    assert ev["explanation"]["points"] == [
+        "낙찰 건수는 3건 대 5건이에요.",
+        "수요기관 수는 2곳 대 1곳이에요.",
+    ]

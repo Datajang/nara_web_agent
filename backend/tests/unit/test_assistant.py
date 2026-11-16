@@ -184,3 +184,36 @@ def test_tool_registry_is_exactly_nine_read_only_tools():
     for t in TOOLS:
         name = t["function"]["name"]
         assert not any(w in name for w in writes), name
+
+
+# ---------- 낙찰·경쟁사 도구 답의 숫자 대조 (§15.8, 2026-11-16 실제 모델에서 발견) ----------
+
+COMPARE_RESULT = {"verdicts": [{"key": "amount_avg", "us": 1208634929, "them": 678086857}]}
+
+
+async def _company_turn(answer: str):
+    from app.llm.assistant import NUMBER_HINT
+
+    async def execute(name, args):
+        return ToolOutcome(text=json.dumps(COMPARE_RESULT), summary=name)
+
+    llm = FakeLLM()
+    llm.script_chat(tool_round("compare_companies", {"name": "경동"}), answer)
+    result, events = await _turn(llm, execute)
+    return result, _tokens(events), NUMBER_HINT
+
+
+async def test_company_answer_with_numbers_from_tools_has_no_warning():
+    result, text, hint = await _company_turn(
+        "평균은 우리 1,208,634,929원, 상대 678,086,857원이에요."
+    )
+    assert hint not in text and result.warnings == []
+
+
+async def test_company_answer_with_converted_or_derived_numbers_gets_warning():
+    # 실제 모델 사례: 1,208,634,929원을 '12억 8,634만'으로 잘못 바꾸고 '1.8배'처럼 새로 계산함
+    result, text, hint = await _company_turn(
+        "평균은 12억 8,634만원으로 상대보다 1.8배, 두 배 가까이"
+    )
+    assert text.endswith(hint)
+    assert "12억 8,634만" in result.warnings[0] and "두 배" in result.warnings[0]

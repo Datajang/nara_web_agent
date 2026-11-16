@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import select
 
 from app.awards import views
+from app.awards.mapper import normalize_name
 from app.bids.meta import budget_text, kst_text
 from app.db.models import Bid, BidSummary, Profile
 from app.deps import Deps
@@ -52,13 +53,24 @@ class CompanyQueryArgs(BaseModel):
     q: str = Field(min_length=1, max_length=100)
 
 
-class CompanyAwardsArgs(BaseModel):
+class CompanyRef(BaseModel):
+    """업체 지정: 사업자번호 또는 업체명. 실제 모델은 이름만 알 때 이름을 넣는다(2026-11-16)."""
+
     bizno: str | None = Field(default=None, pattern=r"^\d{10}$")
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+
+
+class CompanyAwardsArgs(CompanyRef):
     limit: int = Field(default=10, ge=1, le=20)
 
 
-class CompareArgs(BaseModel):
-    bizno: str = Field(pattern=r"^\d{10}$")
+class CompareArgs(CompanyRef):
+    pass
+
+
+class Ambiguous(Exception):
+    def __init__(self, payload: dict[str, Any]) -> None:
+        self.payload = payload
 
 
 class NavigateArgs(BaseModel):
@@ -123,8 +135,34 @@ def make_executor(deps: Deps, user_id: int, profile: TurnProfile | None) -> Tool
                 json.dumps({"error": e.message}, ensure_ascii=False), summary=f"{name}: {e.code}"
             )
 
+    async def _resolve(s: Any, ref: CompanyRef) -> str | None:
+        """업체명이면 업체 검색으로 사업자번호를 찾는다. 하나로 정해지지 않으면 후보를 돌려준다."""
+        if ref.bizno or not ref.name:
+            return ref.bizno
+        hits = (await views.company_search(s, deps, user_id, ref.name)).items
+        exact = [h for h in hits if normalize_name(h.name) == normalize_name(ref.name)]
+        pick = exact if len(exact) == 1 else hits
+        if len(pick) == 1:
+            return pick[0].bizno
+        raise Ambiguous(
+            {
+                "error": "업체가 여럿이에요. 후보의 사업자번호(bizno)로 다시 불러 주세요."
+                if hits
+                else "수집된 낙찰에서 그 이름의 업체를 찾지 못했어요.",
+                "candidates": [h.model_dump(mode="json") for h in hits[:5]],
+            }
+        )
+
     async def _company(name: str, args: dict[str, Any]) -> ToolOutcome:
         """낙찰·경쟁사 도구 (§15.8). API와 같은 서비스 함수·같은 응답 스키마(app.awards.views)."""
+        try:
+            return await _company_run(name, args)
+        except Ambiguous as e:
+            return ToolOutcome(
+                json.dumps(e.payload, ensure_ascii=False), summary=f"{name}: 업체 미확정"
+            )
+
+    async def _company_run(name: str, args: dict[str, Any]) -> ToolOutcome:
         async with deps.db.session() as s:
             if name == "search_companies":
                 q = CompanyQueryArgs.model_validate(args).q
@@ -135,7 +173,7 @@ def make_executor(deps: Deps, user_id: int, profile: TurnProfile | None) -> Tool
                 )
             if name == "get_company_awards":
                 ca = CompanyAwardsArgs.model_validate(args)
-                bizno, cname = await views.resolve_target(s, deps, ca.bizno)
+                bizno, cname = await views.resolve_target(s, deps, await _resolve(s, ca))
                 summary = await views.summary_out(s, deps, bizno, cname)
                 awards = await views.award_list(s, deps, bizno, limit=ca.limit)
                 payload = {
@@ -145,9 +183,12 @@ def make_executor(deps: Deps, user_id: int, profile: TurnProfile | None) -> Tool
                 text = _dump(payload, deps, payload["awards"]["items"])
                 return ToolOutcome(text, summary=f"get_company_awards: {bizno}")
             ref = CompareArgs.model_validate(args)
-            out = await views.compare_out(s, deps, ref.bizno)
+            them = await _resolve(s, ref)
+            if them is None:
+                raise ToolArgError("비교할 업체의 bizno 또는 name이 필요해요")
+            out = await views.compare_out(s, deps, them)
             payload = out.model_dump(mode="json", by_alias=True)
-            return ToolOutcome(_dump(payload, deps), summary=f"compare_companies: {ref.bizno}")
+            return ToolOutcome(_dump(payload, deps), summary=f"compare_companies: {them}")
 
     async def _run(name: str, args: dict[str, Any]) -> ToolOutcome:
         if name == "search_bids":

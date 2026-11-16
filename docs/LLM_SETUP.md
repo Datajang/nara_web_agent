@@ -32,6 +32,9 @@ uv run eval/smoke_llm.py --label fp8_warm_c8 --checks simple,concurrency --concu
 
 결과 원본: `eval/results/2026-11-11_smoke_{bf16,fp8}{,_warm_c8}.json`
 
+**접속 설정(2026-11-17 확인)**: v2는 `LLM_BASE_URL`(기본 `http://127.0.0.1:8011/v1`)·`LLM_API_KEY`만 읽는다. 서버는 띄울 때 준 `--api-key` 없이는 401.
+로컬 키는 `backend/.env`(gitignore)의 `LLM_API_KEY`. 루트 `.env`의 `VLLM_BASE_URL`(8002)·`VLLM_MODEL_NAME`(EXAONE)은 v1 값이라 v2는 쓰지 않는다.
+
 ## [미확인] 플래그 확인 결과
 
 | 플래그 | 결과 |

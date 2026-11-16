@@ -1,12 +1,14 @@
 """AI 해설 숫자 검증 (SPEC §15.8, §15.11 수용 기준 6). LLM 없이 정규식으로만.
 
 해설의 모든 숫자는 입력(GET /compare 응답 JSON)에 있는 값이어야 한다.
-- 글의 숫자를 값·정밀도로 읽는다: '7억' = 7×10⁸ ± 0.5×10⁸, '5.9억' ± 0.05×10⁸, '1억 2천만원'은 합,
-  '700,000,000원' ± 0.5. 표시 자릿수 안에서 입력 값과 같으면 통과(반올림한 표기 허용)
+- 글의 숫자를 값·표시 자릿수로 읽는다: '7억', '5.9억', '1억 2천만원'·'169억 2,088만 9,000원'은 합.
+  입력 값을 그 자릿수로 반올림하거나 버린 값이면 통과(x − 자릿수/2 ≤ 입력 < x + 자릿수).
+  '7억'은 6.5억~8억 미만이라 '8억'은 7억과 다르다 (실제 모델은 '약 4억 7,963만'처럼 버림이 흔함)
 - '%'가 붙은 숫자는 입력 값 그대로이거나 비율(0~1) × 100과 같아야 한다
-- 입력의 숫자: JSON의 수 전부 + 문자열 속 숫자(날짜 '2026-11-10'의 2026·11·10 등)
+- 입력의 숫자: JSON의 수 전부 + 문자열 속 숫자(날짜 '2026-11-10'·'2026-11-10T09:00'의 2026·11·10 등)
 - 영문·밑줄에 붙은 숫자('G2B', 'ratio_20')는 숫자로 보지 않는다
-- 권유·예측 표현(투찰하세요, 가능성 등)도 함께 막는다(§15.8 '권유를 하지 않고')
+- 권유·예측 표현(투찰하세요, 가능성 등)과 글로 쓴 배수('두 배', '배 가까이')도 함께 막는다
+  (§15.8 '권유를 하지 않고', 숫자를 새로 만들지 않음)
 """
 
 from __future__ import annotations
@@ -23,7 +25,11 @@ _TERM = re.compile(
     r"\s*(조|억|천만|백만|만|천)?"
 )
 _PCT = re.compile(r"\s*(%|퍼센트|프로)")
+_WON = re.compile(r"\s*원")
+_LIST_MARK = re.compile(r"(?m)^\s*\d{1,2}[.)]\s+")  # 마크다운 번호 목록 '3. …'은 숫자가 아니다
+_ISO_T = re.compile(r"(?<=\d)T(?=\d)")  # 2026-11-12T03:00 → 날짜·시각을 나눠 읽는다
 BANNED = ("투찰하", "투찰가", "투찰 가격", "가능성", "확률", "권합니다", "추천")
+_BANNED_RE = re.compile(r"(두|세|네|다섯|여러)\s?배|배\s?(가까이|이상|넘게|많|적|차이)")
 
 
 @dataclass(frozen=True)
@@ -46,9 +52,11 @@ def numbers(text: str) -> list[Num]:
         while j < len(ms):
             mm = ms[j]
             unit = _UNITS.get(mm.group(3) or "", 1)
+            # 단위 없는 끝자리('…만 9,000원')는 바로 뒤에 '원'이 있을 때만 앞 금액에 붙인다
+            tail = not mm.group(3) and bool(_WON.match(text, mm.end()))
             if j > i and (
                 last_unit is None
-                or not mm.group(3)
+                or (not mm.group(3) and not tail)
                 or unit >= last_unit
                 or text[ms[j - 1].end() : mm.start()].strip()
             ):
@@ -74,7 +82,7 @@ def _walk(v: Any, out: set[Decimal]) -> None:
     if isinstance(v, int | float):
         out.add(Decimal(str(v)))
     elif isinstance(v, str):
-        out.update(n.value for n in numbers(v))
+        out.update(n.value for n in numbers(_ISO_T.sub(" ", v)))
     elif isinstance(v, dict):
         for x in v.values():
             _walk(x, out)
@@ -89,12 +97,14 @@ def allowed_values(payload: Any) -> set[Decimal]:
     return out
 
 
+def _near(x: Decimal, p: Decimal, v: Decimal) -> bool:
+    """x(자릿수 p)가 v를 반올림하거나 버린 표기인가."""
+    return x - p / 2 <= v < x + p
+
+
 def _ok(n: Num, allowed: Iterable[Decimal]) -> bool:
-    half = n.precision / 2
     for v in allowed:
-        if abs(n.value - v) <= half:
-            return True
-        if n.pct and abs(n.value - v * 100) <= half:
+        if _near(n.value, n.precision, v) or (n.pct and _near(n.value, n.precision, v * 100)):
             return True
     return False
 
@@ -104,12 +114,17 @@ def unsupported(texts: Iterable[str], payload: Any) -> list[str]:
     allowed = allowed_values(payload)
     bad: list[str] = []
     for t in texts:
-        for n in numbers(t):
+        for n in numbers(_LIST_MARK.sub("", t)):
             if not _ok(n, allowed) and n.text not in bad:
                 bad.append(n.text)
     return bad
 
 
+def multipliers(texts: Iterable[str]) -> list[str]:
+    """글로 쓴 배수('두 배', '배 가까이'). 숫자를 새로 만든 표현."""
+    return [m.group(0) for m in _BANNED_RE.finditer("\n".join(texts))]
+
+
 def banned_phrases(texts: Iterable[str]) -> list[str]:
     joined = "\n".join(texts)
-    return [w for w in BANNED if w in joined]
+    return [w for w in BANNED if w in joined] + [m.group(0) for m in _BANNED_RE.finditer(joined)]

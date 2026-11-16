@@ -9,7 +9,8 @@ from app.llm.schemas import CompareExplain
 from app.pipeline.explain import model_input, problems
 
 COMPARE = {
-    "period": {"from": "2021-11-11", "to": "2026-11-10"},
+    "period": {"from": "2021-11-11", "to": "2026-11-10", "counted_from": "2021-11-11",
+               "counted_to": "2026-11-10", "collecting": False},
     "us": {"bizno": "1234567890", "name": "(주)예시컴퍼니"},
     "them": {"bizno": "2345678901", "name": "가온데이터시스템(주)"},
     "verdicts": [
@@ -100,6 +101,53 @@ def test_problems_checks_summary_and_every_point():
     assert problems(bad, model_input(COMPARE)) == ["5", "투찰가"]
 
 
-def test_model_input_drops_screen_state_only():
-    m = model_input(COMPARE)
+def test_model_input_drops_screen_state_and_requested_period():
+    m = model_input({**COMPARE, "period": {"from": "2021-11-17", "to": "2026-11-16",
+                                           "counted_from": "2026-10-17", "counted_to": "2026-11-16",
+                                           "collecting": True}})  # fmt: skip
     assert "watched" not in m and m["verdicts"] == COMPARE["verdicts"]
+    # 요청 기간(5년)을 주면 모델이 '2021년부터'라고 쓴다(실제 모델) → 센 범위만
+    assert m["period"] == {
+        "counted_from": "2026-10-17",
+        "counted_to": "2026-11-16",
+        "collecting": True,
+    }
+
+
+# ---------- 2026-11-16 실제 모델(Qwen3.5-9B) 출력에서 나온 경우 ----------
+
+
+def test_trailing_won_digits_join_the_amount_but_counts_do_not():
+    (n,) = numbers("약 169 억 2,088 만 9,000 원")
+    assert n.value == Decimal(16920889000)
+    assert [x.text for x in numbers("7억 3건")] == ["7억", "3"]  # '원'이 없으면 따로
+
+
+def test_truncated_amounts_pass_but_wrong_conversions_do_not():
+    src = {"sum": 16920889000, "avg": 1208634929, "award": 479639999}
+    ok = [
+        "169억 2,088만 9,000원",
+        "약 12억 863만원",
+        "약 4억 7,963만원",
+        "169억원",
+        "16,920,889,000원",
+    ]
+    assert unsupported(ok, src) == []
+    # 1,208,634,929원을 '12억 8,634만'으로 잘못 바꾼 실제 사례
+    assert unsupported(["평균 12억 8,634만원"], src) == ["12억 8,634만"]
+
+
+def test_iso_datetimes_in_input_give_their_day_numbers():
+    src = {"last_award_at": "2026-11-12T03:00:00Z"}
+    assert unsupported(["최근 낙찰일은 2026년 11월 12일"], src) == []
+
+
+def test_multipliers_in_words_are_blocked():
+    assert banned_phrases(["낙찰 건수가 두 배 가까이 많아요"]) == ["두 배"]
+    assert banned_phrases(["배 이상 차이"]) == ["배 이상"]
+    assert banned_phrases(["배점 기준과 배정예산"]) == []
+
+
+def test_markdown_list_numbers_are_not_numbers():
+    text = "주요 기관\n1. 대구광역시: 1건\n2. 군산시: 2건\n3. 전남청사: 1건"
+    assert unsupported([text], {"a": 1, "b": 2}) == []

@@ -81,6 +81,33 @@ async def test_long_document_reads_priority_chunks_only(deps, fake_llm, monkeypa
     assert "평가 배점" in chunks[0] and "제출 일정" in chunks[1]
 
 
+async def test_summary_reports_chunk_progress(deps, fake_llm, monkeypatch):
+    """§6.4: 요약 조각이 하나 끝날 때마다 progress(done/total)를 보낸다 — 화면 로딩바용."""
+    monkeypatch.setattr(summarize, "CHUNK_TARGET", 60)
+    monkeypatch.setattr(summarize, "CHUNK_OVERLAP", 0)
+    monkeypatch.setattr(summarize, "SINGLE_MAX", 80)
+    sections = [f"{i}. 과업 범위 " + "가" * 40 for i in range(1, 5)]
+    bid_id = await _bid(deps, text="\n".join(sections))
+    events: list[dict] = []
+    with usage.track(on_status=events.append):
+        await get_or_create_summary(deps, bid_id)
+    progress = [e["progress"] for e in events if e["stage"] == "summarize" and "progress" in e]
+    n = fake_llm.calls["summarize_file"]
+    assert n >= 3
+    assert progress[0] == {"done": 0, "total": n}
+    assert progress[-1] == {"done": n, "total": n}
+    assert [p["done"] for p in progress] == sorted(p["done"] for p in progress)
+
+
+async def test_analyze_status_carries_expected_seconds(deps, fake_llm):
+    bid_id = await _bid(deps)
+    events: list[dict] = []
+    with usage.track(on_status=events.append):
+        await get_or_create_analysis(deps, bid_id, PROFILE)
+    (ev,) = [e for e in events if e["stage"] == "analyze"]
+    assert ev["expected_s"] == deps.settings.analyze_expected_s == 90
+
+
 async def test_invalid_chunk_output_is_skipped_with_warning(deps, fake_llm):
     bid_id = await _bid(deps)
     fake_llm.queue("summarize_file", "깨짐", "또 깨짐")

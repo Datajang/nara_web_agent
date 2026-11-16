@@ -2064,6 +2064,11 @@ export interface components {
              * @default null
              */
             cache: boolean | null;
+            /**
+             * Expected S
+             * @default null
+             */
+            expected_s: number | null;
         };
         /** TokenEvent */
         TokenEvent: {

@@ -106,7 +106,12 @@ async def get_or_create_analysis(
     if (cached := await check()) is not None:
         usage.set_cache("analysis", True)
         return cached, True
-    usage.status("analyze", "프로필과 비교해 분석하고 있어요", cache=False)
+    usage.status(
+        "analyze",
+        "프로필과 비교해 분석하고 있어요",
+        cache=False,
+        expected_s=deps.settings.analyze_expected_s,
+    )
 
     async def compute() -> Analysis:
         async with deps.db.session() as s:

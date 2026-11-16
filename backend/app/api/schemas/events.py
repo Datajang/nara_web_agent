@@ -23,6 +23,7 @@ class StatusEvent(BaseModel):
     message: str
     progress: Progress | None = None
     cache: bool | None = None
+    expected_s: int | None = None  # analyze 단계 예상 시간(초), 로딩바용
 
 
 class TokenEvent(BaseModel):

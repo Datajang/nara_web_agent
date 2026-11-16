@@ -43,7 +43,12 @@ async def test_two_users_same_bid_one_computation_and_second_all_cached(
     await b.aclose()
 
     assert _types(first) == [
-        "status:files", "status:extract", "status:summarize", "status:analyze", "result", "done",
+        "status:files", "status:extract", "status:summarize",
+        "status:summarize", "status:summarize",  # 조각 진행률 0/1 → 1/1 (로딩바)
+        "status:analyze", "result", "done",
+    ]  # fmt: skip
+    assert [e["progress"] for e in first if e.get("progress")] == [
+        {"done": 0, "total": 1}, {"done": 1, "total": 1},
     ]  # fmt: skip
     assert _types(second) == ["result", "done"]  # 전부 적중이면 status 없이 즉시
     assert dict(fake_llm.calls) == calls_after_first  # 두 번째 사용자는 LLM 호출 0회

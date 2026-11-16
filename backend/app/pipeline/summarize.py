@@ -236,7 +236,25 @@ async def _summarize(
     )
     if truncated:
         warnings.append(f"문서가 길어 {len(pieces)}개 부분 중 {len(picked)}개만 읽음")
-    results = await asyncio.gather(*(_map_chunk(llm, *pieces[k], counter) for k in picked))
+    total, done = len(picked), 0
+
+    def tick() -> None:  # 로딩바용 진행률 (§6.4)
+        usage.status(
+            "summarize",
+            f"문서를 읽고 있어요 ({done}/{total})",
+            progress={"done": done, "total": total},
+            cache=False,
+        )
+
+    async def mapped(k: int) -> tuple[list[FileFacts], list[str]]:
+        nonlocal done
+        out = await _map_chunk(llm, *pieces[k], counter)
+        done += 1
+        tick()
+        return out
+
+    tick()
+    results = await asyncio.gather(*(mapped(k) for k in picked))
     facts: list[FileFacts] = []
     read: set[str] = set()
     for k, (got, warns) in zip(picked, results, strict=True):

@@ -5648,6 +5648,18 @@
             ],
             "default": null,
             "title": "Cache"
+          },
+          "expected_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expected S"
           }
         },
         "required": [

@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     llm_tokenizer_path: str = ""  # Qwen tokenizer.json. 비우면 글자 수 × 1.2 (§8.3-1)
     llm_lock_wait_s: float = 120  # single-flight 대기 상한 (§5.5)
     summary_max_chunks: int = 12  # §8.3-4
+    analyze_expected_s: int = 90  # 분석 단계 예상(초), 로딩바용. 골든셋 중앙값 89초
 
     # 인증 (§9.7)
     env: Literal["development", "test", "production"] = "development"

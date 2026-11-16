@@ -1,3 +1,11 @@
+from app.db.models.awards import (
+    BidAward,
+    BidJointMember,
+    BidParticipant,
+    Company,
+    OrgSettings,
+    WatchedCompany,
+)
 from app.db.models.personal import (
     Bookmark,
     Conversation,
@@ -26,6 +34,12 @@ from app.db.models.shared import (
 )
 
 __all__ = [
+    "BidAward",
+    "BidJointMember",
+    "BidParticipant",
+    "Company",
+    "OrgSettings",
+    "WatchedCompany",
     "Analysis",
     "Bid",
     "BidFile",

@@ -1,7 +1,8 @@
 """G2B OpenAPI 클라이언트 (SPEC §5.2).
 
 - 페이지네이션: totalCount를 채울 때까지 pageNo를 올린다 (v1은 첫 페이지만 읽었다).
-- 15일 넘는 구간은 나눠 호출 (넘으면 resultCode 07).
+- 15일 넘는 구간은 나눠 호출 (넘으면 resultCode 07). 낙찰·계약은 7일 미만 (§15.2,
+  docs/decisions/2026-11-16-awards-probe.md).
 - 재시도: 네트워크 오류·5xx·타임아웃만 1·2·4초 백오프로 최대 3회. 4xx·비정상 resultCode는 즉시
   G2BError.
 - 예외를 삼키지 않는다. 서비스키는 예외·로그에서 마스킹한다 (규칙 4).
@@ -22,14 +23,24 @@ from typing import Any, Protocol
 
 import httpx
 
+from app.collector.windows import split_dates, split_windows
+
 log = logging.getLogger(__name__)
 KST = timezone(timedelta(hours=9))
 BID_BASE = "http://apis.data.go.kr/1230000/ad/BidPublicInfoService"
 PRESPEC_BASE = "http://apis.data.go.kr/1230000/ao/HrcspSsstndrdInfoService"
-ENDPOINTS = {
+AWARD_BASE = "http://apis.data.go.kr/1230000/as/ScsbidInfoService"
+CONTRACT_BASE = "http://apis.data.go.kr/1230000/ao/CntrctInfoService"
+# (기본 URL, 오퍼레이션, 키워드 파라미터). 낙찰·계약은 키워드 검색을 쓰지 않는다 (§15.2)
+ENDPOINTS: dict[str, tuple[str, str, str | None]] = {
     "regular": (BID_BASE, "getBidPblancListInfoServcPPSSrch", "bidNtceNm"),
     "prespec": (PRESPEC_BASE, "getPublicPrcureThngInfoServcPPSSrch", "prdctClsfcNoNm"),
+    "awards": (AWARD_BASE, "getScsbidListSttusServc", None),
+    "opening_compt": (AWARD_BASE, "getOpengResultListInfoOpengCompt", None),
+    "contracts": (CONTRACT_BASE, "getCntrctInfoListServc", None),
 }
+# 낙찰정보·계약정보 서비스 소스. 키는 NARA_AWARD_API_KEY(없으면 NARA_API_KEY)
+AWARD_SOURCES = frozenset({"awards", "opening_compt", "contracts"})
 # 번호 단건 조회: 일반 조회 + inqryDiv=2. 검색용 PPSSrch는 번호 필터를 무시한다
 # (docs/decisions/2026-11-12-g2b-single-lookup.md)
 LOOKUP_ENDPOINTS = {
@@ -37,6 +48,12 @@ LOOKUP_ENDPOINTS = {
     "prespec": (PRESPEC_BASE, "getPublicPrcureThngInfoServc", "bfSpecRgstNo"),
 }
 MAX_SPAN = timedelta(days=15)
+# 낙찰·계약: 조회 시작일~종료일이 KST 날짜 7개를 넘으면 resultCode 07 (분 길이와 무관)
+SOURCE_MAX_DATES = {"awards": 7, "contracts": 7}
+# 모든 페이지를 받아야 성공으로 친다(창 완결성, §15.4). 중간에 빈 페이지면 G2BIncomplete
+STRICT_PAGING = frozenset({"awards", "contracts"})
+# numOfRows=1000은 오류 없이 10행만 온다 (2026-11-16 probe)
+MAX_PAGE_SIZE = 999
 _KEY_PARAM = re.compile(r"(ServiceKey=)[^&\s'\"]+", re.IGNORECASE)
 
 
@@ -46,6 +63,10 @@ class G2BError(Exception):
 
 class G2BBudgetExceeded(G2BError):
     """일일 호출 예산 초과 (G2B_DAILY_CALL_BUDGET)."""
+
+
+class G2BIncomplete(G2BError):
+    """창의 일부 페이지만 받았다(totalCount보다 적음). 경계를 옮기면 안 된다."""
 
 
 class CallBudget(Protocol):
@@ -91,8 +112,12 @@ class G2BClient:
         budget: CallBudget | None = None,
         retry_delays: Sequence[float] = (1, 2, 4),
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+        source_budgets: Mapping[str, CallBudget] | None = None,
     ) -> None:
-        self.http, self.keys, self.page_size, self.budget = http, keys, page_size, budget
+        self.http, self.keys, self.budget = http, keys, budget
+        self.page_size = min(page_size, MAX_PAGE_SIZE)
+        # 소스별 추가 예산(예: awards 하루 300회). 전체 예산과 함께 센다 (§15.4)
+        self.source_budgets = dict(source_budgets or {})
         self.retry_delays, self.sleep = retry_delays, sleep
         self.calls = 0
 
@@ -103,21 +128,24 @@ class G2BClient:
                 text = text.replace(k, "***")
         return text
 
-    def settle(self, n: int) -> None:
+    def settle(self, n: int, source: str | None = None) -> None:
         """usage_logs에 기록된 호출 수를 예산의 '진행 중' 카운트에서 뺀다."""
         if self.budget is not None:
             self.budget.settle(n)
+        if source is not None and (sb := self.source_budgets.get(source)) is not None:
+            sb.settle(n)
 
     async def fetch(
         self, source: str, start: datetime, end: datetime, keyword: str | None = None
     ) -> list[dict[str, Any]]:
         """[start, end) 구간 등록분 전체. 결과 0건이면 빈 리스트, 실패면 G2BError."""
         out: list[dict[str, Any]] = []
-        cur = start
-        while cur < end:
-            nxt = min(cur + MAX_SPAN, end)
-            out.extend(await self._fetch_span(source, cur, nxt, keyword))
-            cur = nxt
+        if source in SOURCE_MAX_DATES:
+            spans = split_dates(start, end, SOURCE_MAX_DATES[source])
+        else:
+            spans = split_windows(start, end, MAX_SPAN)
+        for a, b in spans:
+            out.extend(await self._fetch_span(source, a, b, keyword))
         return out
 
     async def lookup(self, source: str, number: str) -> list[dict[str, Any]]:
@@ -139,7 +167,7 @@ class G2BClient:
             "inqryEndDt": (end - timedelta(minutes=1)).astimezone(KST).strftime("%Y%m%d%H%M"),
             "numOfRows": str(self.page_size),
         }
-        if keyword:
+        if keyword and kw_param:
             params[kw_param] = keyword
         items: list[dict[str, Any]] = []
         page = 1
@@ -147,7 +175,13 @@ class G2BClient:
             body = await self._call(source, f"{base}/{op}", {**params, "pageNo": str(page)})
             got, total = _items(body), int(body.get("totalCount") or 0)
             items.extend(got)
-            if not got or len(items) >= total:
+            if len(items) >= total:
+                return items
+            if not got:
+                if source in STRICT_PAGING:
+                    raise G2BIncomplete(
+                        f"G2B {source} 창 일부만 받음: {len(items)}/{total}건 (페이지 {page})"
+                    )
                 return items
             page += 1
 
@@ -155,8 +189,7 @@ class G2BClient:
         q = {"ServiceKey": self.keys.get(source, ""), **params}
         last = ""
         for attempt in range(len(self.retry_delays) + 1):
-            if self.budget is not None:
-                await self.budget.reserve()
+            await self._reserve(source)
             self.calls += 1
             if (c := _counter.get()) is not None:
                 c.add()
@@ -173,6 +206,19 @@ class G2BClient:
                 log.warning("G2B %s 재시도 %d: %s", source, attempt + 1, last)
                 await self.sleep(self.retry_delays[attempt])
         raise G2BError(f"G2B {source} 호출 실패(재시도 {len(self.retry_delays)}회 후): {last}")
+
+    async def _reserve(self, source: str) -> None:
+        """소스 예산을 먼저 잡고 전체 예산을 잡는다. 전체가 초과면 잡았던 소스 몫을 돌려준다."""
+        sb = self.source_budgets.get(source)
+        if sb is not None:
+            await sb.reserve()
+        if self.budget is not None:
+            try:
+                await self.budget.reserve()
+            except G2BBudgetExceeded:
+                if sb is not None:
+                    sb.settle(1)
+                raise
 
     def _parse(self, resp: httpx.Response) -> dict[str, Any]:
         try:

@@ -8,10 +8,13 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import Any
 
 from sqlalchemy import func, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.collector import coverage
 from app.collector.upsert import upsert_bids
@@ -37,6 +40,19 @@ class RunResult:
     error: str | None = None
 
 
+# 창 하나의 응답 항목을 저장하고 (새로 넣은 수, 바뀐 수)를 돌려준다.
+# 같은 트랜잭션에서 경계가 옮겨진다
+Store = Callable[[AsyncSession, list[dict[str, Any]]], Awaitable[tuple[int, int]]]
+
+
+def bid_store(source: str) -> Store:
+    async def store(s: AsyncSession, items: list[dict[str, Any]]) -> tuple[int, int]:
+        stats = await upsert_bids(s, [to_record(source, it) for it in items])
+        return stats.inserted, stats.updated
+
+    return store
+
+
 def _client(deps: Deps) -> G2BClient:
     if deps.g2b is None:
         raise RuntimeError("G2B 클라이언트가 없습니다")
@@ -49,9 +65,14 @@ async def _collect(
     mode: str,
     windows: list[tuple[datetime, datetime]],
     max_calls: int | None = None,
+    store: Store | None = None,
 ) -> RunResult:
-    """창들을 순서대로 수집. 창마다 upsert+경계 이동을 한 트랜잭션으로 커밋, 첫 실패에서 멈춘다."""
+    """창들을 순서대로 수집. 창마다 upsert+경계 이동을 한 트랜잭션으로 커밋, 첫 실패에서 멈춘다.
+
+    예산 초과(G2BBudgetExceeded)·일부 페이지만 받음(G2BIncomplete)도 G2BError라 같은 경로로 멈춘다.
+    """
     g2b = _client(deps)
+    store = store or bid_store(source)
     result = RunResult(status="ok")
     async with deps.db.transaction() as s:
         run = CollectorRun(
@@ -75,11 +96,11 @@ async def _collect(
                 log.warning("수집 실패 %s %s %s~%s: %s", source, mode, start, end, result.error)
                 break
             async with deps.db.transaction() as s:
-                stats = await upsert_bids(s, [to_record(source, it) for it in items])
+                inserted, updated = await store(s, items)
                 await coverage.extend(s, source, start, end)
             result.fetched += len(items)
-            result.inserted += stats.inserted
-            result.updated += stats.updated
+            result.inserted += inserted
+            result.updated += updated
     result.g2b_calls = calls.value
     async with deps.db.transaction() as s:
         await s.execute(
@@ -96,9 +117,10 @@ async def _collect(
             )
         )
         if mode != "fill":  # fill은 검색 요청의 usage_logs에 합산된다
-            s.add(UsageLog(event="collector", g2b_calls=result.g2b_calls, cache={}))
+            # cache.source: 소스별 예산(낙찰 몫)이 이 기록으로 오늘 호출 수를 센다 (§15.4)
+            s.add(UsageLog(event="collector", g2b_calls=result.g2b_calls, cache={"source": source}))
     if mode != "fill":
-        g2b.settle(result.g2b_calls)
+        g2b.settle(result.g2b_calls, source)
     return result
 
 

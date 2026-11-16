@@ -70,7 +70,7 @@ sudo CERTBOT_EMAIL=<운영 메일> /opt/nara/app/deploy/set-host.sh <IP를 -로>
 ```bash
 sudo -u nara git -C /opt/nara/app checkout --detach <첫 태그>   # deploy.sh는 지금 태그를 .prev로 쓴다
 sudo /opt/nara/app/deploy/deploy.sh <첫 태그>
-sudo systemctl enable --now nara-vllm nara-api nara-collector.timer nara-backup.timer nara-alert.timer
+sudo systemctl enable --now nara-vllm nara-api nara-collector.timer nara-collector-awards.timer nara-backup.timer nara-alert.timer
 cd /opt/nara/app/backend && sudo -u nara env NARA_ENV_FILE=/etc/nara/nara.env \
   /opt/nara/venv/bin/python -m app.cli create-admin --email <관리자 이메일>
 sudo -u nara env NARA_ENV_FILE=/etc/nara/nara.env /opt/nara/venv/bin/python -m app.collector backfill --days 90

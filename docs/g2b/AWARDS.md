@@ -5,7 +5,7 @@
 ## 기본
 - 낙찰정보서비스: `http://apis.data.go.kr/1230000/as/ScsbidInfoService/` 계약정보서비스: `.../1230000/ao/CntrctInfoService/` [문서]
 - 공통 요청: `ServiceKey`, `pageNo`, `numOfRows`, `type=json`. 키는 서비스마다 data.go.kr에서 따로 활용신청해야 한다 [문서]
-- **조회 기간은 7일 미만** (2026-11-10부터). 정확히 7일 이상이면 HTTP 200 + resultCode 07 '입력범위값 초과 에러' [확인됨]
+- **조회 기간은 KST 날짜 7개까지** (2026-11-10부터). 분 길이가 아니라 시작일~종료일 날짜 차(6일 이하)로 센다. 넘으면 HTTP 200 + resultCode 07 '입력범위값 초과 에러' [확인됨]
 - 날짜 형식 `YYYYMMDDHHMM`. `inqryDiv`: 1 등록일시, 2 공고일시, 3 개찰일시, 4 입찰공고번호(이때 `bidNtceNo` 필수) [문서]
 - 공고번호: 신체계 `R25BK00927163`(R+연도2+단계2+일련), 구체계 11자리. `bidNtceOrd`는 차수(3자리). 낙찰 번호는 `bids.bid_no`와 그대로 같다 [확인됨]
 - 한 공고에 `bidClsfcNo`(분류)·`rbidNo`(재입찰)별로 낙찰 행이 따로 있다 [확인됨]

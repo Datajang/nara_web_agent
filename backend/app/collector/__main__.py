@@ -3,6 +3,10 @@
   python -m app.collector incremental [--source regular|prespec|all]
   python -m app.collector backfill [--days 90] [--source ...]
   python -m app.collector fill --from 2026-10-01 --to 2026-10-15 [--source ...]
+  python -m app.collector incremental --source awards        # 낙찰: 최근 14일 (§15.4)
+  python -m app.collector backfill --source awards [--days 30]  # 낙찰: 기본 org_settings 연수
+
+`--source all`은 공고(regular·prespec)만이다. 낙찰(awards)은 따로 부른다(별도 예산·timer).
 
 설정은 환경변수(운영: systemd EnvironmentFile). 로컬은 NARA_ENV_FILE=../.env,.env 처럼 지정.
 """
@@ -14,6 +18,7 @@ import asyncio
 import sys
 from datetime import datetime, timedelta, timezone
 
+from app.awards import collector as awards
 from app.collector import runner
 from app.logging_setup import configure_logging
 from app.runtime import real_deps
@@ -28,19 +33,30 @@ def _date(s: str) -> datetime:
 async def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="python -m app.collector")
     ap.add_argument("mode", choices=["incremental", "backfill", "fill"])
-    ap.add_argument("--source", choices=["regular", "prespec", "all"], default="all")
+    ap.add_argument("--source", choices=["regular", "prespec", "awards", "all"], default="all")
     ap.add_argument(
-        "--days", type=int, default=None, help="backfill 일수 (기본 COLLECTOR_BACKFILL_DAYS)"
+        "--days",
+        type=int,
+        default=None,
+        help="backfill 일수 (기본: 공고 COLLECTOR_BACKFILL_DAYS, 낙찰 org_settings.backfill_years)",
     )
     ap.add_argument("--from", dest="date_from", type=_date)
     ap.add_argument("--to", dest="date_to", type=_date)
     args = ap.parse_args(argv)
     configure_logging()
+    if args.source == "awards" and args.mode == "fill":
+        ap.error("낙찰(awards)에는 fill을 쓰지 않습니다 (§15.4)")
     sources = ["regular", "prespec"] if args.source == "all" else [args.source]
     ok = True
     async with real_deps() as deps:
         for src in sources:
-            if args.mode == "backfill":
+            if src == "awards":
+                r = await (
+                    awards.backfill(deps, args.days)
+                    if args.mode == "backfill"
+                    else awards.incremental(deps)
+                )
+            elif args.mode == "backfill":
                 r = await runner.backfill(
                     deps, src, args.days or deps.settings.collector_backfill_days
                 )

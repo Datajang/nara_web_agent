@@ -31,7 +31,10 @@ class Settings(BaseSettings):
     # G2B (§5.2). 키 이름은 v1과 같다.
     nara_api_key: SecretStr = SecretStr("")
     nara_prespec_api_key: SecretStr = SecretStr("")
-    g2b_daily_call_budget: int = 1000  # 포털 한도 1000회(사용자 확인), 두 소스 합산
+    # 낙찰·계약 서비스(§15.2). 비우면 NARA_API_KEY를 쓴다(2026-11-16 probe: 기존 키로 호출됨)
+    nara_award_api_key: SecretStr = SecretStr("")
+    g2b_daily_call_budget: int = 1000  # 포털 한도 1000회(사용자 확인), 모든 소스 합산
+    g2b_awards_daily_budget: int = 300  # 그중 낙찰·계약 몫 (§15.4)
     g2b_page_size: int = 999  # docs/decisions/2026-11-11-g2b-probe.md
 
     # 첨부 파일 (§5.6)
@@ -39,6 +42,7 @@ class Settings(BaseSettings):
     file_max_mb: int = 50
 
     collector_backfill_days: int = 90
+    awards_backfill_years_default: int = 5  # org_settings 행이 없을 때 (§15.4)
     search_fill_wait_s: float = (
         5  # 커버리지 밖 검색: 이만큼만 기다리고 '수집 중'으로 응답 (P3a 결정)
     )

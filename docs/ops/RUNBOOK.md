@@ -31,6 +31,11 @@ sudo shred -u /root/nara-backup-key.txt
 ```
 `restore.sh`는 운영 DB 이름(`nara`)으로는 복원하지 않는다.
 
+## 낙찰 수집(§15, P8 배포 후 한 번)
+`deploy.sh`가 마이그레이션 0008과 유닛 파일을 올린 뒤 `sudo systemctl enable --now nara-collector-awards.timer`.
+상태: `systemctl list-timers nara-collector-awards.timer`, 결과는 관리자 화면 수집 이력(source=awards).
+하루 낙찰 호출은 `G2B_AWARDS_DAILY_BUDGET`(기본 300)에서 멈추고 다음 날 이어서 과거로 채운다.
+
 ## 실제 장애 복구
 `systemctl stop nara-api nara-collector.timer` → 위 명령으로 새 DB(예: `nara_restored`)에 복원·확인 →
 `nara.env`의 `DATABASE_URL` DB 이름을 바꿈 → `systemctl start nara-api nara-collector.timer` → `/readyz`.

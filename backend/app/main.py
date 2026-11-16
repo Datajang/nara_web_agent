@@ -20,12 +20,11 @@ from app.db.session import Database
 from app.deps import Deps, utcnow
 from app.files.download import HttpDownloader
 from app.files.extract import shutdown_pool, warm_pool
-from app.g2b.client import G2BClient
 from app.llm.base import LLMClient
 from app.llm.client import OpenAICompatLLM
 from app.llm.fake import FakeLLM
 from app.logging_setup import configure_logging
-from app.usage.budget import DbCallBudget
+from app.runtime import build_g2b, g2b_keys
 
 
 def build_llm(settings: Settings) -> LLMClient | None:
@@ -47,18 +46,9 @@ def build_llm(settings: Settings) -> LLMClient | None:
 def build_context(settings: Settings) -> AppContext:
     db = Database(settings.database_url, settings.db_pool_size, settings.lock_pool_size)
     g2b_http, file_http = httpx.AsyncClient(), httpx.AsyncClient()
-    keys = {
-        "regular": settings.nara_api_key.get_secret_value(),
-        "prespec": settings.nara_prespec_api_key.get_secret_value(),
-    }
     g2b = (
-        G2BClient(
-            g2b_http,
-            keys,
-            page_size=settings.g2b_page_size,
-            budget=DbCallBudget(db, settings.g2b_daily_call_budget),
-        )
-        if any(keys.values())
+        build_g2b(g2b_http, db, settings)
+        if any(g2b_keys(settings).values())
         else None  # 서비스키가 없으면 DB에 있는 데이터만으로 답한다
     )
     downloader = HttpDownloader(file_http, settings.file_hosts, settings.file_max_mb * 1024 * 1024)

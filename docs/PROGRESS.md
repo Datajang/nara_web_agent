@@ -81,3 +81,9 @@
 - **한 일**: §15 장을 SPEC.md에 넣고(문서만), `backend/scripts/probe_awards.py`로 §15.10의 8가지를 실제 응답으로 확인(G2B 40회). 녹화본 `tests/fixtures/g2b/awards_*.json`·`opening_compt_page1.json`·`contracts_page1.json`(개인정보 칸 제거).
 - **달라진 결정**: 조회 창은 7일 '미만'(정확히 7일이면 07 오류), `numOfRows=1000`은 조용히 10행. 낙찰 고유키는 분류·재입찰까지 `(공고번호, 차수, 분류, 재입찰)`. 공동수급은 낙찰 응답에 주계약업체 1행뿐 → 계약정보 `corpList` 방식 칸으로만 판정(`cmmnCntrctYn` 불신). 협상계약은 낙찰률(G2B)이 대부분 빔. 기존 키로 호출됨. 5년 백필 약 522회 (`docs/decisions/2026-11-16-awards-probe.md`).
 - **남은 문제**: SPEC §15.2·§15.3·§15.4 수정 제안(결정 문서 '명세 수정 필요').
+
+## P8-b — 낙찰 테이블·수집기 (2026-11-16, 완료·태그 전)
+
+- **한 일**: 마이그레이션 0008(`companies`·`bid_awards`·`bid_participants`·`bid_joint_members`·`org_settings`·`watched_companies`, 개인정보·raw 없음), `ENDPOINTS`에 awards·opening_compt·contracts, 키 `NARA_AWARD_API_KEY`→`NARA_API_KEY`, 낙찰 몫 예산 `G2B_AWARDS_DAILY_BUDGET`(usage_logs `cache.source`로 집계), `app/awards/`(화이트리스트 매퍼·분야 분류·upsert·수집기), CLI `--source awards`, `scripts/reclassify_awards.py`, systemd `nara-collector-awards.timer`(매일 04:30 증분→백필). 테스트 먼저 → pytest 520 통과. 실제 30일 수집 7,098행·9회, 14일 재수집 갱신 0·새 행 5·5회.
+- **달라진 결정**: 조회 기간은 분이 아니라 **KST 날짜 7개**(첫 실제 수집의 07 오류로 발견, 3회로 확인) → 창을 KST 자정에 맞춤. 일부 페이지만 받은 창은 `G2BIncomplete`로 실패. `/readyz` 마지막 수집은 공고 소스만 (`docs/decisions/2026-11-16-awards-probe.md`).
+- **남은 문제**: 운영 서버에서 `nara-collector-awards.timer` 활성화(`docs/ops/RUNBOOK.md`). 5년 백필은 아직 시작 안 함(timer가 하루 300회씩, 약 2일). SPEC §15.2~§15.4 수정 제안. 다음은 P9(회사 설정·우리 수주 현황·업체 검색).

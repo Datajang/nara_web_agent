@@ -20,12 +20,17 @@ KST = timezone(timedelta(hours=9))
 OPS = {
     "getBidPblancListInfoServcPPSSrch": "regular",
     "getPublicPrcureThngInfoServcPPSSrch": "prespec",
+    "getScsbidListSttusServc": "awards",
 }
+# 기간 제한: 공고는 약 15일, 낙찰은 시작일~종료일 KST 날짜 7개까지(날짜 차 6일 이하)
+# (docs/decisions/2026-11-16-awards-probe.md)
+MAX_SPAN = {"regular": timedelta(days=16), "prespec": timedelta(days=16)}
+MAX_DATE_DIFF = {"awards": 6}
 # 단건 조회용 일반 조회 (docs/decisions/2026-11-12-g2b-single-lookup.md): inqryDiv=2 + 번호
 LOOKUP_OPS = {"getBidPblancListInfoServc": "regular", "getPublicPrcureThngInfoServc": "prespec"}
 NO_FIELD = {"regular": "bidNtceNo", "prespec": "bfSpecRgstNo"}
-DATE_FIELD = {"regular": "bidNtceDt", "prespec": "rgstDt"}
-TITLE_FIELD = {"regular": "bidNtceNm", "prespec": "prdctClsfcNoNm"}
+DATE_FIELD = {"regular": "bidNtceDt", "prespec": "rgstDt", "awards": "rgstDt"}
+TITLE_FIELD = {"regular": "bidNtceNm", "prespec": "prdctClsfcNoNm", "awards": "bidNtceNm"}
 
 
 def _template(name: str) -> dict[str, Any]:
@@ -36,6 +41,7 @@ def _template(name: str) -> dict[str, Any]:
 
 REGULAR_TEMPLATE = _template("regular_page1.json")
 PRESPEC_TEMPLATE = _template("prespec_page1.json")
+AWARD_TEMPLATE = _template("awards_page1.json")
 
 
 def kst_str(dt: datetime) -> str:
@@ -93,12 +99,58 @@ def prespec_item(
     return it
 
 
+def award_item(
+    no: str,
+    registered_at: datetime,
+    *,
+    bizno: str | None = "1234567890",
+    name: str = "(주)가온데이터",
+    ord: str = "000",
+    clsfc: str = "0",
+    rbid: str = "000",
+    title: str = "데이터 정비 용역",
+    amount: str = "90000000",
+    rate: str = "87.5",
+    org_cd: str = "1234567",
+    org_name: str = "행정안전부",
+    pii: bool = False,
+) -> dict[str, Any]:
+    """낙찰 응답 항목(실제 녹화본이 틀). pii=True면 대표자·주소·전화·담당자 필드를 채운다."""
+    it = copy.deepcopy(AWARD_TEMPLATE)
+    it.update(
+        bidNtceNo=no,
+        bidNtceOrd=ord,
+        bidClsfcNo=clsfc,
+        rbidNo=rbid,
+        bidNtceNm=title,
+        bidwinnrNm=name,
+        bidwinnrBizno=bizno if bizno is not None else "",
+        sucsfbidAmt=amount,
+        sucsfbidRate=rate,
+        dminsttCd=org_cd,
+        dminsttNm=org_name,
+        rgstDt=kst_str(registered_at),
+        rlOpengDt=kst_str(registered_at - timedelta(days=1)),
+        fnlSucsfDate=registered_at.astimezone(KST).strftime("%Y-%m-%d"),
+    )
+    if pii:
+        it.update(
+            bidwinnrCeoNm="홍길동대표",
+            bidwinnrAdrs="서울특별시 어딘가로 12-3",
+            bidwinnrTelNo="02-555-0199",
+            fnlSucsfCorpOfcl="김담당",
+        )
+    return it
+
+
 class FakeG2B:
     def __init__(self) -> None:
-        self.items: dict[str, list[dict[str, Any]]] = {"regular": [], "prespec": []}
+        self.items: dict[str, list[dict[str, Any]]] = {"regular": [], "prespec": [], "awards": []}
         self.requests: list[httpx.Request] = []
         self.fail_queue: list[httpx.Response] = []
         self.delay_s = 0.0  # 느린 G2B ('수집 중' 시험)
+        # 이 페이지 번호는 빈 목록을 준다(totalCount는 그대로) — 창의 일부만 받은 경우
+        self.drop_pages: set[int] = set()
 
     @property
     def calls(self) -> int:
@@ -124,7 +176,10 @@ class FakeG2B:
             return httpx.Response(404, text="unknown op")
         bgn = datetime.strptime(p["inqryBgnDt"], "%Y%m%d%H%M").replace(tzinfo=KST)
         end = datetime.strptime(p["inqryEndDt"], "%Y%m%d%H%M").replace(tzinfo=KST)
-        if end - bgn > timedelta(days=16):  # 실제 API의 기간 제한 오류 모양
+        too_long = (source in MAX_SPAN and end - bgn > MAX_SPAN[source]) or (
+            source in MAX_DATE_DIFF and (end.date() - bgn.date()).days > MAX_DATE_DIFF[source]
+        )
+        if too_long:  # 실제 API의 기간 제한 오류 모양
             return httpx.Response(
                 200,
                 json={
@@ -142,7 +197,9 @@ class FakeG2B:
             if bgn <= dt <= end and (not kw or kw in it[TITLE_FIELD[source]]):
                 matched.append(it)
         rows, page = int(p.get("numOfRows", "10")), int(p.get("pageNo", "1"))
-        chunk = matched[(page - 1) * rows : page * rows]
+        if rows > 999:  # 실제 API: 1000 이상이면 오류 없이 기본 10행
+            rows = 10
+        chunk = [] if page in self.drop_pages else matched[(page - 1) * rows : page * rows]
         body = {"items": chunk, "numOfRows": rows, "pageNo": page, "totalCount": len(matched)}
         return httpx.Response(
             200,

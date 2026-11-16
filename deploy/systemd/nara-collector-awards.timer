@@ -1,0 +1,11 @@
+# 낙찰 수집: 매일 새벽 한 번 (SPEC §15.4 증분 '매일 최근 14일')
+[Unit]
+Description=nara awards collector schedule
+
+[Timer]
+OnCalendar=*-*-* 04:30
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

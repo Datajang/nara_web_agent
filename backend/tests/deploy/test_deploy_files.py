@@ -15,11 +15,28 @@ SERVICES = [
     "nara-vllm.service",
     "nara-api.service",
     "nara-collector.service",
+    "nara-collector-awards.service",
     "nara-backup.service",
     "nara-alert.service",
 ]
-TIMERS = ["nara-collector.timer", "nara-backup.timer", "nara-alert.timer"]
+TIMERS = [
+    "nara-collector.timer",
+    "nara-collector-awards.timer",
+    "nara-backup.timer",
+    "nara-alert.timer",
+]
 APP_SERVICES = ["nara-api.service", "nara-collector.service", "nara-alert.service"]
+
+
+def test_awards_collector_runs_incremental_then_backfill():
+    """§15.4: 증분(실패해도 계속) 다음 백필. fill은 쓰지 않는다."""
+    u = unit("nara-collector-awards.service")
+    starts = u["Service"]["ExecStart"]
+    assert starts == [
+        "-/opt/nara/venv/bin/python -m app.collector incremental --source awards",
+        "/opt/nara/venv/bin/python -m app.collector backfill --source awards",
+    ]
+    assert one(u, "Service", "WorkingDirectory") == "/opt/nara/app/backend"
 
 
 def test_v1_deploy_files_are_gone():
@@ -44,7 +61,9 @@ def test_each_timer_has_service_and_catches_up(name):
     assert one(u, "Install", "WantedBy") == "timers.target"
 
 
-@pytest.mark.parametrize("name", APP_SERVICES + ["nara-backup.service"])
+@pytest.mark.parametrize(
+    "name", APP_SERVICES + ["nara-backup.service", "nara-collector-awards.service"]
+)
 def test_app_services_read_env_file_and_are_sandboxed(name):
     u = unit(name)
     assert one(u, "Service", "EnvironmentFile") == "/etc/nara/nara.env"

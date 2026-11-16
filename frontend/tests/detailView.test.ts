@@ -25,7 +25,7 @@ const DETAIL = {
   my_analysis_id: null,
 }
 
-const ANALYSIS = {
+const LEGACY = {
   overview: '민원 데이터를 분석하는 시스템을 구축한다.',
   requirements: [{ text: '형태소 분석', kind: 'technical', evidence: null, source: '제안요청서.hwp' }],
   evaluation: { method: '협상에 의한 계약', items: [{ name: '기술', points: 90, note: null }] },
@@ -35,6 +35,21 @@ const ANALYSIS = {
   fit: { score: 82, verdict: 'strong', strengths: ['검색 경험'], gaps: ['공공 실적'], reasoning: '주력 일치' },
   next_actions: ['참가자격 확인'],
   warnings: ['첨부 문서를 읽지 못함'],
+}
+
+const ANALYSIS = {
+  understanding: {
+    purpose: '민원 데이터를 분석하는 시스템을 구축한다.',
+    scope: ['형태소 분석 엔진', '민원 분류 대시보드'],
+    conditions: ['PM 포함 4명 상주'],
+  },
+  fit: { score: 82, verdict: 'strong', reasoning: '주력 일치' },
+  team_needs: { have: ['검색 시스템 구축 경험'], need: ['공공 민원 실적'] },
+  profile_missing: [] as string[],
+  risks: [{ text: '일정이 촉박', severity: 'high', source: '제안요청서.hwp' }],
+  next_actions: ['참가자격 확인'],
+  warnings: ['첨부 문서를 읽지 못함'],
+  profile_brief: false,
 }
 
 function base(extra: Record<string, unknown> = {}) {
@@ -224,18 +239,22 @@ describe('BidDetailView', () => {
     await settle(10)
     expect(api.calls.find((c) => c.url.endsWith('/analyze'))?.body).toEqual({ profile_id: 7 })
     const headings = m.wrapper.findAll('h3').map((h) => h.text())
+    expect(headings).toEqual(
+      expect.arrayContaining([copy.analysis.understanding, copy.analysis.teamNeeds]),
+    )
     const order: string[] = [
-      copy.analysis.overview,
-      copy.analysis.requirements,
-      copy.analysis.evaluation,
-      copy.analysis.schedule,
-      copy.analysis.budget,
-      copy.analysis.risks,
+      copy.analysis.understanding,
       copy.analysis.fit,
+      copy.analysis.teamNeeds,
+      copy.analysis.risks,
       copy.analysis.nextActions,
     ]
     expect(headings.filter((h) => order.includes(h))).toEqual(order)
+    expect(headings).not.toContain(copy.analysis.requirements) // 요약 카드와 겹치는 섹션은 없음
     const t = text(m.wrapper)
+    expect(t).toContain('민원 분류 대시보드')
+    expect(t).toContain('공공 민원 실적')
+    expect(t).not.toContain(copy.analysis.profileNotice) // 프로필이 충분하면 안내 없음
     expect(t).toContain(copy.analyze.noText)
     expect(t).toContain(copy.analysis.source('제안요청서.hwp'))
     expect(t).toContain(copy.analysis.verdict.strong)
@@ -311,7 +330,43 @@ describe('BidDetailView', () => {
       }),
     )
     m = await mountAt('/bids/b101?analysis=5')
-    expect(text(m.wrapper)).toContain(ANALYSIS.overview)
+    expect(text(m.wrapper)).toContain(ANALYSIS.understanding.purpose)
+  })
+
+  it('예전(v9 이하) 분석은 예전 화면 그대로 연다', async () => {
+    mockApi(
+      base({
+        'GET /api/v1/analyses/8': json({
+          analysis_id: 8,
+          bid_id: 'b101',
+          profile_id: 7,
+          analysis: { ...LEGACY, warnings: [] },
+          markdown: '## 사업 개요',
+          created_at: '2026-11-09T00:00:00Z',
+        }),
+      }),
+    )
+    m = await mountAt('/bids/b101?analysis=8')
+    const headings = m.wrapper.findAll('h3').map((h) => h.text())
+    expect(headings).toContain(copy.analysis.requirements)
+    expect(text(m.wrapper)).toContain(LEGACY.overview)
+  })
+
+  it('프로필이 짧거나 빠진 정보가 있으면 "더 상세히" 안내와 빠진 정보·프로필 링크', async () => {
+    const saved = json({
+      analysis_id: 9,
+      bid_id: 'b101',
+      profile_id: 7,
+      analysis: { ...ANALYSIS, warnings: [], profile_brief: true, profile_missing: ['PM 자격 보유 여부'] },
+      markdown: '## 사업 이해',
+      created_at: '2026-11-09T00:00:00Z',
+    })
+    mockApi(base({ 'GET /api/v1/analyses/9': saved }))
+    m = await mountAt('/bids/b101?analysis=9')
+    const note = m.wrapper.get('[data-test="profile-notice"]')
+    expect(note.text()).toContain(copy.analysis.profileNotice)
+    expect(note.text()).toContain('PM 자격 보유 여부')
+    expect(note.find('a[href="/settings/profiles"]').text()).toBe(copy.analysis.editProfile)
   })
 
   it('읽을 문서가 처음부터 없으면 "읽지 못해"가 아니라 "문서가 없어"로 안내', async () => {

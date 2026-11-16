@@ -8,7 +8,7 @@ import { bidsApi } from '@/api/bids'
 import { ApiError } from '@/api/client'
 import { libraryApi } from '@/api/library'
 import { profilesApi } from '@/api/profiles'
-import type { AnalysisResult, BidDetail, FileText, StreamEvent } from '@/api/types'
+import type { AnyAnalysis, BidDetail, FileText, StreamEvent } from '@/api/types'
 import AnalysisResultView from '@/components/bid/AnalysisResultView.vue'
 import DeadlineStamp from '@/components/bid/DeadlineStamp.vue'
 import FeedbackButtons from '@/components/bid/FeedbackButtons.vue'
@@ -114,7 +114,7 @@ const profileOptions = computed(
 )
 
 const sse = useSse<StreamEvent>()
-const analysis = ref<AnalysisResult | null>(null)
+const analysis = ref<AnyAnalysis | null>(null)
 const analysisId = ref<number | null>(null)
 const markdown = ref('')
 const fromCache = ref(false)

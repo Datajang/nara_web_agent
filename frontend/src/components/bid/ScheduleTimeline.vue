@@ -1,10 +1,10 @@
 <script setup lang="ts">
 // 일정 (요약·분석 공용). 공고문 순서 그대로 세로 타임라인. 이름에 '마감'이 있으면 배지로 강조한다.
-import type { AnalysisResult } from '@/api/types'
+import type { BidSummary } from '@/api/types'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import { copy } from '@/copy'
 
-defineProps<{ items: AnalysisResult['schedule'] }>()
+defineProps<{ items: BidSummary['schedule'] }>()
 const isDeadline = (label: string) => label.includes(copy.analysis.match.deadline)
 </script>
 

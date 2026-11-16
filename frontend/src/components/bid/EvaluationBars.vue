@@ -3,11 +3,11 @@
 // 아래 목록의 견본·미니 막대가 같은 색을 쓴다. 9번째부터는 새 색을 만들지 않고 '기타'로 묶는다(dataviz 규칙).
 // 색만으로 구분하지 않도록 목록에 이름·점수가 항상 있고, 기술·가격 합계는 글로 쓴다.
 import { computed } from 'vue'
-import type { AnalysisResult } from '@/api/types'
+import type { BidSummary } from '@/api/types'
 import { copy } from '@/copy'
 
 const SLOTS = 8
-const props = defineProps<{ evaluation: AnalysisResult['evaluation'] }>()
+const props = defineProps<{ evaluation: BidSummary['evaluation'] }>()
 
 const isPrice = (name: string) => name.includes(copy.analysis.match.price)
 const pct = (n: number, of: number) => `${Math.round((n / of) * 1000) / 10}%`

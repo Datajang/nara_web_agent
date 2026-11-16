@@ -1,10 +1,10 @@
 <script setup lang="ts">
 // 핵심 요구사항 (요약·분석 공용). 항목마다 종류 배지. detailed면 근거 발췌·파일명도 보여 준다(분석).
-import type { AnalysisResult } from '@/api/types'
+import type { LegacyAnalysisResult } from '@/api/types'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import { copy } from '@/copy'
 
-defineProps<{ items: AnalysisResult['requirements']; detailed?: boolean }>()
+defineProps<{ items: LegacyAnalysisResult['requirements']; detailed?: boolean }>()
 </script>
 
 <template>

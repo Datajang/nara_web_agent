@@ -16,6 +16,7 @@ function summary(extra: Partial<BidSummary> = {}): BidSummary {
     eligibility: [],
     risks: [],
     keywords: [],
+    scope: [],
     coverage: { files_read: 1, files_total: 1, truncated: false, warnings: [] },
     ...extra,
   }

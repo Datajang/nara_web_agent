@@ -115,6 +115,7 @@ describe('Settings', () => {
     expect(text(m.wrapper)).toContain(copy.profile.empty)
     await m.wrapper.findAll('button').find((b) => b.text() === copy.profile.newProfile)!.trigger('click')
     await settle()
+    expect(text(m.wrapper)).toContain(copy.profile.descriptionHint) // 상세히 쓸수록 분석이 정확 (2026-11-16)
     const inputs = m.wrapper.findAll('input')
     await inputs[0]!.setValue('AI 팀')
     const desc = '인공지능 검색 플랫폼을 만듭니다'

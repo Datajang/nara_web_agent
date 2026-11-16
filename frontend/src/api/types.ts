@@ -9,6 +9,9 @@ export type BidDetail = S['BidDetail']
 export type FileText = S['FileTextOut']
 export type BidSummary = S['BidSummary']
 export type AnalysisResult = S['AnalysisResult']
+export type LegacyAnalysisResult = S['LegacyAnalysisResult'] // v9 이하에 저장된 분석
+export type AnyAnalysis = AnalysisResult | LegacyAnalysisResult
+export const isLegacy = (a: AnyAnalysis): a is LegacyAnalysisResult => !('understanding' in a)
 export type Profile = S['ProfileOut']
 export type ProfileIn = S['ProfileIn']
 export type ProfilePatch = S['ProfilePatch']

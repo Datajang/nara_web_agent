@@ -143,6 +143,7 @@ async function confirmRemove() {
         :max-length="4000"
         :rows="6"
       />
+      <p class="-mt-2 text-sm text-text-3">{{ copy.profile.descriptionHint }}</p>
       <p v-if="descriptionChanged" class="text-sm text-warning-fg" role="status">{{ copy.profile.changed }}</p>
       <ChipInput ref="chips" v-model="draft.keywords" :label="copy.profile.keywords" :hint="copy.profile.keywordsHint" />
       <div>

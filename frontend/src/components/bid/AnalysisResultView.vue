@@ -1,67 +1,102 @@
 <script setup lang="ts">
-// 분석 결과 (SPEC §7.5-5). 순서 고정: 개요·요구사항·평가·일정·예산·리스크·적합도·다음 할 일.
-import type { AnalysisResult } from '@/api/types'
+// 분석 결과 (SPEC §7.5-5, v10). 순서 고정: 사업 이해·적합도·(프로필 보완 안내)·필요한 것·리스크·다음 할 일.
+// 일정·예산·평가·요구사항은 위 요약 카드에 있으므로 다시 보여 주지 않는다. 예전 분석은 Legacy 화면으로.
+import { computed } from 'vue'
+import { RouterLink } from 'vue-router'
+import { isLegacy, type AnalysisResult, type AnyAnalysis } from '@/api/types'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import { copy } from '@/copy'
-import EvaluationBars from './EvaluationBars.vue'
-import RequirementList from './RequirementList.vue'
-import ScheduleTimeline from './ScheduleTimeline.vue'
+import AnalysisResultLegacy from './AnalysisResultLegacy.vue'
 import ScoreBadge from './ScoreBadge.vue'
 
-defineProps<{ analysis: AnalysisResult }>()
+const props = defineProps<{ analysis: AnyAnalysis }>()
+const legacy = computed(() => (isLegacy(props.analysis) ? props.analysis : null))
+const a = computed(() => (isLegacy(props.analysis) ? null : (props.analysis as AnalysisResult)))
+const showProfileNotice = computed(
+  () => !!a.value && (a.value.profile_brief || a.value.profile_missing.length > 0),
+)
 const sevTone = { high: 'danger', mid: 'warning', low: 'neutral' } as const
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 [&>section+section]:border-t [&>section+section]:border-border [&>section+section]:pt-6">
+  <AnalysisResultLegacy v-if="legacy" :analysis="legacy" />
+  <div
+    v-else-if="a"
+    class="flex flex-col gap-6 [&>section+section]:border-t [&>section+section]:border-border [&>section+section]:pt-6"
+  >
     <section>
-      <h3 class="mb-2 text-lg font-semibold">{{ copy.analysis.overview }}</h3>
-      <p class="whitespace-pre-line text-base text-text">{{ analysis.overview }}</p>
+      <h3 class="mb-2 text-lg font-semibold">{{ copy.analysis.understanding }}</h3>
+      <p class="whitespace-pre-line text-base text-text">{{ a.understanding.purpose }}</p>
+      <div
+        v-if="a.understanding.scope.length || a.understanding.conditions.length"
+        class="mt-3 grid gap-3 md:grid-cols-2"
+      >
+        <div v-if="a.understanding.scope.length">
+          <h4 class="mb-1 text-sm font-semibold text-text-2">{{ copy.analysis.scope }}</h4>
+          <ul class="list-disc pl-5">
+            <li v-for="(s, i) in a.understanding.scope" :key="i">{{ s }}</li>
+          </ul>
+        </div>
+        <div v-if="a.understanding.conditions.length">
+          <h4 class="mb-1 text-sm font-semibold text-text-2">{{ copy.analysis.conditions }}</h4>
+          <ul class="list-disc pl-5">
+            <li v-for="(c, i) in a.understanding.conditions" :key="i">{{ c }}</li>
+          </ul>
+        </div>
+      </div>
     </section>
 
     <section>
-      <h3 class="mb-2 text-lg font-semibold">{{ copy.analysis.requirements }}</h3>
-      <p v-if="!analysis.requirements.length" class="text-text-3">{{ copy.analysis.none }}</p>
-      <RequirementList v-else :items="analysis.requirements" detailed />
+      <h3 class="mb-2 text-lg font-semibold">{{ copy.analysis.fit }}</h3>
+      <div class="mb-2 flex items-center gap-2">
+        <ScoreBadge :score="a.fit.score" />
+        <span class="font-medium">{{ copy.analysis.verdict[a.fit.verdict] }}</span>
+      </div>
+      <p class="text-base">{{ a.fit.reasoning }}</p>
     </section>
 
     <section>
-      <h3 class="mb-2 text-lg font-semibold">{{ copy.analysis.evaluation }}</h3>
-      <p v-if="!analysis.evaluation.method && !analysis.evaluation.items?.length" class="text-text-3">
-        {{ copy.analysis.none }}
-      </p>
-      <EvaluationBars v-else :evaluation="analysis.evaluation" />
-    </section>
-
-    <section>
-      <h3 class="mb-2 text-lg font-semibold">{{ copy.analysis.schedule }}</h3>
-      <p v-if="!analysis.schedule.length" class="text-text-3">{{ copy.analysis.none }}</p>
-      <ScheduleTimeline v-else :items="analysis.schedule" />
-    </section>
-
-    <section>
-      <h3 class="mb-2 text-lg font-semibold">{{ copy.analysis.budget }}</h3>
-      <dl class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2 rounded-card bg-surface-2 px-4 py-3 text-base">
-        <template
-          v-for="[label, value] in [
-            [copy.analysis.budgetText, analysis.budget_contract.budget_text],
-            [copy.analysis.contractMethod, analysis.budget_contract.contract_method],
-            [copy.analysis.payment, analysis.budget_contract.payment_terms],
-            [copy.analysis.period, analysis.budget_contract.period],
-          ]"
-          :key="label"
-        >
-          <dt class="text-text-3">{{ label }}</dt>
-          <dd>{{ value || copy.analysis.none }}</dd>
+      <h3 class="mb-2 text-lg font-semibold">{{ copy.analysis.teamNeeds }}</h3>
+      <div
+        v-if="showProfileNotice"
+        data-test="profile-notice"
+        role="note"
+        class="mb-3 rounded-card bg-primary-soft px-4 py-3 text-base text-primary-hover"
+      >
+        <p class="font-medium">{{ copy.analysis.profileNotice }}</p>
+        <template v-if="a.profile_missing.length">
+          <p class="mt-2 text-sm">{{ copy.analysis.profileMissing }}</p>
+          <ul class="list-disc pl-5 text-sm">
+            <li v-for="(m, i) in a.profile_missing" :key="i">{{ m }}</li>
+          </ul>
         </template>
-      </dl>
+        <RouterLink to="/settings/profiles" class="mt-2 inline-block text-sm font-medium underline">
+          {{ copy.analysis.editProfile }}
+        </RouterLink>
+      </div>
+      <div class="grid gap-3 md:grid-cols-2">
+        <div>
+          <h4 class="mb-1 text-sm font-semibold text-text-2">{{ copy.analysis.have }}</h4>
+          <p v-if="!a.team_needs.have.length" class="text-text-3">{{ copy.analysis.none }}</p>
+          <ul v-else class="list-disc pl-5">
+            <li v-for="(s, i) in a.team_needs.have" :key="i">{{ s }}</li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="mb-1 text-sm font-semibold text-text-2">{{ copy.analysis.need }}</h4>
+          <p v-if="!a.team_needs.need.length" class="text-text-3">{{ copy.analysis.none }}</p>
+          <ul v-else class="list-disc pl-5">
+            <li v-for="(g, i) in a.team_needs.need" :key="i">{{ g }}</li>
+          </ul>
+        </div>
+      </div>
     </section>
 
     <section>
       <h3 class="mb-2 text-lg font-semibold">{{ copy.analysis.risks }}</h3>
-      <p v-if="!analysis.risks.length" class="text-text-3">{{ copy.analysis.none }}</p>
+      <p v-if="!a.risks.length" class="text-text-3">{{ copy.analysis.none }}</p>
       <ul v-else class="flex flex-col gap-2">
-        <li v-for="(r, i) in analysis.risks" :key="i" class="flex items-start gap-2">
+        <li v-for="(r, i) in a.risks" :key="i" class="flex items-start gap-2">
           <UiBadge :tone="sevTone[r.severity ?? 'mid']">{{ copy.analysis.severity[r.severity ?? 'mid'] }}</UiBadge>
           <span>
             {{ r.text }}
@@ -72,39 +107,16 @@ const sevTone = { high: 'danger', mid: 'warning', low: 'neutral' } as const
     </section>
 
     <section>
-      <h3 class="mb-2 text-lg font-semibold">{{ copy.analysis.fit }}</h3>
-      <div class="mb-2 flex items-center gap-2">
-        <ScoreBadge :score="analysis.fit.score" />
-        <span class="font-medium">{{ copy.analysis.verdict[analysis.fit.verdict] }}</span>
-      </div>
-      <p class="mb-3 text-base">{{ analysis.fit.reasoning }}</p>
-      <div class="grid gap-3 md:grid-cols-2">
-        <div>
-          <h4 class="mb-1 text-sm font-semibold text-text-2">{{ copy.analysis.strengths }}</h4>
-          <ul class="list-disc pl-5">
-            <li v-for="(s, i) in analysis.fit.strengths" :key="i">{{ s }}</li>
-          </ul>
-        </div>
-        <div>
-          <h4 class="mb-1 text-sm font-semibold text-text-2">{{ copy.analysis.gaps }}</h4>
-          <ul class="list-disc pl-5">
-            <li v-for="(g, i) in analysis.fit.gaps" :key="i">{{ g }}</li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
-    <section>
       <h3 class="mb-2 text-lg font-semibold">{{ copy.analysis.nextActions }}</h3>
       <ol class="list-decimal pl-5">
-        <li v-for="(a, i) in analysis.next_actions" :key="i">{{ a }}</li>
+        <li v-for="(x, i) in a.next_actions" :key="i">{{ x }}</li>
       </ol>
     </section>
 
-    <section v-if="analysis.warnings?.length">
+    <section v-if="a.warnings?.length">
       <h3 class="mb-2 text-lg font-semibold">{{ copy.analysis.warnings }}</h3>
       <ul class="list-disc pl-5 text-text-2">
-        <li v-for="(w, i) in analysis.warnings" :key="i">{{ w }}</li>
+        <li v-for="(w, i) in a.warnings" :key="i">{{ w }}</li>
       </ul>
     </section>
   </div>

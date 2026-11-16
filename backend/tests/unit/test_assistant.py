@@ -186,34 +186,80 @@ def test_tool_registry_is_exactly_nine_read_only_tools():
         assert not any(w in name for w in writes), name
 
 
-# ---------- 낙찰·경쟁사 도구 답의 숫자 대조 (§15.8, 2026-11-16 실제 모델에서 발견) ----------
+# ---------- 낙찰·경쟁사 도구 답: 모아서 검증한 뒤 내보낸다 (§15.8, 2026-11-17 결정) ----------
 
 COMPARE_RESULT = {"verdicts": [{"key": "amount_avg", "us": 1208634929, "them": 678086857}]}
+GOOD = "평균은 우리 1,208,634,929원, 상대 678,086,857원이에요."
+# 실제 모델 사례: 1,208,634,929원을 '12억 8,634만'으로 잘못 바꾸고 '두 배'처럼 새로 계산함
+BAD = "평균은 12억 8,634만원이에요. 상대보다 두 배 가까이 많아요."
 
 
-async def _company_turn(answer: str):
-    from app.llm.assistant import NUMBER_HINT
-
+async def _company_turn(*answers: str):
     async def execute(name, args):
         return ToolOutcome(text=json.dumps(COMPARE_RESULT), summary=name)
 
     llm = FakeLLM()
-    llm.script_chat(tool_round("compare_companies", {"name": "경동"}), answer)
+    llm.script_chat(
+        [TextDelta("비교해 볼게요. "), *tool_round("compare_companies", {"name": "경동"})],
+        *answers,
+    )
     result, events = await _turn(llm, execute)
-    return result, _tokens(events), NUMBER_HINT
+    return llm, result, events
 
 
-async def test_company_answer_with_numbers_from_tools_has_no_warning():
-    result, text, hint = await _company_turn(
-        "평균은 우리 1,208,634,929원, 상대 678,086,857원이에요."
-    )
-    assert hint not in text and result.warnings == []
+async def test_company_answer_is_held_then_sent_when_numbers_match():
+    llm, result, events = await _company_turn(GOOD)
+    from app.llm.assistant import CHECK_STATUS
+
+    # 도구 전 문장은 바로 나가고, 도구 뒤 답은 검증 상태를 알린 뒤 한 번에 나간다
+    tokens = [e["text"] for e in events if e["type"] == "token"]
+    assert tokens == ["비교해 볼게요. ", GOOD]
+    assert any(e.get("message") == CHECK_STATUS for e in events)
+    assert result.content == "비교해 볼게요. " + GOOD and result.warnings == []
+    assert llm.calls["assistant"] == 2
 
 
-async def test_company_answer_with_converted_or_derived_numbers_gets_warning():
-    # 실제 모델 사례: 1,208,634,929원을 '12억 8,634만'으로 잘못 바꾸고 '1.8배'처럼 새로 계산함
-    result, text, hint = await _company_turn(
-        "평균은 12억 8,634만원으로 상대보다 1.8배, 두 배 가까이"
-    )
-    assert text.endswith(hint)
-    assert "12억 8,634만" in result.warnings[0] and "두 배" in result.warnings[0]
+async def test_wrong_numbers_never_reach_user_and_retry_quotes_the_line():
+    llm, result, events = await _company_turn(BAD, GOOD)
+    text = _tokens(events)
+    assert "12억" not in text and "두 배" not in text
+    assert text == "비교해 볼게요. " + GOOD == result.content
+    retry = llm.payloads[-1][1][-1]
+    assert retry["role"] == "user" and "12억 8,634만원" in retry["content"]
+    assert llm.requests[-1]["tool_choice"] == "none"
+    assert len(result.warnings) == 1 and "12억 8,634만" in result.warnings[0]
+
+
+async def test_still_wrong_after_retry_drops_only_bad_sentences():
+    from app.llm.assistant import NUMBER_HINT
+
+    llm, result, events = await _company_turn(BAD, f"{GOOD} 상대보다 1.8배예요.\n- 차이 5억")
+    text = _tokens(events)
+    assert text == f"비교해 볼게요. {GOOD}\n\n{NUMBER_HINT}"
+    assert "1.8배" not in text and "5억" not in text
+    assert "문장 2개 뺌" in result.warnings[-1]
+
+
+async def test_nothing_left_after_retry_gives_fixed_notice():
+    from app.llm.assistant import NUMBER_FAILED
+
+    _, result, events = await _company_turn(BAD, BAD)
+    assert _tokens(events) == "비교해 볼게요. " + NUMBER_FAILED
+
+
+async def test_retry_that_only_writes_a_tool_call_falls_back_to_trimmed_first_answer():
+    # 실제 모델(2026-11-17): 다시 만들라고 하자 tool_choice='none'인데 도구 호출을 글로 씀
+    from app.llm.assistant import NUMBER_HINT
+
+    tool_text = "<tool_call>\n<function=compare_companies>\n<parameter=name>\n경동\n</parameter>"
+    first = f"{GOOD} 상대보다 두 배 가까이 많아요."
+    _, result, events = await _company_turn(first, tool_text)
+    text = _tokens(events)
+    assert "tool_call" not in text and "두 배" not in text
+    assert text == f"비교해 볼게요. {GOOD}\n\n{NUMBER_HINT}"
+
+
+async def test_company_answer_spacing_before_units_is_tidied():
+    _, result, events = await _company_turn("평균 1,208,634,929 원, 상대 678,086,857 원이에요.")
+    assert _tokens(events).endswith("평균 1,208,634,929원, 상대 678,086,857원이에요.")
+    assert result.warnings == []

@@ -115,10 +115,15 @@ async def test_assistant_company_tools_match_api(full_api):
     awards = json.loads((await run("get_company_awards", {"bizno": THEM})).text)
     ours = json.loads((await run("get_company_awards", {})).text)
     compare = json.loads((await run("compare_companies", {"bizno": THEM})).text)
+    from app.pipeline.explain import counted_period
+
+    # API와 같은 값. 단 기간은 실제로 센 범위만(요청 기간 5년을 수집 기간으로 오해, 실제 모델)
     assert search == api_search
-    assert awards == {"summary": api_summary, "awards": api_awards}
-    assert ours["summary"] == api_us
-    assert compare == api_compare  # 판정·강점·약점까지 같은 값
+    assert awards == counted_period({"summary": api_summary, "awards": api_awards})
+    assert ours["summary"] == counted_period(api_us)
+    assert compare == counted_period(api_compare)  # 판정·강점·약점까지 같은 값
+    assert set(compare["period"]) <= {"counted_from", "counted_to", "collecting"}
+    assert "from" in api_compare["period"]
 
     # 오류는 모델에 안내문으로 돌려준다(예외로 대화가 끊기지 않음)
     same = json.loads((await run("compare_companies", {"bizno": US})).text)
@@ -138,7 +143,10 @@ async def test_company_tools_resolve_names_like_the_real_model_sends(full_api):
     by_name = json.loads((await run("compare_companies", {"name": "가온"})).text)
     awards = json.loads((await run("get_company_awards", {"name": "가온"})).text)
     missing = json.loads((await run("compare_companies", {"name": "없는업체이름"})).text)
-    assert by_name == api_compare and awards["summary"] == api_summary
+    from app.pipeline.explain import counted_period
+
+    assert by_name == counted_period(api_compare)
+    assert awards["summary"] == counted_period(api_summary)
     assert "error" in missing and missing["candidates"] == []
 
 

@@ -151,3 +151,21 @@ def test_multipliers_in_words_are_blocked():
 def test_markdown_list_numbers_are_not_numbers():
     text = "주요 기관\n1. 대구광역시: 1건\n2. 군산시: 2건\n3. 전남청사: 1건"
     assert unsupported([text], {"a": 1, "b": 2}) == []
+
+
+def test_keep_supported_drops_only_sentences_with_unknown_numbers():
+    from app.analysis.explain_check import keep_supported
+
+    payload = {"a": 1208634929, "n": 14}
+    text = "우리는 14건이에요. 상대보다 두 배예요.\n\n1. 평균 1,208,634,929원\n2. 차이 5억\n끝."
+    kept, dropped = keep_supported(text, payload)
+    assert kept == "우리는 14건이에요.\n\n1. 평균 1,208,634,929원\n끝."
+    assert dropped == 2
+    assert keep_supported("5억 차이예요.", payload) == ("", 1)
+
+
+def test_strip_tool_text_removes_tool_calls_written_as_text():
+    from app.analysis.explain_check import strip_tool_text
+
+    assert strip_tool_text("<tool_call>\n<function=x>\n</tool_call>") == ""
+    assert strip_tool_text("답이에요.\n<tool_call>\n<function=x>") == "답이에요."

@@ -9,9 +9,11 @@
    카드도 남은 ID로만 만든다. 지운 ID는 warnings로 messages.parts에 남긴다.
 6. 텍스트 조각만 token으로 내보내고 도구 인자·결과는 클라이언트로 보내지 않는다.
 7. 도구 호출을 해석하지 못하면 도구 없이 답하게 하고 검색 탭 안내 문장을 덧붙인다.
-8. 낙찰·경쟁사 도구(§15.8)를 쓴 답은 숫자를 도구 결과와 대조한다(explain_check, 해설과 같은 검증기).
-   스트리밍이라 지울 수는 없어서, 맞지 않는 숫자·글로 쓴 배수가 있으면 확인 안내를 덧붙이고
-   warnings에 남긴다 (2026-11-16 실제 모델: 억 단위 변환 오류·'2배' 같은 계산이 나옴).
+8. 낙찰·경쟁사 도구(§15.8)를 쓴 뒤의 답은 스트리밍하지 않고 모아 두었다가 숫자를 도구 결과와
+   대조한다(explain_check, 해설과 같은 검증기). 맞으면 그대로 내보내고, 틀리면 문제 문장을 보여 주고
+   한 번 다시 만든다. 그래도 틀리면 걸린 문장만 빼고 안내를 붙인다(남는 게 없으면 고정 안내).
+   틀린 숫자는 화면에 나가지 않는다 (2026-11-16 실제 모델: 억 단위 변환 오류·'2배' 같은 계산,
+   2026-11-17 사용자 결정으로 안내만 붙이던 방식을 바꿈).
 """
 
 from __future__ import annotations
@@ -22,7 +24,13 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.analysis.explain_check import multipliers, unsupported
+from app.analysis.explain_check import (
+    keep_supported,
+    multipliers,
+    strip_tool_text,
+    tidy,
+    unsupported,
+)
 from app.llm import usage
 from app.llm.base import LLMClient, Message, StreamUsage, TextDelta, ToolCall, ToolCalls
 from app.llm.prompts import fence, system_text
@@ -33,9 +41,14 @@ HISTORY = 12
 PROFILE_CHARS = 500
 FALLBACK_HINT = "도구를 쓰지 못해 일반 답변으로 대신했어요. 정확한 공고는 검색 탭에서 찾아 주세요."
 NUMBER_HINT = (
-    "※ 위 답의 일부 숫자는 조회 결과와 맞는지 확인되지 않았어요. 정확한 값은 '업체 검색'·'경쟁사' "
-    "화면에서 확인해 주세요."
+    "※ 조회 결과와 맞는지 확인되지 않은 숫자가 있는 문장은 뺐어요. "
+    "정확한 값은 '업체 검색'·'경쟁사' 화면에서 확인해 주세요."
 )
+NUMBER_FAILED = (
+    "조회 결과와 맞는 숫자로 답을 만들지 못했어요. 정확한 값은 '업체 검색'·'경쟁사' 화면에서 "
+    "확인해 주세요."
+)
+CHECK_STATUS = "답을 만들고 숫자를 조회 결과와 맞춰 보고 있어요"
 NUMBER_CHECKED = frozenset({"search_companies", "get_company_awards", "compare_companies"})
 _REF = re.compile(r"(\[)?(?<![A-Za-z0-9])b(\d+)(?![0-9])(?(1)\]|)")
 _TAIL = re.compile(r"(\[?(?<![A-Za-z0-9])b\d*|\[)$")
@@ -213,6 +226,24 @@ def _tool_message(call_id: str, payload: str) -> Message:
     }
 
 
+def number_problems(text: str, checked: list[Any]) -> list[str]:
+    """도구 결과에 없는 숫자와 글로 쓴 배수."""
+    return [*unsupported([text], checked), *multipliers([text])]
+
+
+def number_retry_message(text: str, bad: list[str]) -> str:
+    """걸린 숫자·표현과 그 문장을 보여 준다(해설 재생성과 같은 방식)."""
+    lines = [ln.strip() for ln in text.split("\n") if any(b in ln for b in bad)]
+    quoted = "\n".join(f"- {ln}" for ln in lines[:5])
+    return (
+        f"위 답에 조회 결과에 없는 숫자나 표현이 있습니다: {', '.join(bad[:10])}\n"
+        f"문제가 된 줄:\n{quoted}\n"
+        "조회 결과에 있는 숫자만 그대로(금액은 쉼표를 넣은 원 단위) 쓰도록 고치거나 "
+        "그 문장을 빼고, 도구는 다시 부르지 말고 위 조회 결과만으로 답 전체를 다시 쓰세요. "
+        "차이·비율·배수를 계산하거나 목록 개수를 세지 마세요."
+    )
+
+
 def _parse(call: ToolCall) -> dict[str, Any] | None:
     if call.name not in TOOL_NAMES:
         return None
@@ -246,6 +277,7 @@ async def run_turn(
     removed: list[str] = []
     emitted: list[str] = []
     checked: list[Any] = []  # 숫자를 대조할 도구 결과(낙찰·경쟁사)
+    held: list[str] = []  # 낙찰 도구를 쓴 뒤의 답: 검증 뒤에 내보낸다
     fallback = False
 
     def out(text: str) -> None:
@@ -253,8 +285,7 @@ async def run_turn(
             emitted.append(text)
             emit({"type": "token", "text": text})
 
-    for rnd in range(MAX_ROUNDS):
-        final = fallback or rnd == MAX_ROUNDS - 1
+    async def stream(final: bool, sink: Callable[[str], None]) -> tuple[str, list[ToolCall]]:
         flt = IdFilter(set(seen))
         raw: list[str] = []
         calls: list[ToolCall] = []
@@ -268,23 +299,30 @@ async def run_turn(
         ):
             if isinstance(ev, TextDelta):
                 raw.append(ev.text)
-                out(flt.feed(ev.text))
+                sink(flt.feed(ev.text))
             elif isinstance(ev, ToolCalls):
                 calls = ev.calls
             elif isinstance(ev, StreamUsage):
                 got_usage = True
                 usage.record_llm(ev.prompt_tokens, ev.completion_tokens)
-        out(flt.flush())
+        sink(flt.flush())
         if not got_usage:
             usage.record_llm(0, 0)
-        removed += [r for r in flt.removed if r not in removed]
+        removed.extend(r for r in flt.removed if r not in removed)
+        return "".join(raw), calls
+
+    for rnd in range(MAX_ROUNDS):
+        final = fallback or rnd == MAX_ROUNDS - 1
+        if checked and not held:
+            emit({"type": "status", "stage": "explain", "message": CHECK_STATUS})
+        raw_text, calls = await stream(final, held.append if checked else out)
         if final or not calls:
             break
 
         messages.append(
             {
                 "role": "assistant",
-                "content": "".join(raw) or None,
+                "content": raw_text or None,
                 "tool_calls": [
                     {
                         "id": c.id,
@@ -339,15 +377,36 @@ async def run_turn(
                     checked.append(outcome.text)
             messages.append(_tool_message(call.id, outcome.text))
 
+    number_warnings: list[str] = []
+    hint = ""
+    if checked:
+        answer = strip_tool_text("".join(held))
+        bad = number_problems(answer, checked)
+        if bad or not answer:
+            number_warnings.append(f"조회 결과에 없는 숫자·표현: {', '.join(bad[:10]) or '빈 답'}")
+            messages.append({"role": "assistant", "content": answer or "(빈 답)"})
+            messages.append({"role": "user", "content": number_retry_message(answer, bad)})
+            again: list[str] = []
+            await stream(True, again.append)
+            retry = strip_tool_text("".join(again))
+            bad = number_problems(retry, checked)
+            if retry and not bad:
+                answer = retry
+            else:
+                # 다시 만든 답이 비었거나 도구 호출 글뿐이면 첫 답에서 문장을 뺀다
+                base = retry or answer
+                answer, dropped = keep_supported(base, checked)
+                left = number_problems(base, checked)
+                number_warnings.append(
+                    f"답에서 문장 {dropped}개 뺌: {', '.join(left[:10]) or '빈 답'}"
+                )
+                hint = NUMBER_HINT if answer else ""
+                answer = answer or NUMBER_FAILED
+        out(tidy(answer))
     if fallback:
         out(f"\n\n{FALLBACK_HINT}")
-    number_warnings: list[str] = []
-    if checked:
-        answer = "".join(emitted)
-        bad = [*unsupported([answer], checked), *multipliers([answer])]
-        if bad:
-            out(f"\n\n{NUMBER_HINT}")
-            number_warnings.append(f"조회 결과에 없는 숫자·표현: {', '.join(bad[:10])}")
+    if hint:
+        out(f"\n\n{hint}")
     content = "".join(emitted)
     cards = [int(m.group(2)) for m in _REF.finditer(content) if int(m.group(2)) in seen]
     return TurnResult(

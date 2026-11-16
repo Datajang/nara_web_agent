@@ -24,6 +24,7 @@ from app.llm.assistant import ToolArgError, ToolExec, ToolOutcome
 from app.llm.tokens import load_counter
 from app.llm.versions import SUMMARY_PROMPT, bid_ref, parse_bid_ref, prompt_version
 from app.pipeline.analyze import get_or_create_analysis
+from app.pipeline.explain import counted_period
 from app.pipeline.recommend import recommend
 from app.pipeline.scoring import _headlines
 from app.search.query import SearchQuery
@@ -176,10 +177,12 @@ def make_executor(deps: Deps, user_id: int, profile: TurnProfile | None) -> Tool
                 bizno, cname = await views.resolve_target(s, deps, await _resolve(s, ca))
                 summary = await views.summary_out(s, deps, bizno, cname)
                 awards = await views.award_list(s, deps, bizno, limit=ca.limit)
-                payload = {
-                    "summary": summary.model_dump(mode="json", by_alias=True),
-                    "awards": awards.model_dump(mode="json", by_alias=True),
-                }
+                payload = counted_period(
+                    {
+                        "summary": summary.model_dump(mode="json", by_alias=True),
+                        "awards": awards.model_dump(mode="json", by_alias=True),
+                    }
+                )
                 text = _dump(payload, deps, payload["awards"]["items"])
                 return ToolOutcome(text, summary=f"get_company_awards: {bizno}")
             ref = CompareArgs.model_validate(args)
@@ -187,7 +190,7 @@ def make_executor(deps: Deps, user_id: int, profile: TurnProfile | None) -> Tool
             if them is None:
                 raise ToolArgError("비교할 업체의 bizno 또는 name이 필요해요")
             out = await views.compare_out(s, deps, them)
-            payload = out.model_dump(mode="json", by_alias=True)
+            payload = counted_period(out.model_dump(mode="json", by_alias=True))
             return ToolOutcome(_dump(payload, deps), summary=f"compare_companies: {them}")
 
     async def _run(name: str, args: dict[str, Any]) -> ToolOutcome:

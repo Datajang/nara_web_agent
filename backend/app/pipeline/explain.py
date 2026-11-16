@@ -13,11 +13,10 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.analysis.explain_check import banned_phrases, unsupported
+from app.analysis.explain_check import banned_phrases, tidy, unsupported
 from app.llm.base import LLMClient, Message
 from app.llm.prompts import render
 from app.llm.schemas import CompareExplain
@@ -40,27 +39,33 @@ class ExplainResult:
     trimmed: int = 0  # 마지막에 뺀 point 수
 
 
-def model_input(compare: dict[str, Any]) -> dict[str, Any]:
-    """비교 응답에서 화면 상태를 빼고, 기간은 실제로 센 범위만 남긴다.
+_PERIOD_KEYS = ("counted_from", "counted_to", "collecting")
+
+
+def counted_period(payload: Any) -> Any:
+    """LLM에 줄 낙찰 데이터에서 기간(period)은 실제로 센 범위만 남긴다(어시스턴트 도구도 씀).
 
     요청 기간(from·to, 기본 5년)을 주면 수집이 30일뿐이어도 '2021년부터'라고 쓴다
-    (2026-11-16 실제 모델). 센 범위(counted_from~counted_to)만 주어 오해를 막는다.
+    (2026-11-16 해설, 2026-11-17 어시스턴트 비교 답, 실제 모델).
     """
-    out = {k: v for k, v in compare.items() if k not in _DROP}
-    period = out.get("period")
-    if isinstance(period, dict):
-        out["period"] = {
-            k: period.get(k) for k in ("counted_from", "counted_to", "collecting") if k in period
+    if isinstance(payload, dict):
+        return {
+            k: (
+                {p: v[p] for p in _PERIOD_KEYS if p in v}
+                if k == "period" and isinstance(v, dict)
+                else counted_period(v)
+            )
+            for k, v in payload.items()
         }
+    if isinstance(payload, list):
+        return [counted_period(x) for x in payload]
+    return payload
+
+
+def model_input(compare: dict[str, Any]) -> dict[str, Any]:
+    """비교 응답에서 화면 상태를 빼고, 기간은 실제로 센 범위만 남긴다."""
+    out: dict[str, Any] = counted_period({k: v for k, v in compare.items() if k not in _DROP})
     return out
-
-
-_UNIT_GAP = re.compile(r"(\d)\s+(?=(?:건|곳|개|원|년|월|일|회|억|천만|백만|만|천|%))")
-
-
-def tidy(text: str) -> str:
-    """'14 건', '2026 년' → '14건', '2026년'. 숫자 값은 바꾸지 않는다(실제 모델이 띄어 씀)."""
-    return _UNIT_GAP.sub(r"\1", text)
 
 
 def problems(out: CompareExplain, payload: dict[str, Any]) -> list[str]:

@@ -128,3 +128,38 @@ def multipliers(texts: Iterable[str]) -> list[str]:
 def banned_phrases(texts: Iterable[str]) -> list[str]:
     joined = "\n".join(texts)
     return [w for w in BANNED if w in joined] + [m.group(0) for m in _BANNED_RE.finditer(joined)]
+
+
+# 문장 끝: 숫자가 아닌 글자 뒤의 . ! ? ('1.5'·'3. ' 목록 번호는 자르지 않는다)
+_SENT_END = re.compile(r"(?<=[^\d\s][.!?])\s+")
+
+
+def keep_supported(text: str, payload: Any) -> tuple[str, int]:
+    """입력에 없는 숫자나 글로 쓴 배수가 든 문장만 뺀 글과 뺀 문장 수 (어시스턴트 답용).
+
+    줄 단위로 나눈 뒤 문장으로 나눈다. 표·목록의 한 줄도 한 문장으로 본다.
+    """
+    lines: list[str] = []
+    dropped = 0
+    for line in text.split("\n"):
+        parts = [p for p in _SENT_END.split(line) if p.strip()]
+        kept = [p for p in parts if not unsupported([p], payload) and not multipliers([p])]
+        dropped += len(parts) - len(kept)
+        if kept or not parts:
+            lines.append(" ".join(kept) if kept else line)
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip(), dropped
+
+
+_UNIT_GAP = re.compile(r"(\d)\s+(?=(?:건|곳|개|원|년|월|일|회|억|천만|백만|만|천|%))")
+# tool_choice='none' 라운드에서 실제 모델이 도구 호출을 글로 쓴 것 (Qwen XML 형식)
+_TOOL_TEXT = re.compile(r"<tool_call>.*?(?:</tool_call>|\Z)", re.S)
+
+
+def tidy(text: str) -> str:
+    """'14 건', '2026 년' → '14건', '2026년'. 숫자 값은 바꾸지 않는다(실제 모델이 띄어 씀)."""
+    return _UNIT_GAP.sub(r"\1", text)
+
+
+def strip_tool_text(text: str) -> str:
+    """답에 글로 섞인 도구 호출(<tool_call>…)을 지운다."""
+    return _TOOL_TEXT.sub("", text).strip()

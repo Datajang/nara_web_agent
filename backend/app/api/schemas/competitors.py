@@ -50,6 +50,18 @@ class SharedOrgOut(BaseModel):
     them: int
 
 
+class JointPartnerOut(BaseModel):
+    bizno: str
+    name: str
+    count: int  # 함께 공동수급한 낙찰 공고 수
+
+
+class CompareJointOut(BaseModel):
+    collected: bool  # 계약정보(공동수급 구성)를 수집한 적이 있는가. false면 '수집 중'
+    us: list[JointPartnerOut]
+    them: list[JointPartnerOut]
+
+
 class CompareOut(BaseModel):
     period: PeriodOut
     note: str  # '두 회사 모두 수집 완료된 기간'
@@ -62,6 +74,7 @@ class CompareOut(BaseModel):
     head_to_head: HeadToHeadOut
     by_year: list[CompareYearOut]
     shared_orgs: list[SharedOrgOut]
+    joint: CompareJointOut
     watched: bool
 
 

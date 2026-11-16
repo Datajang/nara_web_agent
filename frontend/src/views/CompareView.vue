@@ -1,13 +1,15 @@
 <script setup lang="ts">
 // 우리 회사와 경쟁사 비교 (§15.7 /competitors/:bizno). 맨 위에 강점·약점 카드와 항목별 판정 표,
 // 이어서 한눈에 보기, 연도별 낙찰, 수요기관 겹침, 주력 분야, 공동수급 파트너, 경쟁사 최근 낙찰, AI 해설.
-// 판정은 서버가 규칙(§15.5)으로 계산한 값 그대로다. LLM은 쓰지 않는다(AI 해설은 P11).
+// 판정은 서버가 규칙(§15.5)으로 계산한 값 그대로다. AI 해설(§15.8)은 누를 때만 만들고, 숫자가 표에 있는지
+// 서버가 검증한 글만 보여 준다(검증 실패면 해설 없이 표만).
 import { useQuery } from '@tanstack/vue-query'
-import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, ref, watch } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 import { awardsApi, formatBizno } from '@/api/awards'
 import { ApiError } from '@/api/client'
-import { competitorsApi, type VerdictRow } from '@/api/competitors'
+import { competitorsApi, type JointPartner, type VerdictRow } from '@/api/competitors'
+import type { StreamEvent } from '@/api/types'
 import AwardsBasis from '@/components/awards/AwardsBasis.vue'
 import AwardsFootnote from '@/components/awards/AwardsFootnote.vue'
 import AwardTable from '@/components/awards/AwardTable.vue'
@@ -15,8 +17,10 @@ import PairBars from '@/components/awards/PairBars.vue'
 import type { PairRow } from '@/components/awards/pair'
 import VerdictBadge from '@/components/awards/VerdictBadge.vue'
 import WatchButton from '@/components/awards/WatchButton.vue'
+import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
+import { useSse } from '@/composables/useSse'
 import { copy } from '@/copy'
 import { formatMoney, formatPct } from '@/utils/format'
 
@@ -86,6 +90,33 @@ const years = computed<PairRow[]>(() =>
 )
 const field = ref('')
 const org = ref('')
+
+const joint = computed(() => {
+  const d = cmp.data.value
+  if (!d) return []
+  return [
+    { key: 'us', name: d.us.name, rows: d.joint.us as JointPartner[] },
+    { key: 'them', name: d.them.name, rows: d.joint.them as JointPartner[] },
+  ]
+})
+
+// ---------- AI 해설 (SSE) ----------
+const ai = useSse<StreamEvent>()
+const explained = computed(() => {
+  const e = ai.events.value.find((x) => x.type === 'explain')
+  return e && e.type === 'explain' ? e : null
+})
+const aiError = computed(() => {
+  const err = ai.error.value
+  if (!err) return ''
+  if (err.code === 'llm_unavailable') return copy.llm.unavailable
+  if (err.code === 'stream_interrupted') return copy.common.streamInterrupted
+  return copy.competitors.aiFailed
+})
+async function explain() {
+  await ai.start(competitorsApi.explainPath(bizno.value), {})
+}
+watch(bizno, () => ai.abort())
 </script>
 
 <template>
@@ -210,8 +241,28 @@ const org = ref('')
       </div>
 
       <section class="rounded-card border border-border bg-surface p-4" :aria-label="copy.competitors.jointPartners">
-        <h3 class="mb-2 text-lg font-semibold">{{ copy.competitors.jointPartners }}</h3>
-        <p class="text-text-3">{{ copy.competitors.jointPending }}</p>
+        <h3 class="mb-1 text-lg font-semibold">{{ copy.competitors.jointPartners }}</h3>
+        <p v-if="!cmp.data.value.joint.collected" class="text-text-3">{{ copy.competitors.jointCollecting }}</p>
+        <template v-else>
+          <p class="mb-3 text-xs text-text-3">{{ copy.competitors.jointIntro }}</p>
+          <div class="grid gap-4 md:grid-cols-2" data-joint>
+            <div v-for="j in joint" :key="j.key" :data-joint-side="j.key">
+              <h4 class="mb-1 text-sm font-medium text-text-2">{{ copy.competitors.jointOf(j.name) }}</h4>
+              <p v-if="!j.rows.length" class="text-sm text-text-3">{{ copy.competitors.jointNone }}</p>
+              <ul v-else class="flex flex-col divide-y divide-border text-sm">
+                <li v-for="p in j.rows" :key="p.bizno" class="flex items-center gap-2 py-1.5">
+                  <RouterLink
+                    v-if="p.bizno !== cmp.data.value.us.bizno"
+                    :to="`/companies?bizno=${p.bizno}`"
+                    class="min-w-0 flex-1 truncate text-primary hover:underline"
+                  >{{ p.name }}</RouterLink>
+                  <span v-else class="min-w-0 flex-1 truncate">{{ p.name }}</span>
+                  <span class="tabular text-text-2">{{ copy.competitors.jointCount(p.count) }}</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </template>
       </section>
 
       <div class="flex flex-col gap-2">
@@ -227,8 +278,31 @@ const org = ref('')
       </div>
 
       <section class="rounded-card border border-border bg-surface p-4" :aria-label="copy.competitors.aiExplain" data-ai-explain>
-        <h3 class="mb-2 text-lg font-semibold">{{ copy.competitors.aiExplain }}</h3>
-        <p class="text-text-3">{{ copy.competitors.aiPending }}</p>
+        <div class="mb-2 flex flex-wrap items-center gap-2">
+          <h3 class="text-lg font-semibold">{{ copy.competitors.aiExplain }}</h3>
+          <UiBadge tone="primary">{{ copy.competitors.aiBadge }}</UiBadge>
+          <UiButton
+            class="ml-auto"
+            size="sm"
+            :variant="explained ? 'secondary' : 'primary'"
+            :loading="ai.streaming.value"
+            @click="explain"
+          >{{ explained ? copy.competitors.aiAgain : copy.competitors.aiStart }}</UiButton>
+        </div>
+        <p class="text-sm text-text-3">{{ copy.competitors.aiIntro }}</p>
+        <p v-if="ai.streaming.value" class="mt-3 text-sm text-text-2" aria-live="polite">{{ copy.competitors.aiWorking }}</p>
+        <p v-else-if="aiError" class="mt-3 text-sm text-danger-fg" role="alert">{{ aiError }}</p>
+        <template v-else-if="explained">
+          <div v-if="explained.explanation" class="mt-3 flex flex-col gap-2" data-ai-text>
+            <p class="text-base">{{ explained.explanation.summary }}</p>
+            <ul class="list-disc pl-5 text-base text-text-2">
+              <li v-for="(pt, i) in explained.explanation.points" :key="i">{{ pt }}</li>
+            </ul>
+          </div>
+          <p v-else class="mt-3 rounded-control bg-warning-bg px-3 py-2 text-sm text-warning-fg" role="note" data-ai-dropped>
+            {{ copy.competitors.aiDropped }}
+          </p>
+        </template>
       </section>
       <AwardsFootnote />
     </template>

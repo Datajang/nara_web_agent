@@ -2,7 +2,8 @@
 
 - 비교 기간은 두 회사 모두 수집 완료된 기간이다. 낙찰 커버리지는 업체 구분 없이 하나라서
   P9의 Period(수집 완료 범위로 자른 기간)를 그대로 쓴다.
-- 맞대결은 개찰 결과(bid_participants)를 조회해 본 공고만 셀 수 있다(P11에서 채움).
+- 맞대결은 개찰 결과(bid_participants)를 조회해 본 공고만 셀 수 있다(공고 상세 '경쟁 구도'가 채움).
+- 공동수급 파트너는 계약정보(bid_joint_members)를 수집한 기간만 있다(P11 contracts 수집기).
 """
 
 from __future__ import annotations
@@ -23,7 +24,7 @@ from app.analysis.competitors import (
     AwardKey,
 )
 from app.awards.service import Period, period_conds
-from app.db.models import BidAward, BidParticipant, Company, WatchedCompany
+from app.db.models import BidAward, BidJointMember, BidParticipant, Company, WatchedCompany
 
 
 async def load_facts(s: AsyncSession, bizno: str, p: Period) -> list[AwardFact]:
@@ -274,3 +275,55 @@ async def unwatch(s: AsyncSession, bizno: str) -> None:
     row = await s.get(WatchedCompany, bizno)
     if row is not None:
         await s.delete(row)
+
+
+@dataclass
+class JointPartner:
+    bizno: str
+    name: str
+    count: int  # 함께 공동수급한 낙찰 공고 수(기간 안)
+
+
+JOINT_TOP = 5
+
+
+async def joint_partners(
+    s: AsyncSession, bizno: str, p: Period, limit: int = JOINT_TOP
+) -> list[JointPartner]:
+    """bizno가 구성원(주계약·도급)인 공동수급 낙찰에서 함께한 업체.
+
+    많은 순, 같으면 사업자번호 순.
+    """
+    if p.eff_from is None or p.eff_to is None:
+        return []
+    me, other = BidJointMember.__table__.alias("me"), BidJointMember.__table__.alias("other")
+    a = BidAward.__table__
+    n = func.count(func.distinct(a.c.bid_ntce_no + "-" + a.c.bid_ntce_ord)).label("n")
+    name = func.coalesce(
+        func.max(Company.name), func.max(other.c.member_name), other.c.member_bizno
+    )
+    q = (
+        select(other.c.member_bizno, name, n)
+        .select_from(me)
+        .join(
+            other,
+            (other.c.bid_ntce_no == me.c.bid_ntce_no)
+            & (other.c.bid_ntce_ord == me.c.bid_ntce_ord)
+            & (other.c.member_bizno != me.c.member_bizno),
+        )
+        .join(
+            a,
+            (a.c.bid_ntce_no == me.c.bid_ntce_no)
+            & ((me.c.bid_ntce_ord == "") | (a.c.bid_ntce_ord == me.c.bid_ntce_ord)),
+        )
+        .outerjoin(Company, Company.bizno == other.c.member_bizno)
+        .where(
+            me.c.member_bizno == bizno,
+            a.c.registered_at >= p.eff_from,
+            a.c.registered_at < p.eff_to,
+        )
+        .group_by(other.c.member_bizno)
+        .order_by(n.desc(), other.c.member_bizno)
+        .limit(limit)
+    )
+    return [JointPartner(b, str(nm), int(c)) for b, nm, c in (await s.execute(q)).all()]

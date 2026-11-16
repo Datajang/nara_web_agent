@@ -35,6 +35,8 @@ sudo shred -u /root/nara-backup-key.txt
 `deploy.sh`가 마이그레이션 0008과 유닛 파일을 올린 뒤 `sudo systemctl enable --now nara-collector-awards.timer`.
 상태: `systemctl list-timers nara-collector-awards.timer`, 결과는 관리자 화면 수집 이력(source=awards).
 하루 낙찰 호출은 `G2B_AWARDS_DAILY_BUDGET`(기본 300)에서 멈추고 다음 날 이어서 과거로 채운다.
+P11 배포(0010) 뒤 같은 timer가 계약정보(공동수급, source=contracts)도 받는다: 증분 3일, 백필은 한 번에
+`G2B_CONTRACTS_BACKFILL_CALLS`(기본 100)회까지(5년이면 약 3달). 나머지 낙찰 몫은 공고 '경쟁 구도'의 개찰 결과 조회에 쓰인다.
 
 ## 실제 장애 복구
 `systemctl stop nara-api nara-collector.timer` → 위 명령으로 새 DB(예: `nara_restored`)에 복원·확인 →

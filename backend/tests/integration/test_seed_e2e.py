@@ -16,7 +16,7 @@ async def test_seed_is_idempotent_and_searchable_offline(full_api, fake_g2b):
         assert await s.scalar(select(func.count()).select_from(Bid)) == len(seed_e2e.TITLES)
         assert await s.scalar(select(func.count()).select_from(BidAward)) == len(seed_e2e.AWARDS)
         cov = (await s.scalars(select(CollectorCoverage))).all()
-    assert {c.source for c in cov} == {"regular", "prespec", "awards"}
+    assert {c.source for c in cov} == {"regular", "prespec", "awards", "contracts"}
     assert all(c.covered_to > NOW for c in cov)  # 검색 창이 커버리지 안 → G2B를 부르지 않는다
 
     async with full_api.client() as c:
@@ -72,3 +72,25 @@ async def test_seed_awards_are_found_by_company_lookup(full_api):
         hits = (await c.get("/api/v1/companies/search?q=가온")).json()["items"]
     assert sm["count"] == 3
     assert [h["bizno"] for h in hits] == [seed_e2e.E2E_RIVAL_BIZNO]
+
+
+async def test_seed_competition_tab_needs_no_g2b_calls(full_api, fake_g2b):
+    """P11 E2E: 경쟁 구도는 미리 캐시한 개찰 결과만 읽고(외부 호출 0).
+
+    비교에는 공동수급·맞대결이 보인다.
+    """
+    await seed_e2e.seed(full_api.db, "e2e-admin@corp.example", "e2e-admin-password-1", now=NOW)
+    async with full_api.client() as c:
+        await login(c, "e2e-admin@corp.example", "e2e-admin-password-1")
+        await c.put("/api/v1/admin/company", json={"our_bizno": seed_e2e.E2E_OUR_BIZNO})
+        found = (await c.post("/api/v1/bids/search", json={"keywords": ["플랫폼"]})).json()
+        ref = next(b["bid_id"] for b in found["items"] if b["title"] == seed_e2e.COMPETITION_TITLE)
+        comp = (await c.get(f"/api/v1/bids/{ref}/competition")).json()
+        cmp = (await c.get(f"/api/v1/compare/{seed_e2e.E2E_RIVAL_BIZNO}")).json()
+    assert fake_g2b.calls == 0
+    assert comp["similar"] and comp["participants_status"]["partial"] is False
+    assert all(a["participants"] for a in comp["similar"])
+    assert cmp["head_to_head"]["matched"] == 5
+    assert cmp["joint"]["us"] == [
+        {"bizno": seed_e2e.E2E_PARTNER_BIZNO, "name": seed_e2e.E2E_PARTNER_NAME, "count": 1}
+    ]

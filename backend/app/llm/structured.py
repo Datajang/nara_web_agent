@@ -32,6 +32,7 @@ TASKS: dict[str, TaskSpec] = {
     # 2026-11-14: 0.2에서 같은 입력의 적합도가 최대 60점 흔들림 → 0 + 점수 기준표 (analyze_bid.md)
     "analyze_bid": TaskSpec(0.0, 3500),
     "suggest_keywords": TaskSpec(0.2, 300),
+    "compare_explain": TaskSpec(0.0, 900),  # §15.8 AI 해설: 같은 입력이면 같은 글
     "assistant": TaskSpec(0.3, 1500),
 }
 
@@ -105,6 +106,8 @@ CAPS: dict[str, Cap] = {
     "AnalysisOut.next_actions": Cap(items=5, chars=60),
     "AnalysisOut.warnings": Cap(items=3, chars=60),
     "Risk.text": Cap(chars=100),
+    "CompareExplain.summary": Cap(chars=300),
+    "CompareExplain.points": Cap(items=5, chars=120),
     "Risk.source": Cap(chars=30),
 }
 

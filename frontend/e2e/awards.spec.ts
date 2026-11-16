@@ -1,7 +1,8 @@
-// P9·P10 시나리오 (SPEC §15.11): 회사 설정(사업자번호 → 이름 자동) → 우리 수주 현황 → 업체 검색 → 낙찰 목록
-// → 우리 회사와 비교(강점·약점·판정 표) → 경쟁사 레이더 → 관심 경쟁사 추가·빼기.
-// 데이터: backend `python -m scripts.seed_e2e`(낙찰 5건, 수집 범위 400일). 외부 호출 없음.
-// 화면 캡처는 test-results/p9-*.png, p10-*.png (git 제외).
+// P9~P11 시나리오 (SPEC §15.11): 회사 설정(사업자번호 → 이름 자동) → 우리 수주 현황 → 업체 검색 → 낙찰 목록
+// → 우리 회사와 비교(강점·약점·판정 표, 공동수급 파트너, AI 해설) → 경쟁사 레이더 → 관심 경쟁사 추가·빼기
+// → 공고 상세 '경쟁 구도' 탭.
+// 데이터: backend `python -m scripts.seed_e2e`(낙찰 5건·개찰 결과 캐시·공동수급 1건). 외부 호출 없음, LLM은 가짜.
+// 화면 캡처는 test-results/p9-*.png, p10-*.png, p11-*.png (git 제외).
 import { expect, test } from '@playwright/test'
 import { copy } from '../src/copy'
 
@@ -66,6 +67,14 @@ test('회사 설정부터 업체 검색 낙찰 목록까지', async ({ page }) =
   await expect(countRow).toContainText(copy.competitors.verdicts.up) // 시드: 우리 3건 vs 가온 2건 → +33%
   await page.screenshot({ path: 'test-results/p10-compare.png', fullPage: true })
 
+  // P11: 공동수급 파트너(계약정보)와 AI 해설(숫자 검증을 통과한 글만)
+  await expect(page.locator('[data-joint-side="us"]')).toContainText('E2E 파트너(주)')
+  const ai = page.locator('[data-ai-explain]')
+  await ai.getByRole('button', { name: copy.competitors.aiStart }).click()
+  await expect(ai.locator('[data-ai-text]')).toBeVisible({ timeout: 30_000 })
+  await expect(ai).toContainText(copy.competitors.aiBadge)
+  await page.screenshot({ path: 'test-results/p11-compare-ai.png', fullPage: true })
+
   // 경쟁사 레이더 → 관심 경쟁사 추가 → 목록에서 빼기(다시 돌려도 같은 상태)
   await page.getByRole('link', { name: copy.nav.competitors }).click()
   await page.waitForURL('**/competitors')
@@ -76,6 +85,20 @@ test('회사 설정부터 업체 검색 낙찰 목록까지', async ({ page }) =
   await page.screenshot({ path: 'test-results/p10-radar.png', fullPage: true })
   await page.locator('[data-watch-list]').getByRole('button', { name: copy.competitors.watchRemove }).click()
   await expect(page.getByText(copy.competitors.noWatched)).toBeVisible()
+
+  // P11: 공고 상세 '경쟁 구도' 탭 — 같은 수요기관의 비슷한 과거 낙찰, 분포, 참가 업체 점수, 우리 이력
+  await page.goto('/search?q=플랫폼&days=7')
+  const bidLink = page.locator('article h3 a', { hasText: 'E2E AI 데이터 플랫폼 고도화' })
+  await bidLink.click()
+  await page.waitForURL('**/bids/*')
+  await page.getByRole('tab', { name: copy.competition.tabCompetition }).click()
+  await expect(page).toHaveURL(/tab=competition/)
+  await expect(page.locator('[data-similar]')).toContainText('E2E AI 분석 플랫폼 구축')
+  await expect(page.locator('[data-us-history]')).toContainText(copy.competition.usTitle)
+  const first = page.locator('[data-similar] [data-award]').first()
+  await first.getByRole('button', { name: new RegExp(copy.competition.showParticipants) }).click()
+  await expect(first.locator('[data-participants] tbody tr')).toHaveCount(2)
+  await page.screenshot({ path: 'test-results/p11-competition.png', fullPage: true })
 
   expect(errors).toEqual([])
 })

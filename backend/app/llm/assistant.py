@@ -86,6 +86,27 @@ TOOLS: list[dict[str, Any]] = [
     ),
     _schema("list_bookmarks", "내 북마크 목록을 본다", {}, []),
     _schema(
+        "search_companies",
+        "수집된 나라장터 낙찰에서 업체를 찾는다(업체명 두 글자 이상 또는 사업자번호 10자리)",
+        {"q": {"type": "string", "maxLength": 100}},
+        ["q"],
+    ),
+    _schema(
+        "get_company_awards",
+        "업체의 낙찰 요약과 최근 낙찰 목록을 본다. bizno를 빼면 우리 회사",
+        {
+            "bizno": {"type": "string", "pattern": "^[0-9]{10}$"},
+            "limit": {"type": "integer", "minimum": 1, "maximum": 20},
+        },
+        [],
+    ),
+    _schema(
+        "compare_companies",
+        "우리 회사와 다른 업체의 낙찰을 비교한 항목별 판정(규칙으로 계산)을 본다",
+        {"bizno": {"type": "string", "pattern": "^[0-9]{10}$"}},
+        ["bizno"],
+    ),
+    _schema(
         "navigate",
         "화면 탭을 연다(데이터는 바꾸지 않음)",
         {
@@ -103,6 +124,9 @@ STATUS_TEXT = {
     "analyze_bid": "공고를 분석하고 있어요",
     "recommend_bids": "맞춤 공고를 고르고 있어요",
     "list_bookmarks": "북마크를 확인하고 있어요",
+    "search_companies": "업체를 찾고 있어요",
+    "get_company_awards": "낙찰 현황을 확인하고 있어요",
+    "compare_companies": "두 회사의 낙찰을 비교하고 있어요",
     "navigate": "화면을 준비하고 있어요",
 }
 

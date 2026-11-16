@@ -8,6 +8,8 @@
 - 공고 형식은 테스트 가짜(tests.fakes.g2b)를 실제 매퍼로 넣어 운영과 같은 경로를 탄다.
 - P9: 우리 회사(E2E_OUR_BIZNO)와 경쟁사의 낙찰 몇 건, 낙찰 수집 범위(400일). 회사 설정은 넣지 않는다
   (E2E가 화면에서 사업자번호로 이름을 찾아 저장한다).
+- P11: 공고 'E2E AI 데이터 플랫폼 고도화'의 수요기관을 낙찰과 같게 두고, 낙찰 5건의 개찰 결과를 미리
+  캐시해 '경쟁 구도' 탭이 G2B를 부르지 않게 한다. 우리 낙찰 1건은 공동수급(계약정보 범위 포함).
 - 여러 번 실행해도 결과가 같다.
 """
 
@@ -22,6 +24,8 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
 from app.auth.passwords import hash_password
+from app.awards import participants
+from app.awards.contracts import upsert_members
 from app.awards.mapper import to_award
 from app.awards.store import upsert_awards
 from app.cli import create_admin
@@ -31,7 +35,7 @@ from app.db.models import CollectorCoverage, User
 from app.db.session import Database
 from app.deps import utcnow
 from app.g2b.mapper import to_record
-from tests.fakes.g2b import award_item, regular_item
+from tests.fakes.g2b import award_item, contract_item, opening_item, regular_item
 
 E2E_OUR_BIZNO = "1234567890"
 E2E_OUR_NAME = "(주)이투이예시"
@@ -44,6 +48,11 @@ AWARDS = [  # (공고번호, 며칠 전, 사업자번호, 상호, 사업명, 금
     ("R26BKE2A00004", 10, E2E_RIVAL_BIZNO, E2E_RIVAL_NAME, "E2E 클라우드 전환 사업", "500000000"),
     ("R26BKE2A00005", 60, E2E_RIVAL_BIZNO, E2E_RIVAL_NAME, "E2E 데이터 품질 진단", "90000000"),
 ]
+
+E2E_PARTNER_BIZNO = "3456789012"
+E2E_PARTNER_NAME = "E2E 파트너(주)"
+E2E_ORG = ("1234567", "행정안전부")  # award_item 기본 수요기관
+COMPETITION_TITLE = "E2E AI 데이터 플랫폼 고도화"
 
 TITLES = [
     "E2E 클라우드 전환 컨설팅 용역",
@@ -93,6 +102,9 @@ async def seed(
         regular_item(f"R26BKE2E{i:05d}", now - timedelta(hours=6 * (i + 1)), title=title)
         for i, title in enumerate(TITLES)
     ]
+    for it in items:  # 경쟁 구도: 낙찰과 같은 수요기관
+        if it["bidNtceNm"] == COMPETITION_TITLE:
+            it.update(dminsttCd=E2E_ORG[0], dminsttNm=E2E_ORG[1])
     awards = [
         award_item(no, now - timedelta(days=d), bizno=b, name=n, title=t, amount=a)
         for no, d, b, n, t, a in AWARDS
@@ -100,7 +112,23 @@ async def seed(
     async with db.transaction() as s:
         await upsert_bids(s, [to_record("regular", it) for it in items])
         await upsert_awards(s, [r for r in map(to_award, awards) if r is not None], {})
-        for source, days in (("regular", 100), ("prespec", 100), ("awards", 400)):
+        for no, _d, winner, name, _t, amount in AWARDS:  # 개찰 결과 캐시: 두 회사가 맞붙음
+            loser = E2E_RIVAL_BIZNO if winner == E2E_OUR_BIZNO else E2E_OUR_BIZNO
+            loser_name = E2E_RIVAL_NAME if winner == E2E_OUR_BIZNO else E2E_OUR_NAME
+            rows = [
+                opening_item(no, winner, rank="1", name=name, amount=amount, total="91.5"),
+                opening_item(no, loser, rank="2", name=loser_name, amount=amount, total="84.25"),
+            ]
+            await participants.store(s, (no, "000"), rows)
+        partner = ("도급업체", E2E_PARTNER_NAME, "40", E2E_PARTNER_BIZNO)
+        lead = ("주계약업체", E2E_OUR_NAME, "60", E2E_OUR_BIZNO)
+        await upsert_members(s, [contract_item(AWARDS[0][0], now, [lead, partner])])
+        for source, days in (
+            ("regular", 100),
+            ("prespec", 100),
+            ("awards", 400),
+            ("contracts", 400),
+        ):
             values = {
                 "source": source,
                 "covered_from": now - timedelta(days=days),

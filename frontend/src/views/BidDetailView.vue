@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// 공고 상세·분석 (SPEC §7.5). 헤더 → 첨부 → 요약 → 분석 패널 → 분석 결과 → 보조 기능.
+// 공고 상세·분석 (SPEC §7.5). 헤더 → 탭('공고 정보': 첨부 → 요약 → 분석 패널 → 분석 결과 → 보조 기능,
+// '경쟁 구도': §15.7, 탭을 열 때만 불러옴). 탭은 URL ?tab=competition과 맞춘다.
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { Bookmark, BookmarkCheck, Copy, ExternalLink } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
@@ -15,6 +16,7 @@ import FeedbackButtons from '@/components/bid/FeedbackButtons.vue'
 import FileList from '@/components/bid/FileList.vue'
 import MoneyText from '@/components/bid/MoneyText.vue'
 import AnalyzeProgress from '@/components/bid/AnalyzeProgress.vue'
+import CompetitionPanel from '@/components/bid/CompetitionPanel.vue'
 import ProgressSteps from '@/components/bid/ProgressSteps.vue'
 import OfficialFacts from '@/components/bid/OfficialFacts.vue'
 import SummaryFacts from '@/components/bid/SummaryFacts.vue'
@@ -24,6 +26,7 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiDrawer from '@/components/ui/UiDrawer.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
+import UiTabs from '@/components/ui/UiTabs.vue'
 import { useSse } from '@/composables/useSse'
 import { copy } from '@/copy'
 import { useUiStore } from '@/stores/ui'
@@ -45,6 +48,15 @@ const detail = useQuery({
 })
 const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => profilesApi.list() })
 const bid = computed<BidDetail | undefined>(() => detail.data.value)
+type Tab = 'info' | 'competition'
+const TABS: Array<{ value: Tab; label: string }> = [
+  { value: 'info', label: copy.competition.tabInfo },
+  { value: 'competition', label: copy.competition.tabCompetition },
+]
+const tab = computed<Tab>({
+  get: () => TABS.find((t) => t.value === route.query.tab)?.value ?? 'info',
+  set: (v) => void router.replace({ query: { ...route.query, tab: v === 'info' ? undefined : v } }),
+})
 const notFound = computed(
   () => detail.error.value instanceof ApiError && detail.error.value.status === 404,
 )
@@ -283,81 +295,85 @@ async function toggleBookmark() {
         </div>
       </header>
 
-      <OfficialFacts v-if="bid.official" :facts="bid.official" :doc-budgets="bid.doc_budgets" />
+      <UiTabs v-model="tab" :items="TABS" :label="copy.competition.tabsLabel" />
+      <CompetitionPanel v-if="tab === 'competition'" :bid-id="bid.bid_id" />
+      <template v-else>
+        <OfficialFacts v-if="bid.official" :facts="bid.official" :doc-budgets="bid.doc_budgets" />
 
-      <section>
-        <h3 class="mb-2 text-lg font-semibold">{{ copy.detail.files }}</h3>
-        <FileList :files="bid.files" :downloading="downloading" @preview="openPreview" @download="download" />
-      </section>
+        <section>
+          <h3 class="mb-2 text-lg font-semibold">{{ copy.detail.files }}</h3>
+          <FileList :files="bid.files" :downloading="downloading" @preview="openPreview" @download="download" />
+        </section>
 
-      <section class="rounded-card border border-border bg-surface p-4">
-        <h3 class="mb-2 text-lg font-semibold">{{ copy.detail.summary }}</h3>
-        <template v-if="bid.summary">
-          <p class="mb-3 text-sm text-text-3">{{ copy.official.aiNote }}</p>
-          <p class="mb-2 font-medium">{{ bid.summary.headline }}</p>
-          <p class="whitespace-pre-line text-base text-text-2">{{ bid.summary.overview }}</p>
-          <SummaryFacts :summary="bid.summary" />
-        </template>
-        <p v-else class="text-base text-text-3">{{ copy.detail.summaryHint }}</p>
-      </section>
+        <section class="rounded-card border border-border bg-surface p-4">
+          <h3 class="mb-2 text-lg font-semibold">{{ copy.detail.summary }}</h3>
+          <template v-if="bid.summary">
+            <p class="mb-3 text-sm text-text-3">{{ copy.official.aiNote }}</p>
+            <p class="mb-2 font-medium">{{ bid.summary.headline }}</p>
+            <p class="whitespace-pre-line text-base text-text-2">{{ bid.summary.overview }}</p>
+            <SummaryFacts :summary="bid.summary" />
+          </template>
+          <p v-else class="text-base text-text-3">{{ copy.detail.summaryHint }}</p>
+        </section>
 
-      <section class="flex flex-col gap-3 rounded-card border border-border bg-surface p-4">
-        <h3 class="text-lg font-semibold">{{ copy.detail.analyzeTitle }}</h3>
-        <template v-if="profiles.data.value && !profiles.data.value.items.length">
-          <p class="text-base text-text-2">{{ copy.detail.profileRequired }}</p>
-          <RouterLink to="/settings/profiles" class="font-medium text-primary-hover hover:underline">
-            {{ copy.detail.goSettings }}
-          </RouterLink>
-        </template>
-        <div v-else class="flex flex-wrap items-end gap-3">
-          <div class="w-64">
-            <UiSelect v-model="profileId" :label="copy.recommend.profile" :options="profileOptions" />
+        <section class="flex flex-col gap-3 rounded-card border border-border bg-surface p-4">
+          <h3 class="text-lg font-semibold">{{ copy.detail.analyzeTitle }}</h3>
+          <template v-if="profiles.data.value && !profiles.data.value.items.length">
+            <p class="text-base text-text-2">{{ copy.detail.profileRequired }}</p>
+            <RouterLink to="/settings/profiles" class="font-medium text-primary-hover hover:underline">
+              {{ copy.detail.goSettings }}
+            </RouterLink>
+          </template>
+          <div v-else class="flex flex-wrap items-end gap-3">
+            <div class="w-64">
+              <UiSelect v-model="profileId" :label="copy.recommend.profile" :options="profileOptions" />
+            </div>
+            <UiButton :loading="sse.streaming.value" :disabled="profileId === null" @click="analyze">
+              {{ copy.detail.analyzeSubmit }}
+            </UiButton>
           </div>
-          <UiButton :loading="sse.streaming.value" :disabled="profileId === null" @click="analyze">
-            {{ copy.detail.analyzeSubmit }}
-          </UiButton>
-        </div>
-        <ProgressSteps
-          v-if="sse.streaming.value || sse.events.value.some((e) => e.type === 'status')"
-          :stages="[...STAGES]"
-          :current="sse.streaming.value ? sse.stage.value : null"
-          :cached="cachedStages"
-        />
-        <AnalyzeProgress
-          v-if="sse.streaming.value && !sse.error.value && sse.events.value.some((e) => e.type === 'status')"
-          :events="sse.events.value"
-        />
-        <div v-if="streamError" class="flex flex-col items-start gap-2" role="alert">
-          <p class="text-base text-danger-fg">{{ streamError }}</p>
-          <UiButton
-            v-if="sse.error.value?.code !== 'in_progress'"
-            variant="secondary"
-            size="sm"
-            @click="analyze"
-          >{{ copy.common.retry }}</UiButton>
-        </div>
-      </section>
+          <ProgressSteps
+            v-if="sse.streaming.value || sse.events.value.some((e) => e.type === 'status')"
+            :stages="[...STAGES]"
+            :current="sse.streaming.value ? sse.stage.value : null"
+            :cached="cachedStages"
+          />
+          <AnalyzeProgress
+            v-if="sse.streaming.value && !sse.error.value && sse.events.value.some((e) => e.type === 'status')"
+            :events="sse.events.value"
+          />
+          <div v-if="streamError" class="flex flex-col items-start gap-2" role="alert">
+            <p class="text-base text-danger-fg">{{ streamError }}</p>
+            <UiButton
+              v-if="sse.error.value?.code !== 'in_progress'"
+              variant="secondary"
+              size="sm"
+              @click="analyze"
+            >{{ copy.common.retry }}</UiButton>
+          </div>
+        </section>
 
-      <section v-if="analysis" class="flex flex-col gap-4">
-        <p
-          v-if="noText"
-          class="rounded-card border border-warning-fg/30 bg-warning-bg px-4 py-3 text-base text-warning-fg"
-          role="note"
-        >
-          {{ noText }}
-        </p>
-        <p v-if="fromTeam" class="rounded-control bg-primary-soft px-3 py-2 text-sm text-primary-hover">{{ copy.detail.teamAnalysis }}</p>
-        <p v-else-if="fromCache" class="text-sm text-text-3">{{ copy.analysis.fromCache }}</p>
-        <div class="rounded-card border border-border bg-surface p-4">
-          <AnalysisResultView :analysis="analysis" :from-team="fromTeam" />
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <UiButton variant="secondary" size="sm" @click="copyMarkdown">
-            <Copy class="size-4" aria-hidden="true" />{{ copy.detail.copyMarkdown }}
-          </UiButton>
-        </div>
-        <FeedbackButtons v-if="analysisId" target-type="analysis" :target-id="analysisId" />
-      </section>
+        <section v-if="analysis" class="flex flex-col gap-4">
+          <p
+            v-if="noText"
+            class="rounded-card border border-warning-fg/30 bg-warning-bg px-4 py-3 text-base text-warning-fg"
+            role="note"
+          >
+            {{ noText }}
+          </p>
+          <p v-if="fromTeam" class="rounded-control bg-primary-soft px-3 py-2 text-sm text-primary-hover">{{ copy.detail.teamAnalysis }}</p>
+          <p v-else-if="fromCache" class="text-sm text-text-3">{{ copy.analysis.fromCache }}</p>
+          <div class="rounded-card border border-border bg-surface p-4">
+            <AnalysisResultView :analysis="analysis" :from-team="fromTeam" />
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <UiButton variant="secondary" size="sm" @click="copyMarkdown">
+              <Copy class="size-4" aria-hidden="true" />{{ copy.detail.copyMarkdown }}
+            </UiButton>
+          </div>
+          <FeedbackButtons v-if="analysisId" target-type="analysis" :target-id="analysisId" />
+        </section>
+      </template>
     </template>
 
     <UiDrawer

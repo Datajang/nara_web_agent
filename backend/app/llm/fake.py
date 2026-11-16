@@ -28,6 +28,7 @@ from app.llm.base import (
 from app.llm.schemas import (
     AnalysisOut,
     BidSummaryDraft,
+    CompareExplain,
     Coverage,
     FileFacts,
     Fit,
@@ -139,12 +140,40 @@ def _keywords(user: str) -> dict[str, Any]:
     return KeywordSuggestion(keywords=words).model_dump()
 
 
+def _num(v: Any) -> str:
+    """입력 숫자를 그대로(정수면 소수점 없이) 쓴다 — 숫자 검증을 통과하는 글."""
+    if isinstance(v, float) and v.is_integer():
+        return str(int(v))
+    return str(v)
+
+
+def _compare_explain(user: str) -> dict[str, Any]:
+    data = json.loads(_tag(user, "compare") or "{}")
+    rows = {v["key"]: v for v in data.get("verdicts", [])}
+    words = {"up": "앞섬", "same": "비슷", "down": "뒤처짐", "info": "참고"}
+    points = []
+    for key in [*data.get("strengths", [])[:3], *data.get("weaknesses", [])[:2]]:
+        v = rows.get(key)
+        if v is None:
+            continue
+        line = f"{v['label']}: 우리 {_num(v['us'])}, 상대 {_num(v['them'])} ({words[v['verdict']]})"
+        if v.get("small_sample"):
+            line += " — 표본이 적어 참고만 해 주세요"
+        points.append(line)
+    them = data.get("them", {}).get("name", "상대 회사")
+    return CompareExplain(
+        summary=f"{them}와 공개 낙찰 기록을 비교한 결과예요. 판정은 표의 규칙을 그대로 따랐어요.",
+        points=points,
+    ).model_dump()
+
+
 _DEFAULTS: dict[str, Callable[[str], dict[str, Any]]] = {
     "summarize_file": _file_facts,
     "summarize_bid": _bid_summary,
     "score_bids": _scores,
     "analyze_bid": _analysis,
     "suggest_keywords": _keywords,
+    "compare_explain": _compare_explain,
 }
 
 

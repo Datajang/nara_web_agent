@@ -5,8 +5,10 @@
   python -m app.collector fill --from 2026-10-01 --to 2026-10-15 [--source ...]
   python -m app.collector incremental --source awards        # 낙찰: 최근 14일 (§15.4)
   python -m app.collector backfill --source awards [--days 30]  # 낙찰: 기본 org_settings 연수
+  python -m app.collector incremental --source contracts     # 공동수급(계약정보): 최근 14일 (P11)
+  python -m app.collector backfill --source contracts        # 낙찰 수집 범위 안에서 과거로
 
-`--source all`은 공고(regular·prespec)만이다. 낙찰(awards)은 따로 부른다(별도 예산·timer).
+`--source all`은 공고(regular·prespec)만이다. 낙찰·계약은 따로 부른다(낙찰 몫 예산·timer).
 
 설정은 환경변수(운영: systemd EnvironmentFile). 로컬은 NARA_ENV_FILE=../.env,.env 처럼 지정.
 """
@@ -19,6 +21,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 
 from app.awards import collector as awards
+from app.awards import contracts
 from app.collector import runner
 from app.logging_setup import configure_logging
 from app.runtime import real_deps
@@ -33,7 +36,9 @@ def _date(s: str) -> datetime:
 async def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="python -m app.collector")
     ap.add_argument("mode", choices=["incremental", "backfill", "fill"])
-    ap.add_argument("--source", choices=["regular", "prespec", "awards", "all"], default="all")
+    ap.add_argument(
+        "--source", choices=["regular", "prespec", "awards", "contracts", "all"], default="all"
+    )
     ap.add_argument(
         "--days",
         type=int,
@@ -44,8 +49,8 @@ async def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--to", dest="date_to", type=_date)
     args = ap.parse_args(argv)
     configure_logging()
-    if args.source == "awards" and args.mode == "fill":
-        ap.error("낙찰(awards)에는 fill을 쓰지 않습니다 (§15.4)")
+    if args.source in ("awards", "contracts") and args.mode == "fill":
+        ap.error("낙찰·계약(awards·contracts)에는 fill을 쓰지 않습니다 (§15.4)")
     sources = ["regular", "prespec"] if args.source == "all" else [args.source]
     ok = True
     async with real_deps() as deps:
@@ -55,6 +60,12 @@ async def main(argv: list[str] | None = None) -> int:
                     awards.backfill(deps, args.days)
                     if args.mode == "backfill"
                     else awards.incremental(deps)
+                )
+            elif src == "contracts":
+                r = await (
+                    contracts.backfill(deps, args.days)
+                    if args.mode == "backfill"
+                    else contracts.incremental(deps)
                 )
             elif args.mode == "backfill":
                 r = await runner.backfill(

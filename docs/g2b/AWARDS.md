@@ -28,6 +28,10 @@
 ## `getOpengResultListInfoOpengCompt` 응답 필드 [문서]
 `opengRank`, `prcbdrBizno`, `prcbdrNm`, `bidprcAmt`, `bidprcrt`, `bidPrceEvlVal`, `techEvlVal`, `techEvlNaturVal`, `totalEvlAmtVal`. 협상계약이면 점수 3종이 채워지고 `bidprcrt`는 대부분 빈다. 그 밖 방식은 반대 [확인됨].
 
+## 실제 사용량 (P11, 2026-11-16 실측)
+- 계약정보 용역은 **하루 약 4,300건**(14일 65,086건, 999행 67회). probe의 6일 2,997건보다 훨씬 많다. 공고번호가 있는 공동수급은 14일에 970공고
+- 개찰완료 목록은 `bidNtceNo`+`bidNtceOrd`(inqryDiv 없이)로 공고 1회. 실제 2건 확인: 행 수 = 참가업체 수, `opengRank`는 일부 업체만, 협상계약만 점수 3종
+
 ## 오류와 한계
 - `numOfRows` 최대 999. **1000을 넣으면 오류 없이 10행만** 온다 [확인됨]. 용역 낙찰은 7일 창에 약 1,700건(2페이지)
 - 협상계약 낙찰은 `sucsfbidRate`가 대부분(약 92%) 비어 있다. 공동수급이어도 낙찰 응답은 주계약업체 1행뿐이다 [확인됨]

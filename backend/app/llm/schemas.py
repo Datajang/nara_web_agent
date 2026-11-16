@@ -152,6 +152,13 @@ class KeywordSuggestion(BaseModel):
     keywords: list[str] = Field(min_length=1, max_length=10)
 
 
+class CompareExplain(BaseModel):
+    """AI 해설 (§15.8). 입력은 GET /compare 응답뿐, 숫자는 입력에 있는 값만(서버가 검증)."""
+
+    summary: str
+    points: list[str] = []
+
+
 def verdict_for(score: int) -> Literal["strong", "possible", "weak"]:
     """§8.4: verdict는 서버가 score에서 다시 계산한다."""
     if score >= 80:

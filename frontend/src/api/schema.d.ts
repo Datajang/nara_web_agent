@@ -475,6 +475,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/compare/{bizno}/explain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Explain Compare
+         * @description AI 해설(SSE, §15.8). 입력은 GET /compare 응답뿐. 숫자 검증에 두 번 실패하면 해설 없이.
+         */
+        post: operations["explain_compare_api_v1_compare__bizno__explain_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/competitors/candidates": {
         parameters: {
             query?: never;
@@ -525,6 +545,23 @@ export interface paths {
         post?: never;
         /** Delete Watched */
         delete: operations["delete_watched_api_v1_competitors_watch__bizno__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bids/{bid_id}/competition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Competition */
+        get: operations["get_competition_api_v1_bids__bid_id__competition_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1600,6 +1637,15 @@ export interface components {
             /** Collecting */
             collecting: boolean;
         };
+        /** CompareJointOut */
+        CompareJointOut: {
+            /** Collected */
+            collected: boolean;
+            /** Us */
+            us: components["schemas"]["JointPartnerOut"][];
+            /** Them */
+            them: components["schemas"]["JointPartnerOut"][];
+        };
         /** CompareOut */
         CompareOut: {
             period: components["schemas"]["PeriodOut"];
@@ -1619,6 +1665,7 @@ export interface components {
             by_year: components["schemas"]["CompareYearOut"][];
             /** Shared Orgs */
             shared_orgs: components["schemas"]["SharedOrgOut"][];
+            joint: components["schemas"]["CompareJointOut"];
             /** Watched */
             watched: boolean;
         };
@@ -1632,6 +1679,84 @@ export interface components {
             them: number | null;
             /** Collecting */
             collecting: boolean;
+        };
+        /** CompetitionAwardOut */
+        CompetitionAwardOut: {
+            /** Bid Ntce No */
+            bid_ntce_no: string;
+            /** Bid Ntce Ord */
+            bid_ntce_ord: string;
+            /** Title */
+            title: string;
+            /** Bizno */
+            bizno: string | null;
+            /** Winner Name */
+            winner_name: string | null;
+            /** Award Amount */
+            award_amount: number | null;
+            /** G2B Award Rate */
+            g2b_award_rate: number | null;
+            /** Award Ratio */
+            award_ratio: number | null;
+            /** Participant Count */
+            participant_count: number | null;
+            /**
+             * Registered At
+             * Format: date-time
+             */
+            registered_at: string;
+            /** Is Joint */
+            is_joint: boolean;
+            /** Bid Id */
+            bid_id: string | null;
+            /** Similarity */
+            similarity: number | null;
+            /** Participants */
+            participants: components["schemas"]["ParticipantOut"][] | null;
+            /** Us Participated */
+            us_participated: boolean;
+        };
+        /** CompetitionDistributionOut */
+        CompetitionDistributionOut: {
+            g2b_rate: components["schemas"]["SpreadOut"] | null;
+            award_ratio: components["schemas"]["SpreadOut"] | null;
+            /** Basis */
+            basis: number;
+        };
+        /** CompetitionOrgOut */
+        CompetitionOrgOut: {
+            /** Code */
+            code: string | null;
+            /** Name */
+            name: string | null;
+        };
+        /** CompetitionOut */
+        CompetitionOut: {
+            /** Bid Id */
+            bid_id: string;
+            org: components["schemas"]["CompetitionOrgOut"];
+            period: components["schemas"]["PeriodOut"];
+            this_award: components["schemas"]["CompetitionAwardOut"] | null;
+            /** Similar */
+            similar: components["schemas"]["CompetitionAwardOut"][];
+            /** Similar Total */
+            similar_total: number;
+            distribution: components["schemas"]["CompetitionDistributionOut"];
+            participants_status: components["schemas"]["ParticipantsStatusOut"];
+            us: components["schemas"]["CompetitionUsOut"] | null;
+        };
+        /** CompetitionUsOut */
+        CompetitionUsOut: {
+            /** Bizno */
+            bizno: string;
+            /** Name */
+            name: string;
+            /** Org Awards */
+            org_awards: number;
+            /** Participated */
+            participated: number;
+            /** Won */
+            won: number;
         };
         /** ConversationIn */
         ConversationIn: {
@@ -1917,6 +2042,15 @@ export interface components {
             /** Code */
             code: string;
         };
+        /** JointPartnerOut */
+        JointPartnerOut: {
+            /** Bizno */
+            bizno: string;
+            /** Name */
+            name: string;
+            /** Count */
+            count: number;
+        };
         /** KeywordsIn */
         KeywordsIn: {
             /** Description */
@@ -2124,6 +2258,44 @@ export interface components {
             count: number;
             /** Amount Sum */
             amount_sum: number;
+        };
+        /** ParticipantOut */
+        ParticipantOut: {
+            /** Rank */
+            rank: number | null;
+            /** Bizno */
+            bizno: string;
+            /** Name */
+            name: string | null;
+            /** Bid Amount */
+            bid_amount: number | null;
+            /** Bid Rate */
+            bid_rate: number | null;
+            /** Tech Score */
+            tech_score: number | null;
+            /** Price Score */
+            price_score: number | null;
+            /** Total Score */
+            total_score: number | null;
+            /** Is Winner */
+            is_winner: boolean;
+            /** Is Us */
+            is_us: boolean;
+        };
+        /** ParticipantsStatusOut */
+        ParticipantsStatusOut: {
+            /** Requested */
+            requested: number;
+            /** Loaded */
+            loaded: number;
+            /** Fetched Now */
+            fetched_now: number;
+            /** Partial */
+            partial: boolean;
+            /** Failed */
+            failed: boolean;
+            /** Budget Exhausted */
+            budget_exhausted: boolean;
         };
         /**
          * PeriodOut
@@ -2469,6 +2641,17 @@ export interface components {
             /** Them */
             them: number;
         };
+        /** SpreadOut */
+        SpreadOut: {
+            /** N */
+            n: number;
+            /** Min */
+            min: number;
+            /** Median */
+            median: number;
+            /** Max */
+            max: number;
+        };
         /** TeamIn */
         TeamIn: {
             /** Name */
@@ -2665,6 +2848,19 @@ export interface components {
              */
             run_id: number | null;
         };
+        /**
+         * CompareExplain
+         * @description AI 해설 (§15.8). 입력은 GET /compare 응답뿐, 숫자는 입력에 있는 값만(서버가 검증).
+         */
+        CompareExplain: {
+            /** Summary */
+            summary: string;
+            /**
+             * Points
+             * @default []
+             */
+            points: string[];
+        };
         /** DoneEvent */
         DoneEvent: {
             /**
@@ -2690,6 +2886,20 @@ export interface components {
             code: string;
             /** Message */
             message: string;
+        };
+        /**
+         * ExplainEvent
+         * @description 비교 AI 해설 (§15.8). explanation=null이면 숫자 검증에 두 번 실패해 해설 없이 표만.
+         */
+        ExplainEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "explain";
+            explanation: components["schemas"]["CompareExplain"] | null;
+            /** Verified */
+            verified: boolean;
         };
         /** Progress */
         Progress: {
@@ -2725,7 +2935,7 @@ export interface components {
              * Stage
              * @enum {string}
              */
-            stage: "search" | "files" | "extract" | "summarize" | "analyze" | "score";
+            stage: "search" | "files" | "extract" | "summarize" | "analyze" | "score" | "explain";
             /** Message */
             message: string;
             /** @default null */
@@ -2767,7 +2977,7 @@ export interface components {
                 [key: string]: boolean;
             };
         };
-        SseEvent: components["schemas"]["StatusEvent"] | components["schemas"]["TokenEvent"] | components["schemas"]["CardsEvent"] | components["schemas"]["ResultEvent"] | components["schemas"]["ActionEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["DoneEvent"];
+        SseEvent: components["schemas"]["StatusEvent"] | components["schemas"]["TokenEvent"] | components["schemas"]["CardsEvent"] | components["schemas"]["ResultEvent"] | components["schemas"]["ExplainEvent"] | components["schemas"]["ActionEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["DoneEvent"];
     };
     responses: never;
     parameters: never;
@@ -3718,6 +3928,37 @@ export interface operations {
             };
         };
     };
+    explain_compare_api_v1_compare__bizno__explain_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bizno: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description SSE 스트림 (§6.4). 각 이벤트는 SseEvent 중 하나 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": components["schemas"]["SseEvent"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_candidates_api_v1_competitors_candidates_get: {
         parameters: {
             query?: {
@@ -3819,6 +4060,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_competition_api_v1_bids__bid_id__competition_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompetitionOut"];
+                };
             };
             /** @description Validation Error */
             422: {

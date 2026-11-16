@@ -21,16 +21,28 @@ OPS = {
     "getBidPblancListInfoServcPPSSrch": "regular",
     "getPublicPrcureThngInfoServcPPSSrch": "prespec",
     "getScsbidListSttusServc": "awards",
+    "getCntrctInfoListServc": "contracts",
 }
 # 기간 제한: 공고는 약 15일, 낙찰은 시작일~종료일 KST 날짜 7개까지(날짜 차 6일 이하)
 # (docs/decisions/2026-11-16-awards-probe.md)
 MAX_SPAN = {"regular": timedelta(days=16), "prespec": timedelta(days=16)}
-MAX_DATE_DIFF = {"awards": 6}
+MAX_DATE_DIFF = {"awards": 6, "contracts": 6}
 # 단건 조회용 일반 조회 (docs/decisions/2026-11-12-g2b-single-lookup.md): inqryDiv=2 + 번호
 LOOKUP_OPS = {"getBidPblancListInfoServc": "regular", "getPublicPrcureThngInfoServc": "prespec"}
 NO_FIELD = {"regular": "bidNtceNo", "prespec": "bfSpecRgstNo"}
-DATE_FIELD = {"regular": "bidNtceDt", "prespec": "rgstDt", "awards": "rgstDt"}
-TITLE_FIELD = {"regular": "bidNtceNm", "prespec": "prdctClsfcNoNm", "awards": "bidNtceNm"}
+DATE_FIELD = {
+    "regular": "bidNtceDt",
+    "prespec": "rgstDt",
+    "awards": "rgstDt",
+    "contracts": "rgstDt",
+}
+TITLE_FIELD = {
+    "regular": "bidNtceNm",
+    "prespec": "prdctClsfcNoNm",
+    "awards": "bidNtceNm",
+    "contracts": "cntrctNm",
+}
+OPENING_OP = "getOpengResultListInfoOpengCompt"
 
 
 def _template(name: str) -> dict[str, Any]:
@@ -42,6 +54,8 @@ def _template(name: str) -> dict[str, Any]:
 REGULAR_TEMPLATE = _template("regular_page1.json")
 PRESPEC_TEMPLATE = _template("prespec_page1.json")
 AWARD_TEMPLATE = _template("awards_page1.json")
+OPENING_TEMPLATE = _template("opening_compt_page1.json")
+CONTRACT_TEMPLATE = _template("contracts_page1.json")
 
 
 def kst_str(dt: datetime) -> str:
@@ -143,9 +157,69 @@ def award_item(
     return it
 
 
+def opening_item(
+    no: str,
+    bizno: str,
+    *,
+    ord: str = "000",
+    rank: str = "1",
+    name: str = "(주)가온데이터",
+    amount: str = "90000000",
+    rate: str = "",
+    tech: str = "71.4167",
+    price: str = "18.3206",
+    total: str = "89.7373",
+    clsfc: str = "0",
+    rbid: str = "000",
+) -> dict[str, Any]:
+    """개찰완료 목록 항목(OpengCompt 녹화본이 틀)."""
+    it = copy.deepcopy(OPENING_TEMPLATE)
+    it.update(
+        bidNtceNo=no,
+        bidNtceOrd=ord,
+        bidClsfcNo=clsfc,
+        rbidNo=rbid,
+        opengRank=rank,
+        prcbdrBizno=bizno,
+        prcbdrNm=name,
+        bidprcAmt=amount,
+        bidprcrt=rate,
+        techEvlVal=tech,
+        bidPrceEvlVal=price,
+        totalEvlAmtVal=total,
+    )
+    return it
+
+
+def contract_item(
+    ntce_no: str,
+    registered_at: datetime,
+    members: list[tuple[str, str, str, str]],
+    *,
+    mode: str = "공동",
+) -> dict[str, Any]:
+    """계약 항목(녹화본이 틀). members: (업체구분, 업체명, 지분율, 사업자번호).
+
+    대표자·담당자 칸은 빈 값.
+    """
+    it = copy.deepcopy(CONTRACT_TEMPLATE)
+    corp = ",".join(
+        f"[{i}^{role}^{mode}^{name}^^대한민국^{share}^^^{bizno}]"
+        for i, (role, name, share, bizno) in enumerate(members, start=1)
+    )
+    it.update(ntceNo=ntce_no, corpList=corp, rgstDt=kst_str(registered_at))
+    return it
+
+
 class FakeG2B:
     def __init__(self) -> None:
-        self.items: dict[str, list[dict[str, Any]]] = {"regular": [], "prespec": [], "awards": []}
+        self.items: dict[str, list[dict[str, Any]]] = {
+            "regular": [],
+            "prespec": [],
+            "awards": [],
+            "contracts": [],
+            "opening_compt": [],
+        }
         self.requests: list[httpx.Request] = []
         self.fail_queue: list[httpx.Response] = []
         self.delay_s = 0.0  # 느린 G2B ('수집 중' 시험)
@@ -171,6 +245,14 @@ class FakeG2B:
         p = request.url.params
         if op in LOOKUP_OPS:
             return self._lookup(LOOKUP_OPS[op], p)
+        if op == OPENING_OP:
+            matched = [
+                it
+                for it in self.items["opening_compt"]
+                if it["bidNtceNo"] == p.get("bidNtceNo")
+                and (not p.get("bidNtceOrd") or it["bidNtceOrd"] == p["bidNtceOrd"])
+            ]
+            return _ok({"items": matched, "totalCount": len(matched)})
         source = OPS.get(op)
         if source is None:
             return httpx.Response(404, text="unknown op")

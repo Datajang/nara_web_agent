@@ -29,12 +29,17 @@ APP_SERVICES = ["nara-api.service", "nara-collector.service", "nara-alert.servic
 
 
 def test_awards_collector_runs_incremental_then_backfill():
-    """§15.4: 증분(실패해도 계속) 다음 백필. fill은 쓰지 않는다."""
+    """§15.4: 증분 다음 백필, 낙찰 다음 계약(공동수급, P11).
+
+    앞 단계가 실패해도 계속. fill은 쓰지 않는다.
+    """
     u = unit("nara-collector-awards.service")
     starts = u["Service"]["ExecStart"]
     assert starts == [
         "-/opt/nara/venv/bin/python -m app.collector incremental --source awards",
-        "/opt/nara/venv/bin/python -m app.collector backfill --source awards",
+        "-/opt/nara/venv/bin/python -m app.collector incremental --source contracts",
+        "-/opt/nara/venv/bin/python -m app.collector backfill --source awards",
+        "/opt/nara/venv/bin/python -m app.collector backfill --source contracts",
     ]
     assert one(u, "Service", "WorkingDirectory") == "/opt/nara/app/backend"
 

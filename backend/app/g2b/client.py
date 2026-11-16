@@ -65,6 +65,10 @@ class G2BBudgetExceeded(G2BError):
     """일일 호출 예산 초과 (G2B_DAILY_CALL_BUDGET)."""
 
 
+class G2BCallCapReached(G2BBudgetExceeded):
+    """한 요청의 호출 상한(call_cap)에 닿았다. 재시도까지 포함해 센다 (§15.4 온디맨드 6건)."""
+
+
 class G2BIncomplete(G2BError):
     """창의 일부 페이지만 받았다(totalCount보다 적음). 경계를 옮기면 안 된다."""
 
@@ -89,6 +93,26 @@ class CallCounter:
 
 
 _counter: ContextVar[CallCounter | None] = ContextVar("g2b_call_counter", default=None)
+
+
+@dataclass
+class CallCap:
+    limit: int
+    used: int = 0
+
+
+_cap: ContextVar[CallCap | None] = ContextVar("g2b_call_cap", default=None)
+
+
+@contextlib.contextmanager
+def call_cap(limit: int) -> Iterator[CallCap]:
+    """이 블록 안의 G2B 호출을 limit회로 막는다(재시도 포함). 넘으면 G2BCallCapReached."""
+    c = CallCap(limit)
+    token = _cap.set(c)
+    try:
+        yield c
+    finally:
+        _cap.reset(token)
 
 
 @contextlib.contextmanager
@@ -155,6 +179,27 @@ class G2BClient:
         body = await self._call(source, f"{base}/{op}", params)
         return [it for it in _items(body) if str(it.get(field) or "") == number]
 
+    async def opening_results(self, bid_ntce_no: str, bid_ntce_ord: str) -> list[dict[str, Any]]:
+        """공고(차수) 하나의 개찰완료 목록(업체별 순위·투찰·점수, §15.2). 모든 분류·재입찰 행."""
+        base, op, _ = ENDPOINTS["opening_compt"]
+        params = {
+            "type": "json",
+            "bidNtceNo": bid_ntce_no,
+            "bidNtceOrd": bid_ntce_ord,
+            "numOfRows": str(self.page_size),
+        }
+        items: list[dict[str, Any]] = []
+        page = 1
+        while True:
+            body = await self._call(
+                "opening_compt", f"{base}/{op}", {**params, "pageNo": str(page)}
+            )
+            got, total = _items(body), int(body.get("totalCount") or 0)
+            items.extend(got)
+            if not got or len(items) >= total:
+                return [it for it in items if str(it.get("bidNtceNo") or "") == bid_ntce_no]
+            page += 1
+
     async def _fetch_span(
         self, source: str, start: datetime, end: datetime, keyword: str | None
     ) -> list[dict[str, Any]]:
@@ -208,7 +253,15 @@ class G2BClient:
         raise G2BError(f"G2B {source} 호출 실패(재시도 {len(self.retry_delays)}회 후): {last}")
 
     async def _reserve(self, source: str) -> None:
-        """소스 예산을 먼저 잡고 전체 예산을 잡는다. 전체가 초과면 잡았던 소스 몫을 돌려준다."""
+        """요청 상한 → 소스 예산 → 전체 예산 순으로 잡는다.
+
+        전체가 초과면 잡았던 소스 몫을 돌려준다.
+        """
+        cap = _cap.get()
+        if cap is not None:
+            if cap.used >= cap.limit:
+                raise G2BCallCapReached(f"요청당 G2B 호출 상한 {cap.limit}회")
+            cap.used += 1
         sb = self.source_budgets.get(source)
         if sb is not None:
             await sb.reserve()

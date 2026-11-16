@@ -1,8 +1,9 @@
 # 낙찰 수집 1회 실행 (SPEC §15.4). nara-collector-awards.timer가 하루 한 번 부른다.
 # 1) 최근 14일 재수집(실패해도 계속) 2) 과거로 백필 — 하루 낙찰 예산(G2B_AWARDS_DAILY_BUDGET)에서 멈추고
 # 다음 날 이어간다. 5년 백필은 약 522회라 300회/일이면 이틀 (docs/decisions/2026-11-16-awards-probe.md)
+# 3) 계약정보(공동수급 구성, P11)도 같은 예산으로 증분·백필. 낙찰 백필이 끝난 뒤에 과거로 간다
 [Unit]
-Description=nara collector (awards: incremental + backfill)
+Description=nara collector (awards + contracts: incremental + backfill)
 After=network-online.target postgresql.service
 
 [Service]
@@ -13,7 +14,9 @@ EnvironmentFile=/etc/nara/nara.env
 Environment=TMPDIR=/var/lib/nara/tmp
 Environment=HOME=/var/lib/nara
 ExecStart=-/opt/nara/venv/bin/python -m app.collector incremental --source awards
-ExecStart=/opt/nara/venv/bin/python -m app.collector backfill --source awards
+ExecStart=-/opt/nara/venv/bin/python -m app.collector incremental --source contracts
+ExecStart=-/opt/nara/venv/bin/python -m app.collector backfill --source awards
+ExecStart=/opt/nara/venv/bin/python -m app.collector backfill --source contracts
 TimeoutStartSec=1800
 NoNewPrivileges=true
 ProtectSystem=strict

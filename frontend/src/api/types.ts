@@ -41,6 +41,7 @@ export type StatusEvent = S['StatusEvent']
 export type TokenEvent = S['TokenEvent']
 export type CardsEvent = S['CardsEvent']
 export type ResultEvent = S['ResultEvent']
+export type ExplainEvent = S['ExplainEvent']
 export type ActionEvent = S['ActionEvent']
 export type ErrorEvent = S['ErrorEvent']
 export type DoneEvent = S['DoneEvent']
@@ -49,6 +50,7 @@ export type StreamEvent =
   | TokenEvent
   | CardsEvent
   | ResultEvent
+  | ExplainEvent
   | ActionEvent
   | ErrorEvent
   | DoneEvent

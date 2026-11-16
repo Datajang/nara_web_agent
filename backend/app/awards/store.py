@@ -2,7 +2,7 @@
 
 - 고유키 (공고번호, 차수, 분류, 재입찰). 같은 창을 다시 받아도 행이 늘지 않는다.
 - 같은 낙찰의 내용이 바뀌면(협상 후 낙찰자 변경 등) 그 행을 갱신한다.
-  is_joint는 건드리지 않는다(P11 계약정보가 채움).
+  is_joint는 계약정보(bid_joint_members)가 있으면 true로 맞춘다(mark_joint, 수집 순서와 무관).
 - 업체는 사업자번호로 upsert. 이름은 더 최근 낙찰의 상호로만 바꾼다(백필은 과거로 가므로).
 - estimated_price는 같은 공고가 bids에 있을 때 추정가격(presmptPrce)을 가져오고, award_ratio는
   낙찰금액·추정가격이 둘 다 있을 때만 계산한다 (§15.1 원칙 4).
@@ -15,13 +15,13 @@ from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
-from sqlalchemy import case, func, literal_column, or_, select
+from sqlalchemy import case, exists, func, literal_column, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.awards.fields import classify
 from app.awards.mapper import AwardRow, normalize_name
-from app.db.models import Bid, BidAward, Company
+from app.db.models import Bid, BidAward, BidJointMember, Company
 from app.g2b.mapper import _amount
 
 # asyncpg 인자 상한(32767)을 넘지 않게 나눠 넣는다 (행당 약 18개)
@@ -172,4 +172,26 @@ async def upsert_awards(
         changed += len(flags)
     stats.updated = changed - stats.inserted
     stats.unchanged = len(values) - changed
+    await mark_joint(session, {r.bid_ntce_no for r in rows})
     return stats
+
+
+async def mark_joint(session: AsyncSession, bid_nos: Iterable[str]) -> int:
+    """공동수급 구성원이 있는 공고의 낙찰을 is_joint=true로.
+
+    차수 ''(신체계 계약)는 모든 차수와 잇는다.
+    """
+    nos = sorted(set(bid_nos))
+    if not nos:
+        return 0
+    m = BidJointMember
+    has_members = exists().where(
+        m.bid_ntce_no == BidAward.bid_ntce_no,
+        or_(m.bid_ntce_ord == "", m.bid_ntce_ord == BidAward.bid_ntce_ord),
+    )
+    res: Any = await session.execute(
+        update(BidAward)
+        .where(BidAward.bid_ntce_no.in_(nos), BidAward.is_joint.is_(False), has_members)
+        .values(is_joint=True, updated_at=func.now())
+    )
+    return int(res.rowcount or 0)

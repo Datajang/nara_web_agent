@@ -29,6 +29,7 @@ AWARD_TABLES = (
     "bid_awards",
     "bid_participants",
     "bid_joint_members",
+    "bid_participant_fetches",
     "org_settings",
     "watched_companies",
 )

@@ -101,6 +101,7 @@ class BidParticipant(Base):
     __table_args__ = (
         UniqueConstraint("bid_ntce_no", "bid_ntce_ord", "bid_clsfc_no", "rbid_no", "bizno"),
         Index("ix_bid_participants_bizno", "bizno"),
+        Index("ix_bid_participants_notice", "bid_ntce_no", "bid_ntce_ord"),
     )
 
     id: Mapped[int] = pk()
@@ -119,11 +120,28 @@ class BidParticipant(Base):
     fetched_at: Mapped[datetime] = ts_now()
 
 
+class BidParticipantFetch(Base):
+    """개찰완료 목록을 이미 불러온 공고(차수). 0행이어도 다시 부르지 않는다 (P11, 0010)."""
+
+    __tablename__ = "bid_participant_fetches"
+
+    bid_ntce_no: Mapped[str] = mapped_column(Text, primary_key=True)
+    bid_ntce_ord: Mapped[str] = mapped_column(Text, primary_key=True)
+    row_count: Mapped[int] = mapped_column(Integer, server_default="0")
+    fetched_at: Mapped[datetime] = ts_now()
+
+
 class BidJointMember(Base):
-    """공동수급 구성원(계약정보 corpList). P11에서 채운다."""
+    """공동수급 구성원(계약정보 corpList, 주계약업체 포함). P11 계약 수집기가 채운다.
+
+    신체계 계약은 공고번호만 있고 차수가 없어 bid_ntce_ord=''(모든 차수와 잇는다).
+    """
 
     __tablename__ = "bid_joint_members"
-    __table_args__ = (UniqueConstraint("bid_ntce_no", "bid_ntce_ord", "member_bizno"),)
+    __table_args__ = (
+        UniqueConstraint("bid_ntce_no", "bid_ntce_ord", "member_bizno"),
+        Index("ix_bid_joint_members_member_bizno", "member_bizno"),
+    )
 
     id: Mapped[int] = pk()
     bid_ntce_no: Mapped[str] = mapped_column(Text)

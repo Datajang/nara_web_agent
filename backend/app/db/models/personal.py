@@ -229,7 +229,7 @@ class UsageLog(Base):
     __table_args__ = (
         CheckConstraint(
             "event IN ('search','recommend','analyze','assistant_turn','collector',"
-            "'company_search')",
+            "'company_search','competition','compare_explain')",
             name="event",
         ),
         Index("ix_usage_logs_created_at", "created_at"),

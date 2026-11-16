@@ -65,12 +65,12 @@ def plan_backfill(
 
 
 def plan_incremental(
-    cov: coverage.Coverage | None, now: datetime
+    cov: coverage.Coverage | None, now: datetime, span: timedelta = INCREMENTAL_SPAN
 ) -> list[tuple[datetime, datetime]]:
-    """최근 14일(+ covered_to 이후 빈 구간). 커버리지와 겹치거나 이어지는 곳에서 시작한다."""
+    """최근 span(기본 14일)과 covered_to 이후 빈 구간. 커버리지와 겹치거나 이어지는 곳에서 시작."""
     if cov is None:
-        return split_dates(now - INCREMENTAL_SPAN, now, MAX_DATES, newest_first=True)
-    start = max(cov.covered_from, min(cov.covered_to, now - INCREMENTAL_SPAN))
+        return split_dates(now - span, now, MAX_DATES, newest_first=True)
+    start = max(cov.covered_from, min(cov.covered_to, now - span))
     return split_dates(start, now, MAX_DATES)
 
 

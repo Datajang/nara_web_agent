@@ -1385,6 +1385,50 @@
         }
       }
     },
+    "/api/v1/compare/{bizno}/explain": {
+      "post": {
+        "tags": [
+          "competitors"
+        ],
+        "summary": "Explain Compare",
+        "description": "AI 해설(SSE, §15.8). 입력은 GET /compare 응답뿐. 숫자 검증에 두 번 실패하면 해설 없이.",
+        "operationId": "explain_compare_api_v1_compare__bizno__explain_post",
+        "parameters": [
+          {
+            "name": "bizno",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{10}$",
+              "title": "Bizno"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE 스트림 (§6.4). 각 이벤트는 SseEvent 중 하나",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/SseEvent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/competitors/candidates": {
       "get": {
         "tags": [
@@ -1549,6 +1593,60 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bids/{bid_id}/competition": {
+      "get": {
+        "tags": [
+          "competition"
+        ],
+        "summary": "Get Competition",
+        "operationId": "get_competition_api_v1_bids__bid_id__competition_get",
+        "parameters": [
+          {
+            "name": "bid_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Bid Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 10,
+              "minimum": 1,
+              "default": 5,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompetitionOut"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -4821,6 +4919,35 @@
         ],
         "title": "CompareCoverageOut"
       },
+      "CompareJointOut": {
+        "properties": {
+          "collected": {
+            "type": "boolean",
+            "title": "Collected"
+          },
+          "us": {
+            "items": {
+              "$ref": "#/components/schemas/JointPartnerOut"
+            },
+            "type": "array",
+            "title": "Us"
+          },
+          "them": {
+            "items": {
+              "$ref": "#/components/schemas/JointPartnerOut"
+            },
+            "type": "array",
+            "title": "Them"
+          }
+        },
+        "type": "object",
+        "required": [
+          "collected",
+          "us",
+          "them"
+        ],
+        "title": "CompareJointOut"
+      },
       "CompareOut": {
         "properties": {
           "period": {
@@ -4877,6 +5004,9 @@
             "type": "array",
             "title": "Shared Orgs"
           },
+          "joint": {
+            "$ref": "#/components/schemas/CompareJointOut"
+          },
           "watched": {
             "type": "boolean",
             "title": "Watched"
@@ -4895,6 +5025,7 @@
           "head_to_head",
           "by_year",
           "shared_orgs",
+          "joint",
           "watched"
         ],
         "title": "CompareOut"
@@ -4940,6 +5071,320 @@
           "collecting"
         ],
         "title": "CompareYearOut"
+      },
+      "CompetitionAwardOut": {
+        "properties": {
+          "bid_ntce_no": {
+            "type": "string",
+            "title": "Bid Ntce No"
+          },
+          "bid_ntce_ord": {
+            "type": "string",
+            "title": "Bid Ntce Ord"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "bizno": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bizno"
+          },
+          "winner_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Winner Name"
+          },
+          "award_amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Award Amount"
+          },
+          "g2b_award_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "G2B Award Rate"
+          },
+          "award_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Award Ratio"
+          },
+          "participant_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Count"
+          },
+          "registered_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Registered At"
+          },
+          "is_joint": {
+            "type": "boolean",
+            "title": "Is Joint"
+          },
+          "bid_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bid Id"
+          },
+          "similarity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Similarity"
+          },
+          "participants": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ParticipantOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participants"
+          },
+          "us_participated": {
+            "type": "boolean",
+            "title": "Us Participated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bid_ntce_no",
+          "bid_ntce_ord",
+          "title",
+          "bizno",
+          "winner_name",
+          "award_amount",
+          "g2b_award_rate",
+          "award_ratio",
+          "participant_count",
+          "registered_at",
+          "is_joint",
+          "bid_id",
+          "similarity",
+          "participants",
+          "us_participated"
+        ],
+        "title": "CompetitionAwardOut"
+      },
+      "CompetitionDistributionOut": {
+        "properties": {
+          "g2b_rate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpreadOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "award_ratio": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpreadOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "basis": {
+            "type": "integer",
+            "title": "Basis"
+          }
+        },
+        "type": "object",
+        "required": [
+          "g2b_rate",
+          "award_ratio",
+          "basis"
+        ],
+        "title": "CompetitionDistributionOut"
+      },
+      "CompetitionOrgOut": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "CompetitionOrgOut"
+      },
+      "CompetitionOut": {
+        "properties": {
+          "bid_id": {
+            "type": "string",
+            "title": "Bid Id"
+          },
+          "org": {
+            "$ref": "#/components/schemas/CompetitionOrgOut"
+          },
+          "period": {
+            "$ref": "#/components/schemas/PeriodOut"
+          },
+          "this_award": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompetitionAwardOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "similar": {
+            "items": {
+              "$ref": "#/components/schemas/CompetitionAwardOut"
+            },
+            "type": "array",
+            "title": "Similar"
+          },
+          "similar_total": {
+            "type": "integer",
+            "title": "Similar Total"
+          },
+          "distribution": {
+            "$ref": "#/components/schemas/CompetitionDistributionOut"
+          },
+          "participants_status": {
+            "$ref": "#/components/schemas/ParticipantsStatusOut"
+          },
+          "us": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompetitionUsOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "bid_id",
+          "org",
+          "period",
+          "this_award",
+          "similar",
+          "similar_total",
+          "distribution",
+          "participants_status",
+          "us"
+        ],
+        "title": "CompetitionOut"
+      },
+      "CompetitionUsOut": {
+        "properties": {
+          "bizno": {
+            "type": "string",
+            "title": "Bizno"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "org_awards": {
+            "type": "integer",
+            "title": "Org Awards"
+          },
+          "participated": {
+            "type": "integer",
+            "title": "Participated"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bizno",
+          "name",
+          "org_awards",
+          "participated",
+          "won"
+        ],
+        "title": "CompetitionUsOut"
       },
       "ConversationIn": {
         "properties": {
@@ -5699,6 +6144,29 @@
         ],
         "title": "JoinIn"
       },
+      "JointPartnerOut": {
+        "properties": {
+          "bizno": {
+            "type": "string",
+            "title": "Bizno"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bizno",
+          "name",
+          "count"
+        ],
+        "title": "JointPartnerOut"
+      },
       "KeywordsIn": {
         "properties": {
           "description": {
@@ -6330,6 +6798,151 @@
           "amount_sum"
         ],
         "title": "OrgRowOut"
+      },
+      "ParticipantOut": {
+        "properties": {
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank"
+          },
+          "bizno": {
+            "type": "string",
+            "title": "Bizno"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "bid_amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bid Amount"
+          },
+          "bid_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bid Rate"
+          },
+          "tech_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tech Score"
+          },
+          "price_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Score"
+          },
+          "total_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Score"
+          },
+          "is_winner": {
+            "type": "boolean",
+            "title": "Is Winner"
+          },
+          "is_us": {
+            "type": "boolean",
+            "title": "Is Us"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rank",
+          "bizno",
+          "name",
+          "bid_amount",
+          "bid_rate",
+          "tech_score",
+          "price_score",
+          "total_score",
+          "is_winner",
+          "is_us"
+        ],
+        "title": "ParticipantOut"
+      },
+      "ParticipantsStatusOut": {
+        "properties": {
+          "requested": {
+            "type": "integer",
+            "title": "Requested"
+          },
+          "loaded": {
+            "type": "integer",
+            "title": "Loaded"
+          },
+          "fetched_now": {
+            "type": "integer",
+            "title": "Fetched Now"
+          },
+          "partial": {
+            "type": "boolean",
+            "title": "Partial"
+          },
+          "failed": {
+            "type": "boolean",
+            "title": "Failed"
+          },
+          "budget_exhausted": {
+            "type": "boolean",
+            "title": "Budget Exhausted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "requested",
+          "loaded",
+          "fetched_now",
+          "partial",
+          "failed",
+          "budget_exhausted"
+        ],
+        "title": "ParticipantsStatusOut"
       },
       "PeriodOut": {
         "properties": {
@@ -7207,6 +7820,34 @@
         ],
         "title": "SharedOrgOut"
       },
+      "SpreadOut": {
+        "properties": {
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "min": {
+            "type": "number",
+            "title": "Min"
+          },
+          "median": {
+            "type": "number",
+            "title": "Median"
+          },
+          "max": {
+            "type": "number",
+            "title": "Max"
+          }
+        },
+        "type": "object",
+        "required": [
+          "n",
+          "min",
+          "median",
+          "max"
+        ],
+        "title": "SpreadOut"
+      },
       "TeamIn": {
         "properties": {
           "name": {
@@ -7703,6 +8344,28 @@
         "title": "CardsEvent",
         "type": "object"
       },
+      "CompareExplain": {
+        "description": "AI 해설 (§15.8). 입력은 GET /compare 응답뿐, 숫자는 입력에 있는 값만(서버가 검증).",
+        "properties": {
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "points": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Points",
+            "type": "array"
+          }
+        },
+        "required": [
+          "summary"
+        ],
+        "title": "CompareExplain",
+        "type": "object"
+      },
       "DoneEvent": {
         "properties": {
           "type": {
@@ -7755,6 +8418,37 @@
           "message"
         ],
         "title": "ErrorEvent",
+        "type": "object"
+      },
+      "ExplainEvent": {
+        "description": "비교 AI 해설 (§15.8). explanation=null이면 숫자 검증에 두 번 실패해 해설 없이 표만.",
+        "properties": {
+          "type": {
+            "const": "explain",
+            "title": "Type",
+            "type": "string"
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompareExplain"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "verified": {
+            "title": "Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "type",
+          "explanation",
+          "verified"
+        ],
+        "title": "ExplainEvent",
         "type": "object"
       },
       "Progress": {
@@ -7830,7 +8524,8 @@
               "extract",
               "summarize",
               "analyze",
-              "score"
+              "score",
+              "explain"
             ],
             "title": "Stage",
             "type": "string"
@@ -7955,6 +8650,9 @@
             "$ref": "#/components/schemas/ResultEvent"
           },
           {
+            "$ref": "#/components/schemas/ExplainEvent"
+          },
+          {
             "$ref": "#/components/schemas/ActionEvent"
           },
           {
@@ -7971,6 +8669,7 @@
             "token": "#/components/schemas/TokenEvent",
             "cards": "#/components/schemas/CardsEvent",
             "result": "#/components/schemas/ResultEvent",
+            "explain": "#/components/schemas/ExplainEvent",
             "action": "#/components/schemas/ActionEvent",
             "error": "#/components/schemas/ErrorEvent",
             "done": "#/components/schemas/DoneEvent"

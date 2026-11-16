@@ -7,9 +7,9 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, Field
 
 from app.bids.cards import BidCard
-from app.llm.schemas import AnyAnalysis
+from app.llm.schemas import AnyAnalysis, CompareExplain
 
-Stage = Literal["search", "files", "extract", "summarize", "analyze", "score"]
+Stage = Literal["search", "files", "extract", "summarize", "analyze", "score", "explain"]
 
 
 class Progress(BaseModel):
@@ -46,6 +46,14 @@ class ResultEvent(BaseModel):
     from_cache: bool
 
 
+class ExplainEvent(BaseModel):
+    """비교 AI 해설 (§15.8). explanation=null이면 숫자 검증에 두 번 실패해 해설 없이 표만."""
+
+    type: Literal["explain"]
+    explanation: CompareExplain | None
+    verified: bool  # 해설의 모든 숫자가 입력(비교 표)에 있음
+
+
 class ActionEvent(BaseModel):
     type: Literal["action"]
     name: Literal["open_tab", "prefill_search"]
@@ -71,7 +79,14 @@ class DoneEvent(BaseModel):
 
 
 SseEvent = Annotated[
-    StatusEvent | TokenEvent | CardsEvent | ResultEvent | ActionEvent | ErrorEvent | DoneEvent,
+    StatusEvent
+    | TokenEvent
+    | CardsEvent
+    | ResultEvent
+    | ExplainEvent
+    | ActionEvent
+    | ErrorEvent
+    | DoneEvent,
     Field(discriminator="type"),
 ]
 EVENT_MODELS = (
@@ -79,6 +94,7 @@ EVENT_MODELS = (
     TokenEvent,
     CardsEvent,
     ResultEvent,
+    ExplainEvent,
     ActionEvent,
     ErrorEvent,
     DoneEvent,

@@ -66,6 +66,7 @@ async def _collect(
     windows: list[tuple[datetime, datetime]],
     max_calls: int | None = None,
     store: Store | None = None,
+    cap_status: str = "failed",
 ) -> RunResult:
     """창들을 순서대로 수집. 창마다 upsert+경계 이동을 한 트랜잭션으로 커밋, 첫 실패에서 멈춘다.
 
@@ -87,7 +88,8 @@ async def _collect(
     with count_calls() as calls:
         for start, end in windows:
             if max_calls is not None and calls.value >= max_calls:
-                result.status, result.error = "failed", f"호출 상한 {max_calls}회 도달"
+                # cap_status='ok': 하루 몫을 정해 나눠 받는 백필(계약)은 상한이 정상 종료다
+                result.status, result.error = cap_status, f"호출 상한 {max_calls}회 도달"
                 break
             try:
                 items = await g2b.fetch(source, start, end)

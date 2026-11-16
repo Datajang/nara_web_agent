@@ -15,7 +15,7 @@ from app.llm.base import Message
 
 _DIR = Path(__file__).resolve().parent
 _TAGS = re.compile(
-    r"<(/?)(document|profile|bids|bid_meta|summary|file_facts|coverage|tool_result)>",
+    r"<(/?)(document|profile|bids|bid_meta|summary|file_facts|coverage|tool_result|compare)>",
     re.IGNORECASE,
 )
 

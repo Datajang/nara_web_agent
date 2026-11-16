@@ -19,25 +19,20 @@ from app.api.deps import ActiveUser, AdminUser, Ctx, DbSession
 from app.api.schemas.awards import (
     AwardCoverageOut,
     AwardListOut,
-    AwardOut,
     AwardSummaryOut,
     BiznoIn,
-    CompanyHitOut,
     CompanyLookupOut,
     CompanyOut,
     CompanySearchOut,
     CompanySettingsIn,
-    FieldRowOut,
-    OrgRowOut,
-    PeriodOut,
     YearProgressOut,
-    YearRowOut,
 )
 from app.awards import service as svc
+from app.awards import views
 from app.awards.fields import clean_keywords
 from app.awards.mapper import normalize_bizno
 from app.awards.reclassify import reclassify
-from app.db.models import OrgSettings, UsageLog
+from app.db.models import OrgSettings
 from app.deps import Deps
 from app.errors import ApiError
 
@@ -48,28 +43,6 @@ _jobs: set[asyncio.Task[Any]] = set()
 Bizno = Annotated[str, Path(pattern=r"^\d{10}$")]
 DateFrom = Annotated[date | None, Query(alias="from")]
 DateTo = Annotated[date | None, Query(alias="to")]
-
-
-def not_configured() -> ApiError:
-    return ApiError(
-        404,
-        "not_configured",
-        "우리 회사가 아직 설정되지 않았어요. 관리자에게 회사 설정을 요청해 주세요.",
-    )
-
-
-def company_not_found() -> ApiError:
-    return ApiError(404, "not_found", "수집된 낙찰에서 이 업체를 찾을 수 없어요.")
-
-
-def period_out(p: svc.Period) -> PeriodOut:
-    return PeriodOut(
-        date_from=svc.kst_date(p.req_from),
-        date_to=svc.kst_date(p.req_to),
-        counted_from=svc.kst_date(p.eff_from) if p.eff_from else None,
-        counted_to=svc.kst_date(p.eff_to) if p.eff_to else None,
-        collecting=p.collecting,
-    )
 
 
 async def _company_out(s: AsyncSession, deps: Deps, reclassify_started: bool = False) -> CompanyOut:
@@ -157,47 +130,6 @@ async def _reclassify(deps: Deps) -> None:
         log.exception("낙찰 분야 재분류 실패")
 
 
-async def _summary_out(
-    s: AsyncSession, deps: Deps, bizno: str, name: str, date_from: date | None, date_to: date | None
-) -> AwardSummaryOut:
-    org = await svc.load_org(s, deps.settings.awards_backfill_years_default)
-    period, _cov = await svc.award_period(s, org.backfill_years, deps.clock(), date_from, date_to)
-    sm = await svc.summarize(s, bizno, period)
-    return AwardSummaryOut(
-        bizno=bizno,
-        name=name,
-        is_us=bizno == org.our_bizno,
-        period=period_out(period),
-        count=sm.count,
-        amount_sum=sm.amount_sum,
-        amount_avg=sm.amount_avg,
-        org_count=sm.org_count,
-        g2b_rate_median=sm.g2b_rate_median,
-        ratio_median=sm.ratio_median,
-        ratio_known=sm.ratio_known,
-        joint_count=sm.joint_count,
-        first_at=sm.first_at,
-        last_at=sm.last_at,
-        by_year=[YearRowOut(**vars(y)) for y in sm.by_year],
-        by_org=[OrgRowOut(**vars(o)) for o in sm.by_org],
-        by_field=[FieldRowOut(**vars(f)) for f in sm.by_field],
-        fields=svc.known_fields(org.field_keywords, sm.by_field),
-    )
-
-
-async def resolve_target(s: AsyncSession, deps: Deps, bizno: str | None) -> tuple[str, str]:
-    """(bizno, 표시 이름). bizno가 없으면 우리 회사."""
-    if bizno is None:
-        org = await svc.load_org(s, deps.settings.awards_backfill_years_default)
-        if org.our_bizno is None:
-            raise not_configured()
-        return org.our_bizno, org.our_name or org.our_bizno
-    company = await svc.get_company(s, bizno)
-    if company is None:
-        raise company_not_found()
-    return bizno, company.name
-
-
 @router.get("/awards/summary")
 async def get_awards_summary(
     _: ActiveUser,
@@ -207,8 +139,8 @@ async def get_awards_summary(
     date_from: DateFrom = None,
     date_to: DateTo = None,
 ) -> AwardSummaryOut:
-    b, name = await resolve_target(s, ctx.deps, bizno)
-    return await _summary_out(s, ctx.deps, b, name, date_from, date_to)
+    b, name = await views.resolve_target(s, ctx.deps, bizno)
+    return await views.summary_out(s, ctx.deps, b, name, date_from, date_to)
 
 
 @router.get("/awards")
@@ -224,48 +156,17 @@ async def get_awards(
     cursor: Annotated[str | None, Query(max_length=200)] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> AwardListOut:
-    b, _name = await resolve_target(s, ctx.deps, bizno)
-    org_cfg = await svc.load_org(s, ctx.deps.settings.awards_backfill_years_default)
-    period, _cov = await svc.award_period(
-        s, org_cfg.backfill_years, ctx.deps.clock(), date_from, date_to
-    )
-    cur = svc.decode_cursor(cursor) if cursor else None
-    if cursor and cur is None:
-        raise ApiError(
-            400, "bad_request", "목록 위치가 올바르지 않아요. 처음부터 다시 불러와 주세요."
-        )
-    page = await svc.list_awards(
-        s, b, period, field_tag=field or None, org=org or None, cursor=cur, limit=limit
-    )
-    return AwardListOut(
-        period=period_out(period),
-        total=page.total,
-        next_cursor=page.next_cursor,
-        items=[_award_out(i) for i in page.items],
-    )
-
-
-def _award_out(i: svc.AwardItem) -> AwardOut:
-    a = i.award
-    return AwardOut(
-        bid_ntce_no=a.bid_ntce_no,
-        bid_ntce_ord=a.bid_ntce_ord,
-        title=a.title,
-        bizno=a.bizno,
-        winner_name=a.winner_name,
-        award_amount=a.award_amount,
-        g2b_award_rate=float(a.g2b_award_rate) if a.g2b_award_rate is not None else None,
-        estimated_price=a.estimated_price,
-        award_ratio=float(a.award_ratio) if a.award_ratio is not None else None,
-        participant_count=a.participant_count,
-        dminstt_cd=a.dminstt_cd,
-        dminstt_name=a.dminstt_name,
-        opened_at=a.opened_at,
-        awarded_on=a.awarded_on,
-        registered_at=a.registered_at,
-        fields=list(a.fields or []),
-        is_joint=a.is_joint,
-        bid_id=f"b{i.bid_id}" if i.bid_id is not None else None,
+    b, _name = await views.resolve_target(s, ctx.deps, bizno)
+    return await views.award_list(
+        s,
+        ctx.deps,
+        b,
+        date_from=date_from,
+        date_to=date_to,
+        field_tag=field or None,
+        org=org or None,
+        cursor=cursor,
+        limit=limit,
     )
 
 
@@ -276,38 +177,10 @@ async def search_companies(
     ctx: Ctx,
     q: Annotated[str, Query(min_length=1, max_length=100)],
 ) -> CompanySearchOut:
-    key = svc.search_key(q)
-    if key is None:
-        raise ApiError(
-            422,
-            "validation_error",
-            "업체명은 두 글자 이상, 사업자번호는 숫자 10자리로 찾아 주세요.",
-            details=[{"field": "q", "reason": "too_short"}],
-        )
+    if svc.search_key(q) is None:
+        raise views.bad_query()
     ctx.limiter.hit(f"company-search:{user.id}", 60, 60)
-    hits = await svc.search_companies(s, key)
-    org = await svc.load_org(s, ctx.deps.settings.awards_backfill_years_default)
-    # §15.9: 업체 검색은 usage_logs에 남긴다. 검색어 대신 방식과 결과 수만
-    s.add(
-        UsageLog(
-            user_id=user.id,
-            event="company_search",
-            cache={"by": key[0], "results": len(hits)},
-        )
-    )
-    await s.commit()
-    return CompanySearchOut(
-        items=[
-            CompanyHitOut(
-                bizno=h.bizno,
-                name=h.name,
-                award_count=h.award_count,
-                last_award_at=h.last_award_at,
-                is_us=h.bizno == org.our_bizno,
-            )
-            for h in hits
-        ]
-    )
+    return await views.company_search(s, ctx.deps, user.id, q)
 
 
 @router.get("/companies/{bizno}")
@@ -322,5 +195,5 @@ async def get_company(
     b = normalize_bizno(bizno)
     company = await svc.get_company(s, b) if b else None
     if company is None:
-        raise company_not_found()
-    return await _summary_out(s, ctx.deps, company.bizno, company.name, date_from, date_to)
+        raise views.company_not_found()
+    return await views.summary_out(s, ctx.deps, company.bizno, company.name, date_from, date_to)

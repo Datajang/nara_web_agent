@@ -25,3 +25,9 @@
 - **한 일**: §15.5 판정 순수 함수(`app/analysis/competitors.py`, LLM 없음), 비교·레이더(겹침도 SQL)·관심 경쟁사 API 5개, 화면 `/competitors`·`/competitors/:bizno`(맨 위 강점·약점 카드와 항목별 판정 표, 한눈에 보기, 연도별, 수요기관 겹침, 주력 분야, 경쟁사 최근 낙찰, 공동수급·AI 해설 자리), 업체 검색의 비교·관심 버튼, 사이드바 '경쟁사'. 테스트 → 경계값 30개, 같은 입력 같은 출력, 판정 숫자 = `GET /awards` 합산, 우리 회사 변경 반영, pytest 568·vitest 200·Playwright 3 통과. 캡처 `frontend/test-results/p10-*.png`.
 - **달라진 결정**: 판정 값 `up·same·down·info`+표본 적음, 맞대결은 개찰 결과를 불러온 공고만(P11 전에는 '참고'), 관심 목록은 `GET /competitors/watch` (`docs/decisions/2026-11-16-p10-compare-radar.md`).
 - **남은 문제**: P11(공고별 경쟁 구도·AI 해설·어시스턴트 도구·공동수급). SPEC §15.5·§15.6 수정 제안. 겹침도 가중치·기준은 실제 5년 데이터를 본 뒤 조정(§15.5 결정).
+
+## P11 — 경쟁 구도 · AI 해설 · 어시스턴트 도구 · 공동수급 (2026-11-16, 완료·태그 전)
+
+- **한 일**: 마이그레이션 0010, `GET /bids/{bidId}/competition`(같은 수요기관의 비슷한 과거 낙찰·분포·개찰 결과 온디맨드 6회 상한), `POST /compare/{bizno}/explain`(SSE, 숫자 검증 `app/analysis/explain_check.py`, 실패 시 1회 재생성 → 해설 없음), 어시스턴트 도구 `search_companies`·`get_company_awards`·`compare_companies`(라우터와 같은 `app/awards/views.py`), 계약 수집기 `--source contracts`(공동수급 → `is_joint`), 공고 상세 탭 '경쟁 구도', 비교 화면 공동수급 파트너·AI 해설. 캡처 `frontend/test-results/p11-*.png`.
+- **달라진 결정**: 계약정보는 공고번호로 조회할 수 없어 날짜 창으로 받고 공동만 저장. 실측 하루 약 5회라 증분 3일, 백필은 한 번 100회(`G2B_CONTRACTS_BACKFILL_CALLS`) (`docs/decisions/2026-11-16-p11-competition-explain.md`).
+- **남은 문제**: 운영에 0010 배포 뒤 timer가 계약도 받음(RUNBOOK). 5년 계약 백필 약 3달 — 기간을 줄일지 결정 필요. 실제 vLLM으로 해설 검증 통과율 미측정. SPEC §15.3·§15.4·§15.6·§8.6 수정 제안.

@@ -13,9 +13,11 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import select
 
+from app.awards import views
 from app.bids.meta import budget_text, kst_text
 from app.db.models import Bid, BidSummary, Profile
 from app.deps import Deps
+from app.errors import ApiError
 from app.history import repo as history
 from app.llm.assistant import ToolArgError, ToolExec, ToolOutcome
 from app.llm.tokens import load_counter
@@ -28,6 +30,7 @@ from app.search.service import find_bids
 
 TOOL_ITEMS = 20
 TOOL_RESULT_TOKENS = 6000
+COMPANY_TOOLS = frozenset({"search_companies", "get_company_awards", "compare_companies"})
 NO_PROFILE = {"error": "대화에 프로필이 없어요. 설정에서 프로필을 만들도록 안내하세요."}
 
 
@@ -45,6 +48,19 @@ class RecommendArgs(BaseModel):
     top_n: int = Field(default=5, ge=1, le=10)
 
 
+class CompanyQueryArgs(BaseModel):
+    q: str = Field(min_length=1, max_length=100)
+
+
+class CompanyAwardsArgs(BaseModel):
+    bizno: str | None = Field(default=None, pattern=r"^\d{10}$")
+    limit: int = Field(default=10, ge=1, le=20)
+
+
+class CompareArgs(BaseModel):
+    bizno: str = Field(pattern=r"^\d{10}$")
+
+
 class NavigateArgs(BaseModel):
     tab: Literal["search", "recommend", "library", "settings"]
     params: dict[str, str | int | bool | list[str]] = Field(default_factory=dict, max_length=10)
@@ -57,9 +73,10 @@ class TurnProfile:
     keywords: list[str]
 
 
-def _dump(payload: dict[str, Any], deps: Deps) -> str:
+def _dump(payload: dict[str, Any], deps: Deps, items: list[Any] | None = None) -> str:
+    """JSON으로. TOOL_RESULT_TOKENS를 넘으면 목록(기본 payload['items'])을 뒤에서 줄인다."""
     counter = load_counter(deps.settings.llm_tokenizer_path)
-    items = payload.get("items")
+    items = items if items is not None else payload.get("items")
     text = json.dumps(payload, ensure_ascii=False)
     while isinstance(items, list) and items and counter.count(text) > TOOL_RESULT_TOKENS:
         items.pop()
@@ -101,6 +118,36 @@ def make_executor(deps: Deps, user_id: int, profile: TurnProfile | None) -> Tool
             return await _run(name, args)
         except ValidationError as e:
             raise ToolArgError(str(e.errors(include_url=False))[:300]) from e
+        except ApiError as e:  # 회사 미설정·없는 업체 등: 모델이 사용자에게 안내하게 돌려준다
+            return ToolOutcome(
+                json.dumps({"error": e.message}, ensure_ascii=False), summary=f"{name}: {e.code}"
+            )
+
+    async def _company(name: str, args: dict[str, Any]) -> ToolOutcome:
+        """낙찰·경쟁사 도구 (§15.8). API와 같은 서비스 함수·같은 응답 스키마(app.awards.views)."""
+        async with deps.db.session() as s:
+            if name == "search_companies":
+                q = CompanyQueryArgs.model_validate(args).q
+                found = await views.company_search(s, deps, user_id, q)
+                payload = found.model_dump(mode="json")
+                return ToolOutcome(
+                    _dump(payload, deps), summary=f"search_companies: {len(found.items)}건"
+                )
+            if name == "get_company_awards":
+                ca = CompanyAwardsArgs.model_validate(args)
+                bizno, cname = await views.resolve_target(s, deps, ca.bizno)
+                summary = await views.summary_out(s, deps, bizno, cname)
+                awards = await views.award_list(s, deps, bizno, limit=ca.limit)
+                payload = {
+                    "summary": summary.model_dump(mode="json", by_alias=True),
+                    "awards": awards.model_dump(mode="json", by_alias=True),
+                }
+                text = _dump(payload, deps, payload["awards"]["items"])
+                return ToolOutcome(text, summary=f"get_company_awards: {bizno}")
+            ref = CompareArgs.model_validate(args)
+            out = await views.compare_out(s, deps, ref.bizno)
+            payload = out.model_dump(mode="json", by_alias=True)
+            return ToolOutcome(_dump(payload, deps), summary=f"compare_companies: {ref.bizno}")
 
     async def _run(name: str, args: dict[str, Any]) -> ToolOutcome:
         if name == "search_bids":
@@ -179,6 +226,8 @@ def make_executor(deps: Deps, user_id: int, profile: TurnProfile | None) -> Tool
                 [b.id for _, b in rows[:TOOL_ITEMS]],
                 f"list_bookmarks: {len(items)}건",
             )
+        if name in COMPANY_TOOLS:
+            return await _company(name, args)
         if name == "navigate":
             nav = NavigateArgs.model_validate(args)
             return ToolOutcome(

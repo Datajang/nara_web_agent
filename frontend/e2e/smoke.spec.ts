@@ -59,11 +59,11 @@ test('로그인부터 분석 기록 다시 열기까지', async ({ page }) => {
 
   await page.getByRole('button', { name: copy.detail.analyzeSubmit }).click()
   await expect(page.getByRole('heading', { name: copy.analysis.nextActions })).toBeVisible({ timeout: 30_000 })
-  await expect(page.getByRole('heading', { name: copy.analysis.overview })).toBeVisible()
+  await expect(page.getByRole('heading', { name: copy.analysis.understanding })).toBeVisible()
 
   await page.goto('/library?tab=analyses')
   await page.locator(`a[href^="${href}?analysis="]`).first().click()
-  await expect(page.getByRole('heading', { name: copy.analysis.overview })).toBeVisible()
+  await expect(page.getByRole('heading', { name: copy.analysis.understanding })).toBeVisible()
 
   expect(errors).toEqual([])
 })

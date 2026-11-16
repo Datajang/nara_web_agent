@@ -809,6 +809,57 @@
               "default": 20,
               "title": "Limit"
             }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "all",
+                "regular",
+                "prespec"
+              ],
+              "type": "string",
+              "default": "all",
+              "title": "Source"
+            }
+          },
+          {
+            "name": "kw",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kw"
+            }
           }
         ],
         "responses": {

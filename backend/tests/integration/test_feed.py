@@ -3,7 +3,7 @@
 from datetime import timedelta
 
 from tests.conftest import NOW
-from tests.fakes.g2b import kst_str, regular_item
+from tests.fakes.g2b import kst_str, prespec_item, regular_item
 from tests.helpers import member, seed
 
 F = "/api/v1/feed"
@@ -112,3 +112,39 @@ async def test_feed_hides_small_bids_unless_the_user_asks(full_api):
     assert me_before["feed_include_small"] is False and me_after["feed_include_small"] is True
     assert sorted(it["title"] for it in everything["items"]) == ["AI 작은 사업", "AI 큰 사업"]
     assert everything["min_budget"] is None
+
+
+async def test_feed_filters_by_title_source_and_selected_keywords(full_api):
+    """2026-11-16 사용자 요청: 관심 공고 안에서 공고명으로 찾고, 일반공고/사전규격·맞은 키워드를
+    골라서 본다. 고른 키워드는 내 키워드 중에서만(모르는 키워드는 무시), 고르지 않으면 전부."""
+    await _seed(full_api)
+    pre = prespec_item("R26BD00000001", NOW - timedelta(days=1), title="AI 플랫폼 운영 사전규격")
+    pre["asignBdgtAmt"] = "200000000"
+    await seed(full_api.ctx.deps, "prespec", pre)
+    c = await member(full_api, "filter@corp.example")
+    await c.patch("/api/v1/me", json={"interest_keywords": ["클라우드", "AI 플랫폼", "데이터"]})
+
+    async def titles(**params) -> list[str]:
+        r = (await c.get(F, params=params)).json()
+        assert r["total"] == len(r["items"])
+        return sorted(it["title"] for it in r["items"])
+
+    everything = await titles()
+    by_title = await titles(q="품질관리")  # 띄어쓰기 무시
+    regular = await titles(source="regular")
+    prespec = await titles(source="prespec")
+    one_kw = await titles(kw="AI 플랫폼")
+    two_kw = await titles(kw=["데이터", "클라우드"])
+    unknown_kw = await titles(kw="도로")
+    combined = await titles(source="regular", kw="AI 플랫폼", q="구축")
+    bad = await c.get(F, params={"source": "x"})
+    await c.aclose()
+    assert len(everything) == 4
+    assert by_title == ["공공 데이터 품질 관리"]
+    assert regular == ["AI 플랫폼 구축 사업", "공공 데이터 품질 관리", "클라우드 전환 컨설팅"]
+    assert prespec == ["AI 플랫폼 운영 사전규격"]
+    assert one_kw == ["AI 플랫폼 구축 사업", "AI 플랫폼 운영 사전규격"]
+    assert two_kw == ["공공 데이터 품질 관리", "클라우드 전환 컨설팅"]
+    assert unknown_kw == everything
+    assert combined == ["AI 플랫폼 구축 사업"]
+    assert bad.status_code == 422

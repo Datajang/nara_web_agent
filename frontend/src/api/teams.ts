@@ -20,9 +20,20 @@ export const teamsApi = {
   leave: () => api.post<void>('/teams/me/leave'),
 }
 
+/** 관심 공고 안에서 좁히기 (2026-11-16). 비운 값은 보내지 않는다. */
+export interface FeedFilter {
+  q?: string
+  source?: 'all' | 'regular' | 'prespec'
+  kw?: string[]
+}
+
 export const feedApi = {
-  get: async (offset = 0, limit = 20) => {
-    const f = await api.get<Feed>(`/feed?offset=${offset}&limit=${limit}`)
+  get: async (offset = 0, limit = 20, filter: FeedFilter = {}) => {
+    const p = new URLSearchParams({ offset: String(offset), limit: String(limit) })
+    if (filter.q?.trim()) p.set('q', filter.q.trim())
+    if (filter.source && filter.source !== 'all') p.set('source', filter.source)
+    for (const k of filter.kw ?? []) p.append('kw', k)
+    const f = await api.get<Feed>(`/feed?${p}`)
     const items: FeedItem[] = f.items.map((i) => ({ ...i, score: i.score ?? null, reason: i.reason ?? null }))
     return { ...f, items }
   },

@@ -2853,6 +2853,9 @@ export interface operations {
             query?: {
                 offset?: number;
                 limit?: number;
+                q?: string | null;
+                source?: "all" | "regular" | "prespec";
+                kw?: string[] | null;
             };
             header?: never;
             path?: never;

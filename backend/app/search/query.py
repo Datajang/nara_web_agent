@@ -6,7 +6,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Annotated, Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
-from sqlalchemy import Select, and_, func, or_, select
+from sqlalchemy import ColumnElement, Select, and_, func, or_, select
 
 from app.db.models import Bid
 
@@ -57,6 +57,15 @@ def _like(kw: str) -> str:
     return "%" + kw.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
 
 
+def title_contains(text: str) -> ColumnElement[bool] | None:
+    """공고명에 text가 들어 있는지. 양쪽 띄어쓰기를 모두 무시한다. 빈 값이면 None."""
+    flat = "".join(text.split())
+    if not flat:
+        return None
+    squashed = func.regexp_replace(Bid.title, r"\s+", "", "g")
+    return squashed.ilike(_like(flat), escape="\\")
+
+
 def build_query(
     q: SearchQuery, start: datetime, end: datetime, now: datetime, limit: int
 ) -> Select[Any]:
@@ -68,9 +77,8 @@ def build_query(
     if words:
         conds = [Bid.title.ilike(_like(w), escape="\\") for w in words]
         stmt = stmt.where(and_(*conds) if q.match == "all" else or_(*conds))
-    if q.title and (flat := "".join(q.title.split())):
-        squashed = func.regexp_replace(Bid.title, r"\s+", "", "g")
-        stmt = stmt.where(squashed.ilike(_like(flat), escape="\\"))
+    if q.title and (cond := title_contains(q.title)) is not None:
+        stmt = stmt.where(cond)
     if q.status == "open":
         stmt = stmt.where(or_(Bid.deadline_at.is_(None), Bid.deadline_at > now))
     if q.budget_min is not None:

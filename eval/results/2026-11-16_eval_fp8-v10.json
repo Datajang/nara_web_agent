@@ -1,0 +1,156 @@
+{
+ "label": "fp8-v10",
+ "model_id": "q35-9b-eval-fp8-v10",
+ "items": [
+  {
+   "id": "g001",
+   "verified": false,
+   "seconds": 206.8,
+   "chars": 32861,
+   "files_read": 2,
+   "warnings": [],
+   "grounded": [
+    6,
+    6
+   ],
+   "extraction": {
+    "budget": true,
+    "deadline": null,
+    "method": true
+   },
+   "filled": {
+    "schedule": true,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": true,
+    "evaluation": true
+   },
+   "fit_score": 65,
+   "headline": "광주과학기술원 HPC-AI 공용인프라(HCSF) 하드웨어 유지보수 용역"
+  },
+  {
+   "id": "g004",
+   "verified": false,
+   "seconds": 193.0,
+   "chars": 22084,
+   "files_read": 1,
+   "warnings": [
+    "문서 간 불일치: budget_text (메타: 1,519,041,855원, 파일: 1,670,946,040",
+    "문서 간 불일치: contract_method (메타: 제한경쟁, 파일: 협상에 의한 계약)"
+   ],
+   "grounded": [
+    22,
+    22
+   ],
+   "extraction": {
+    "budget": true,
+    "deadline": true,
+    "method": true
+   },
+   "filled": {
+    "schedule": true,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": true,
+    "evaluation": true
+   },
+   "fit_score": 85,
+   "headline": "2027 년 범정부 데이터분석시스템 운영 및 유지관리 (제한경쟁, 협상에 의한 계약)"
+  },
+  {
+   "id": "g012",
+   "verified": false,
+   "seconds": 166.0,
+   "chars": 17250,
+   "files_read": 1,
+   "warnings": [],
+   "grounded": [
+    3,
+    3
+   ],
+   "extraction": {
+    "budget": true,
+    "deadline": true,
+    "method": true
+   },
+   "filled": {
+    "schedule": true,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": true,
+    "evaluation": true
+   },
+   "fit_score": 35,
+   "headline": "대덕대학교 중장기 발전계획 고도화 수립 용역"
+  },
+  {
+   "id": "g017",
+   "verified": false,
+   "seconds": 217.5,
+   "chars": 30054,
+   "files_read": 2,
+   "warnings": [
+    "원문에서 확인되지 않은 숫자·날짜 2개를 뺐어요",
+    "문서 간 불일치: budget_text (메타: 825,087,273원 vs 파일: 907,596,000 원",
+    "문서 간 불일치: contract_method (메타: 일반경쟁 vs 파일: 협상에 의한 계약)"
+   ],
+   "grounded": [
+    12,
+    12
+   ],
+   "extraction": {
+    "budget": true,
+    "deadline": true,
+    "method": true
+   },
+   "filled": {
+    "schedule": true,
+    "budget_contract": true,
+    "key_requirements": true,
+    "eligibility": true,
+    "evaluation": true
+   },
+   "fit_score": 25,
+   "headline": "2027 년 서울마이소울샵 매장 운영 및 관리 사업을 위한 일반경쟁입찰 공고입니다."
+  }
+ ],
+ "ranking": {
+  "spearman_batch": 0.7745966692414834,
+  "spearman_analysis": 0.7745966692414834,
+  "precision_at_5": 0.25,
+  "labels_verified": 0
+ },
+ "schema": {
+  "generate": 21,
+  "first_try": 1.0,
+  "with_repair": 1.0
+ },
+ "totals": {
+  "items": 4,
+  "filled": {
+   "schedule": 4,
+   "budget_contract": 4,
+   "key_requirements": 4,
+   "eligibility": 4,
+   "evaluation": 4
+  },
+  "ok": 4,
+  "errors": 0,
+  "grounded_ratio": 1.0,
+  "extraction": {
+   "budget": [
+    4,
+    4
+   ],
+   "deadline": [
+    3,
+    3
+   ],
+   "method": [
+    4,
+    4
+   ]
+  },
+  "seconds": 789.3
+ }
+}

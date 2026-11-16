@@ -75,3 +75,9 @@
 
 - **한 일**: 운영자 안내 `docs/ops/OWNER_GUIDE.md`·`PILOT.md`, 메일 시험 `app.cli send-test-mail`, 주간 피드백 보고 `app.ops.feedback_report`, 서버 사전 점검(디스크 69GB 남음 → 모델 19GB만 복사로 INSTALL 수정, v1 유닛 이름 바꾸기를 첫 배포 앞으로), 개발 DB 백업·복원 사전 리허설(행 수 일치, 암호화는 대역).
 - **남은 문제(운영자)**: OWNER_GUIDE 0~9단계. 서버 맞춤 명령은 `docs/ops/THIS_SERVER.local.md`(git 제외).
+
+## P8-a — 낙찰·계약 API 확인 (2026-11-16, 완료)
+
+- **한 일**: §15 장을 SPEC.md에 넣고(문서만), `backend/scripts/probe_awards.py`로 §15.10의 8가지를 실제 응답으로 확인(G2B 40회). 녹화본 `tests/fixtures/g2b/awards_*.json`·`opening_compt_page1.json`·`contracts_page1.json`(개인정보 칸 제거).
+- **달라진 결정**: 조회 창은 7일 '미만'(정확히 7일이면 07 오류), `numOfRows=1000`은 조용히 10행. 낙찰 고유키는 분류·재입찰까지 `(공고번호, 차수, 분류, 재입찰)`. 공동수급은 낙찰 응답에 주계약업체 1행뿐 → 계약정보 `corpList` 방식 칸으로만 판정(`cmmnCntrctYn` 불신). 협상계약은 낙찰률(G2B)이 대부분 빔. 기존 키로 호출됨. 5년 백필 약 522회 (`docs/decisions/2026-11-16-awards-probe.md`).
+- **남은 문제**: SPEC §15.2·§15.3·§15.4 수정 제안(결정 문서 '명세 수정 필요').

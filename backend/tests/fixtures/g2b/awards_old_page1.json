@@ -1,0 +1,105 @@
+{
+ "response": {
+  "header": {
+   "resultCode": "00",
+   "resultMsg": "정상"
+  },
+  "body": {
+   "items": [
+    {
+     "bidNtceNo": "20210918155",
+     "bidNtceOrd": "000",
+     "bidClsfcNo": "0",
+     "rbidNo": "000",
+     "ntceDivCd": "통050001",
+     "bidNtceNm": "(가칭)검단2고등학교 신축공사 설계용역",
+     "prtcptCnum": "2",
+     "bidwinnrNm": "주식회사 종합건축사사무소 림",
+     "bidwinnrBizno": "1478700483",
+     "sucsfbidAmt": "1232045000",
+     "sucsfbidRate": "",
+     "rlOpengDt": "2021-11-09 16:45:56",
+     "dminsttCd": "7310000",
+     "dminsttNm": "인천광역시교육청",
+     "rgstDt": "2021-11-10 07:34:35",
+     "fnlSucsfDate": "2021-11-09"
+    },
+    {
+     "bidNtceNo": "20211100051",
+     "bidNtceOrd": "000",
+     "bidClsfcNo": "0",
+     "rbidNo": "000",
+     "ntceDivCd": "통050001",
+     "bidNtceNm": "개척배수통문등 9개소 정밀안전점검용역",
+     "prtcptCnum": "5",
+     "bidwinnrNm": "주식회사 동양기술단",
+     "bidwinnrBizno": "3058167230",
+     "sucsfbidAmt": "41893000",
+     "sucsfbidRate": "88.374",
+     "rlOpengDt": "2021-11-05 15:06:31",
+     "dminsttCd": "4540000",
+     "dminsttNm": "충청남도 논산시",
+     "rgstDt": "2021-11-10 08:14:40",
+     "fnlSucsfDate": "2021-11-10"
+    },
+    {
+     "bidNtceNo": "20211102100",
+     "bidNtceOrd": "000",
+     "bidClsfcNo": "0",
+     "rbidNo": "000",
+     "ntceDivCd": "통050001",
+     "bidNtceNm": "2022년도 화폐본부 소방시설 유지관리 용역 계약",
+     "prtcptCnum": "13",
+     "bidwinnrNm": "넘버원소방이엔지 주식회사",
+     "bidwinnrBizno": "1168195567",
+     "sucsfbidAmt": "23388067",
+     "sucsfbidRate": "88.24",
+     "rlOpengDt": "2021-11-08 13:37:58",
+     "dminsttCd": "B190001",
+     "dminsttNm": "한국조폐공사",
+     "rgstDt": "2021-11-10 08:19:39",
+     "fnlSucsfDate": "2021-11-10"
+    },
+    {
+     "bidNtceNo": "20211105815",
+     "bidNtceOrd": "000",
+     "bidClsfcNo": "1",
+     "rbidNo": "000",
+     "ntceDivCd": "통050001",
+     "bidNtceNm": "2021년 세종학당 한국어교원 온라인 재교육 콘텐츠 개발",
+     "prtcptCnum": "1",
+     "bidwinnrNm": "주식회사 더스토리뱅크",
+     "bidwinnrBizno": "4818701612",
+     "sucsfbidAmt": "96600000",
+     "sucsfbidRate": "99.989",
+     "rlOpengDt": "2021-11-10 08:26:23",
+     "dminsttCd": "Z015416",
+     "dminsttNm": "세종학당재단",
+     "rgstDt": "2021-11-10 08:27:44",
+     "fnlSucsfDate": "2021-11-10"
+    },
+    {
+     "bidNtceNo": "20211028266",
+     "bidNtceOrd": "000",
+     "bidClsfcNo": "0",
+     "rbidNo": "000",
+     "ntceDivCd": "통050001",
+     "bidNtceNm": "덕계저수지 비상대처계획(EAP) 수립 용역",
+     "prtcptCnum": "4",
+     "bidwinnrNm": "주식회사 에이스디이씨",
+     "bidwinnrBizno": "4548100813",
+     "sucsfbidAmt": "114228000",
+     "sucsfbidRate": "87.879",
+     "rlOpengDt": "2021-11-02 11:03:44",
+     "dminsttCd": "5590000",
+     "dminsttNm": "경기도 양주시",
+     "rgstDt": "2021-11-10 08:47:39",
+     "fnlSucsfDate": "2021-11-10"
+    }
+   ],
+   "numOfRows": 999,
+   "pageNo": 1,
+   "totalCount": 1296
+  }
+ }
+}

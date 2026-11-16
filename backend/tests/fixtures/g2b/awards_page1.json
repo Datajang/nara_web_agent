@@ -1,0 +1,105 @@
+{
+ "response": {
+  "header": {
+   "resultCode": "00",
+   "resultMsg": "정상"
+  },
+  "body": {
+   "items": [
+    {
+     "bidNtceNo": "R26BK01796947",
+     "bidNtceOrd": "000",
+     "bidClsfcNo": "0",
+     "rbidNo": "000",
+     "ntceDivCd": "통050001",
+     "bidNtceNm": "인천119특수대응단 소방헬기(AW139,2호기) 화물인양기(CARGO HOOK) 외주정비(5년) 용역",
+     "prtcptCnum": "3",
+     "bidwinnrNm": "한국항공서비스 주식회사",
+     "bidwinnrBizno": "3408601051",
+     "sucsfbidAmt": "148370610",
+     "sucsfbidRate": "96.358",
+     "rlOpengDt": "2026-11-03 11:01:51",
+     "dminsttCd": "6286337",
+     "dminsttNm": "인천광역시 소방본부",
+     "rgstDt": "2026-11-09 07:41:36",
+     "fnlSucsfDate": "2026-11-09"
+    },
+    {
+     "bidNtceNo": "R26BK01744163",
+     "bidNtceOrd": "000",
+     "bidClsfcNo": "0",
+     "rbidNo": "000",
+     "ntceDivCd": "통050001",
+     "bidNtceNm": "사옥 이전에 따른 기록물 정리 및 서고 이송 용역",
+     "prtcptCnum": "2",
+     "bidwinnrNm": "주식회사 아키브소프트",
+     "bidwinnrBizno": "8628600042",
+     "sucsfbidAmt": "393000000",
+     "sucsfbidRate": "99.914",
+     "rlOpengDt": "2026-10-29 13:20:10",
+     "dminsttCd": "Z007503",
+     "dminsttNm": "인천도시공사",
+     "rgstDt": "2026-11-09 08:10:43",
+     "fnlSucsfDate": "2026-11-09"
+    },
+    {
+     "bidNtceNo": "R26BK01787573",
+     "bidNtceOrd": "000",
+     "bidClsfcNo": "0",
+     "rbidNo": "000",
+     "ntceDivCd": "통050001",
+     "bidNtceNm": "예산고등학교 미래학교 조성공사 건설폐기물처리용역",
+     "prtcptCnum": "3",
+     "bidwinnrNm": "무한건설환경(주)",
+     "bidwinnrBizno": "3118108707",
+     "sucsfbidAmt": "84219280",
+     "sucsfbidRate": "88.559",
+     "rlOpengDt": "2026-10-29 13:25:42",
+     "dminsttCd": "8140100",
+     "dminsttNm": "충청남도교육청 예산고등학교",
+     "rgstDt": "2026-11-09 08:17:45",
+     "fnlSucsfDate": "2026-11-09"
+    },
+    {
+     "bidNtceNo": "R26BK01755253",
+     "bidNtceOrd": "000",
+     "bidClsfcNo": "0",
+     "rbidNo": "000",
+     "ntceDivCd": "통050001",
+     "bidNtceNm": "[PQ 후 가격입찰] 고흥군 성장관리계획 수립 및 구역 지정 용역 입찰 공고",
+     "prtcptCnum": "13",
+     "bidwinnrNm": "주식회사 케이지엔지니어링종합건축사사무소",
+     "bidwinnrBizno": "1278160942",
+     "sucsfbidAmt": "259030000",
+     "sucsfbidRate": "86.934",
+     "rlOpengDt": "2026-10-08 16:56:10",
+     "dminsttCd": "5845000",
+     "dminsttNm": "전남광주통합특별시 고흥군",
+     "rgstDt": "2026-11-09 08:24:15",
+     "fnlSucsfDate": "2026-11-09"
+    },
+    {
+     "bidNtceNo": "R26BK01760860",
+     "bidNtceOrd": "000",
+     "bidClsfcNo": "0",
+     "rbidNo": "000",
+     "ntceDivCd": "통050001",
+     "bidNtceNm": "연수금곡마을~용탄외촌마을도로개설사업건설폐기물처리용역",
+     "prtcptCnum": "172",
+     "bidwinnrNm": "동아환경개발주식회사",
+     "bidwinnrBizno": "3018164245",
+     "sucsfbidAmt": "558272000",
+     "sucsfbidRate": "85.511",
+     "rlOpengDt": "2026-10-13 11:12:27",
+     "dminsttCd": "4390000",
+     "dminsttNm": "충청북도 충주시",
+     "rgstDt": "2026-11-09 08:42:07",
+     "fnlSucsfDate": "2026-11-09"
+    }
+   ],
+   "numOfRows": 999,
+   "pageNo": 1,
+   "totalCount": 1741
+  }
+ }
+}

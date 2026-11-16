@@ -72,6 +72,7 @@ class MeOut(UserBase):
     """내 정보. 팀(P6)과 개인 관심 키워드를 함께 준다."""
 
     interest_keywords: list[str] = []
+    feed_include_small: bool = False  # 관심 공고에 1억 미만도 보기
     team: MeTeam | None = None
     team_role: TeamRole | None = None
 
@@ -83,6 +84,7 @@ class MePatch(BaseModel):
     current_password: RawPassword | None = None
     new_password: RawPassword | None = None
     interest_keywords: Annotated[list[Keyword], Field(max_length=10)] | None = None
+    feed_include_small: bool | None = None
 
 
 class AdminUserOut(UserBase):

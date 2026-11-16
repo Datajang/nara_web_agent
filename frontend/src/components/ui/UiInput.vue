@@ -11,8 +11,9 @@ const props = withDefaults(
     autocomplete?: string
     required?: boolean
     maxLength?: number
+    name?: string
   }>(),
-  { type: 'text', hint: '', error: '', autocomplete: 'off', required: false, maxLength: undefined },
+  { type: 'text', hint: '', error: '', autocomplete: 'off', required: false, maxLength: undefined, name: undefined },
 )
 const model = defineModel<string>({ default: '' })
 
@@ -31,6 +32,7 @@ const describedBy = computed(
       :id="id"
       v-model="model"
       :type="type"
+      :name="name"
       :autocomplete="autocomplete"
       :required="required"
       :maxlength="maxLength"

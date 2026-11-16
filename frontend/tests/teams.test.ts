@@ -44,6 +44,36 @@ describe('관심 공고 홈 (/)', () => {
     expect(m.wrapper.get('[data-matched]').text()).toBe('데이터')
   })
 
+  it('기본은 1억 원 이상만, "1억 원 미만도 보기"를 켜면 계정에 저장하고 다시 불러온다 (2026-11-16)', async () => {
+    let small = false
+    const api = mockApi({
+      'GET /api/v1/feed': () =>
+        json({
+          keywords: ['AI', '데이터', '클라우드'],
+          needs_keywords: false,
+          total: small ? 2 : 1,
+          min_budget: small ? null : 100_000_000,
+          items: [
+            { ...card({ title: '큰 사업' }), matched_keywords: ['AI'] },
+            ...(small ? [{ ...card({ bid_id: 'b109', title: '작은 사업' }), matched_keywords: ['AI'] }] : []),
+          ],
+        }),
+      'PATCH /api/v1/me': () => {
+        small = true
+        return json({ ...MEMBER, feed_include_small: true })
+      },
+    })
+    m = await mountAt('/')
+    const box = m.wrapper.get('input[name="feed-small"]')
+    expect((box.element as HTMLInputElement).checked).toBe(false)
+    expect(text(m.wrapper)).toContain(copy.feed.includeSmall)
+    expect(text(m.wrapper)).not.toContain('작은 사업')
+    await box.setValue(true)
+    await settle()
+    expect(api.calls.find((c) => c.method === 'PATCH')?.body).toEqual({ feed_include_small: true })
+    expect(text(m.wrapper)).toContain('작은 사업')
+  })
+
   it('키워드가 3개 미만이면 키워드 설정으로 보낸다', async () => {
     mockApi({
       'GET /api/v1/feed': json({ keywords: ['AI'], needs_keywords: true, total: 0, items: [] }),

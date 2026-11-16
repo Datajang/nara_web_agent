@@ -1350,6 +1350,8 @@ export interface components {
             total: number;
             /** Items */
             items: components["schemas"]["FeedItem"][];
+            /** Min Budget */
+            min_budget?: number | null;
         };
         /** FeedbackIn */
         FeedbackIn: {
@@ -1529,6 +1531,11 @@ export interface components {
              * @default []
              */
             interest_keywords: string[];
+            /**
+             * Feed Include Small
+             * @default false
+             */
+            feed_include_small: boolean;
             team?: components["schemas"]["MeTeam"] | null;
             /** Team Role */
             team_role?: ("owner" | "member") | null;
@@ -1543,6 +1550,8 @@ export interface components {
             new_password?: string | null;
             /** Interest Keywords */
             interest_keywords?: string[] | null;
+            /** Feed Include Small */
+            feed_include_small?: boolean | null;
         };
         /** MeTeam */
         MeTeam: {
@@ -1806,6 +1815,8 @@ export interface components {
              * @default []
              */
             keywords: string[];
+            /** Title */
+            title?: string | null;
             /**
              * Match
              * @default all

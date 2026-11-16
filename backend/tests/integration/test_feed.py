@@ -63,6 +63,7 @@ async def test_feed_asks_for_keywords_below_three(full_api):
         "needs_keywords": True,
         "total": 0,
         "items": [],
+        "min_budget": 100_000_000,
     }
 
 
@@ -81,3 +82,33 @@ async def test_feed_pages(full_api):
     assert [it["title"] for it in first["items"] + rest["items"]] == [
         f"AI 사업 {i}" for i in range(4)
     ]
+
+
+async def test_feed_hides_small_bids_unless_the_user_asks(full_api):
+    """2026-11-16 사용자 요청: 관심 공고에 1억 미만이 너무 많음 → 기본은 1억 이상만,
+    설정(feed_include_small)으로 1억 미만도 볼 수 있다. 계정에 저장한다."""
+    notice = NOW - timedelta(days=1)
+    deadline = kst_str(NOW + timedelta(days=5))
+    await seed(
+        full_api.ctx.deps,
+        "regular",
+        regular_item(
+            "R26BK76000001", notice, title="AI 큰 사업", deadline=deadline, budget="300000000"
+        ),
+        regular_item(
+            "R26BK76000002", notice, title="AI 작은 사업", deadline=deadline, budget="50000000"
+        ),
+    )
+    c = await member(full_api, "small@corp.example")
+    await c.patch("/api/v1/me", json={"interest_keywords": ["AI", "검색", "데이터"]})
+    default = (await c.get(F)).json()
+    me_before = (await c.get("/api/v1/me")).json()
+    assert (await c.patch("/api/v1/me", json={"feed_include_small": True})).status_code == 200
+    me_after = (await c.get("/api/v1/me")).json()
+    everything = (await c.get(F)).json()
+    await c.aclose()
+    assert [it["title"] for it in default["items"]] == ["AI 큰 사업"]
+    assert default["min_budget"] == 100_000_000
+    assert me_before["feed_include_small"] is False and me_after["feed_include_small"] is True
+    assert sorted(it["title"] for it in everything["items"]) == ["AI 작은 사업", "AI 큰 사업"]
+    assert everything["min_budget"] is None

@@ -4,6 +4,7 @@
 import { Pencil } from 'lucide-vue-next'
 import { onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
+import { authApi } from '@/api/auth'
 import { feedApi, type FeedItem } from '@/api/teams'
 import BidCard from '@/components/bid/BidCard.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
@@ -20,6 +21,9 @@ const total = ref(0)
 const loading = ref(true)
 const loadingMore = ref(false)
 const failed = ref(false)
+// 기본은 1억 원 이상만. 켜면 1억 미만도 — 계정에 저장한다 (2026-11-16)
+const includeSmall = ref(false)
+const savingSmall = ref(false)
 
 async function load(offset = 0) {
   try {
@@ -29,6 +33,7 @@ async function load(offset = 0) {
       return
     }
     keywords.value = f.keywords
+    includeSmall.value = f.min_budget == null
     total.value = f.total
     items.value = offset ? [...items.value, ...f.items] : f.items
   } catch {
@@ -40,6 +45,18 @@ onMounted(async () => {
   await load()
   loading.value = false
 })
+
+async function setIncludeSmall(v: boolean) {
+  savingSmall.value = true
+  try {
+    await authApi.updateMe({ feed_include_small: v })
+    await load()
+  } catch {
+    failed.value = true
+  } finally {
+    savingSmall.value = false
+  }
+}
 
 async function more() {
   loadingMore.value = true
@@ -68,6 +85,18 @@ const toggleBookmark = useBookmarkToggle(items)
           <Pencil class="size-3.5" aria-hidden="true" />{{ copy.feed.editKeywords }}
         </RouterLink>
       </div>
+      <label class="inline-flex items-center gap-2 text-sm text-text-2">
+        <input
+          name="feed-small"
+          type="checkbox"
+          class="size-4"
+          :checked="includeSmall"
+          :disabled="savingSmall"
+          @change="setIncludeSmall(($event.target as HTMLInputElement).checked)"
+        />
+        {{ copy.feed.includeSmall }}
+        <span v-if="!includeSmall" class="text-text-3">{{ copy.feed.minBudgetNote }}</span>
+      </label>
     </section>
 
     <div v-if="loading" class="grid gap-3">

@@ -107,7 +107,9 @@ function useRecent(q: Record<string, unknown>) {
 }
 
 function recentLabel(q: Record<string, unknown>): string {
-  const kws = Array.isArray(q.keywords) && q.keywords.length ? q.keywords.join(', ') : copy.search.noKeywords
+  const words = Array.isArray(q.keywords) ? q.keywords.map(String) : []
+  if (typeof q.title === 'string' && q.title) words.push(copy.search.titleChip(q.title))
+  const kws = words.length ? words.join(', ') : copy.search.noKeywords
   const days = Number(q.days)
   return days ? `${kws} · ${copy.search.recentDays(days)}` : kws
 }
@@ -160,6 +162,15 @@ const toggleBookmark = useBookmarkToggle(items)
             :label="copy.search.keywords"
             :hint="copy.search.keywordsHint"
             :max="10"
+          />
+        </div>
+        <div class="md:col-span-2">
+          <UiInput
+            v-model="form.title"
+            name="title"
+            :label="copy.search.title"
+            :hint="copy.search.titleHint"
+            :max-length="200"
           />
         </div>
         <UiSegmented

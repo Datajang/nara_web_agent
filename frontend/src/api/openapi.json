@@ -3746,6 +3746,17 @@
             },
             "type": "array",
             "title": "Items"
+          },
+          "min_budget": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Budget"
           }
         },
         "type": "object",
@@ -4214,6 +4225,11 @@
             "title": "Interest Keywords",
             "default": []
           },
+          "feed_include_small": {
+            "type": "boolean",
+            "title": "Feed Include Small",
+            "default": false
+          },
           "team": {
             "anyOf": [
               {
@@ -4305,6 +4321,17 @@
               }
             ],
             "title": "Interest Keywords"
+          },
+          "feed_include_small": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feed Include Small"
           }
         },
         "type": "object",
@@ -4994,6 +5021,18 @@
             "maxItems": 10,
             "title": "Keywords",
             "default": []
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
           },
           "match": {
             "type": "string",

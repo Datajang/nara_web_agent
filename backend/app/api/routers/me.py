@@ -27,6 +27,8 @@ async def patch_me(
         user.display_name = body.display_name
     if body.interest_keywords is not None:
         user.interest_keywords = clean_keywords(body.interest_keywords)
+    if body.feed_include_small is not None:
+        user.feed_include_small = body.feed_include_small
     if body.new_password is not None:
         if body.current_password is None:
             raise ApiError(

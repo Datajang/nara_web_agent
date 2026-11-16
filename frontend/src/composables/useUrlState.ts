@@ -10,6 +10,7 @@ export type Period = 7 | 14 | 30 | 60 | 90 | 'custom'
 
 export interface SearchState {
   keywords: string[]
+  title: string // 공고명 일부·전체 (띄어쓰기 무시)
   match: Match
   source: Source
   period: Period
@@ -31,6 +32,7 @@ export const DEFAULT_BUDGET_MIN = '10000'
 export function defaultState(): SearchState {
   return {
     keywords: [],
+    title: '',
     match: 'all',
     source: 'all',
     period: 14,
@@ -54,6 +56,7 @@ export function parseSearch(q: LocationQuery): SearchState {
   const s = defaultState()
   const kw = one(q.q)
   s.keywords = kw ? [...new Set(kw.split(',').map((k) => k.trim()).filter(Boolean))].slice(0, 10) : []
+  s.title = one(q.title).slice(0, 200)
   s.match = pick(one(q.match), ['all', 'any'], 'all')
   s.source = pick(one(q.source), ['all', 'regular', 'prespec'], 'all')
   s.status = pick(one(q.status), ['open', 'all'], 'open')
@@ -81,6 +84,7 @@ export function toQuery(s: SearchState): LocationQueryRaw {
   const d = defaultState()
   const q: LocationQueryRaw = {}
   if (s.keywords.length) q.q = s.keywords.join(',')
+  if (s.title.trim()) q.title = s.title.trim()
   if (s.match !== d.match) q.match = s.match
   if (s.source !== d.source) q.source = s.source
   if (s.period === 'custom' && s.from && s.to) {
@@ -114,6 +118,7 @@ export function toRequest(s: SearchState): Partial<SearchQuery> {
   if (Number(s.budgetMin) > 0) body.budget_min = Number(s.budgetMin) * 10_000
   if (s.budgetMax) body.budget_max = Number(s.budgetMax) * 10_000
   if (s.org.trim()) body.org = s.org.trim()
+  if (s.title.trim()) body.title = s.title.trim()
   return body
 }
 
@@ -137,5 +142,6 @@ export function fromRunQuery(query: Record<string, unknown>): SearchState {
   if (typeof query.budget_min === 'number') s.budgetMin = String(Math.round(query.budget_min / 10_000))
   if (typeof query.budget_max === 'number') s.budgetMax = String(Math.round(query.budget_max / 10_000))
   if (typeof query.org === 'string') s.org = query.org
+  if (typeof query.title === 'string') s.title = query.title
   return s
 }

@@ -106,6 +106,30 @@ describe('SearchView', () => {
     expect(m.router.currentRoute.value.query.q).toBe('클라우드')
   })
 
+  it('공고명으로도 찾는다: 입력 → URL(title) → 요청, 새로고침하면 복원 (2026-11-16)', async () => {
+    const api = mockApi(routes())
+    m = await mountAt('/search')
+    const titled = '국가하천(낙동강, 내성천) 불법행위 단속 용역'
+    await m.wrapper.get('input[name="title"]').setValue(titled)
+    await m.wrapper.get('form').trigger('submit')
+    await settle()
+    expect(m.router.currentRoute.value.query.title).toBe(titled)
+    const last = api.calls.filter((c) => c.url === '/api/v1/bids/search').slice(-1)[0]
+    expect(last!.body).toMatchObject({ title: titled, keywords: [] })
+    m.wrapper.unmount()
+
+    mockApi(routes())
+    m = await mountAt(`/search?title=${encodeURIComponent(titled)}`)
+    expect((m.wrapper.get('input[name="title"]').element as HTMLInputElement).value).toBe(titled)
+  })
+
+  it('최근 검색 칩에 공고명도 보인다', async () => {
+    const withTitle = { ...RECENT, items: [{ ...RECENT.items[0]!, query: { keywords: [], title: '생육지원 데이터센터', days: 14 } }] }
+    mockApi({ ...routes(), 'GET /api/v1/search-runs': json(withTitle) })
+    m = await mountAt('/search')
+    expect(text(m.wrapper)).toContain('생육지원 데이터센터')
+  })
+
   it('최근 검색 칩을 누르면 조건을 채워 검색한다', async () => {
     const api = mockApi(routes())
     m = await mountAt('/search')

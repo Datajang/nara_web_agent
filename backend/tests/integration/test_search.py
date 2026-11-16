@@ -130,3 +130,29 @@ async def test_korean_trigram_index_is_usable(deps):
             ).scalars()
         )
     assert "ix_bids_title_trgm" in plan
+
+
+async def test_title_search_ignores_spacing_and_allows_commas_and_long_titles(deps, fake_g2b):
+    """2026-11-16 사용자 요청: 공고명(제목)으로도 찾기. 제목 일부나 전체를 붙여 넣으면
+    띄어쓰기와 상관없이 그 순서대로 들어 있는 공고를 찾는다(쉼표·50자 넘는 제목도)."""
+    long_title = (
+        "국가하천(낙동강, 내성천) 불법행위 단속 및 하천 환경 정비를 위한 통합 관리 용역 2단계 사업"
+    )
+    fake_g2b.add(
+        "regular",
+        regular_item(
+            "R26BK60000011", NOW - timedelta(days=1), title="AI 기반 생육지원 데이터센터 구축"
+        ),
+        regular_item("R26BK60000012", NOW - timedelta(days=1), title="데이터센터 생육지원 AI 기반"),
+        regular_item("R26BK60000013", NOW - timedelta(days=1), title=long_title),
+    )
+    await runner.backfill(deps, "regular", days=30)
+    uid = await _user(deps)
+
+    async def titles(**kw) -> list[str]:
+        res = await search_bids(deps, uid, SearchQuery(days=7, source="regular", **kw))
+        return [b.title for b in res.items]
+
+    assert await titles(title="AI기반 생육지원  데이터센터") == ["AI 기반 생육지원 데이터센터 구축"]
+    assert await titles(title=long_title) == [long_title]
+    assert await titles(title="생육지원", keywords=["구축"]) == ["AI 기반 생육지원 데이터센터 구축"]

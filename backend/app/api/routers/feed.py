@@ -24,6 +24,7 @@ class FeedOut(BaseModel):
     needs_keywords: bool  # 키워드가 3개 미만이면 true, 화면은 키워드 설정으로 안내
     total: int
     items: list[FeedItem]
+    min_budget: int | None = None  # 이 금액 이상만 보여 줌(원). null이면 금액 제한 없음
 
 
 @router.get("/feed")
@@ -43,4 +44,10 @@ async def get_feed(
         for c in cards
         if int(c.bid_id[1:]) in by_id
     ]
-    return FeedOut(keywords=f.keywords, needs_keywords=f.needs_keywords, total=f.total, items=items)
+    return FeedOut(
+        keywords=f.keywords,
+        needs_keywords=f.needs_keywords,
+        total=f.total,
+        items=items,
+        min_budget=f.min_budget,
+    )

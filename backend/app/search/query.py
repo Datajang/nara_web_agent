@@ -6,7 +6,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Annotated, Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
-from sqlalchemy import Select, and_, or_, select
+from sqlalchemy import Select, and_, func, or_, select
 
 from app.db.models import Bid
 
@@ -19,6 +19,8 @@ class SearchQuery(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
     keywords: Annotated[list[Keyword], Field(max_length=10)] = []
+    # 공고명(제목) 일부·전체. 띄어쓰기 무시, 적힌 순서대로 들어 있어야 맞음 (2026-11-16)
+    title: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] | None = None
     match: Literal["all", "any"] = "all"
     source: Literal["regular", "prespec", "all"] = "all"
     days: int = Field(default=14, ge=1, le=MAX_DAYS)
@@ -66,6 +68,9 @@ def build_query(
     if words:
         conds = [Bid.title.ilike(_like(w), escape="\\") for w in words]
         stmt = stmt.where(and_(*conds) if q.match == "all" else or_(*conds))
+    if q.title and (flat := "".join(q.title.split())):
+        squashed = func.regexp_replace(Bid.title, r"\s+", "", "g")
+        stmt = stmt.where(squashed.ilike(_like(flat), escape="\\"))
     if q.status == "open":
         stmt = stmt.where(or_(Bid.deadline_at.is_(None), Bid.deadline_at > now))
     if q.budget_min is not None:

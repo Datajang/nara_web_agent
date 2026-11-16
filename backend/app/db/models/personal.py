@@ -73,6 +73,9 @@ class User(Base):
     team_role: Mapped[str | None] = mapped_column(Text)
     team_joined_at: Mapped[datetime | None] = _ts()
     interest_keywords: Mapped[list[Any]] = mapped_column(server_default=text("'[]'::jsonb"))
+    feed_include_small: Mapped[bool] = mapped_column(
+        Boolean, server_default="false"
+    )  # 관심 공고 1억 미만도
     # /me 응답에 팀 이름이 필요하다. 사용자를 읽을 때 함께 읽는다(비동기 지연 로딩 금지)
     team: Mapped[Team | None] = relationship(lazy="joined")
 

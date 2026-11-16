@@ -25,6 +25,7 @@ from app.pipeline.singleflight import single_flight
 from app.pipeline.summarize import (
     NO_DOCS,
     NO_FILES,
+    WAITING,
     _dedupe,
     _flat,
     _llm,
@@ -160,6 +161,13 @@ async def get_or_create_analysis(
         check,
         compute,
         wait_s=deps.settings.llm_lock_wait_s,
+        on_wait=lambda: usage.status(
+            "analyze",
+            WAITING,
+            cache=False,
+            waiting=True,
+            expected_s=deps.settings.analyze_expected_s,
+        ),
     )
     usage.set_cache("analysis", hit)
     return row, hit

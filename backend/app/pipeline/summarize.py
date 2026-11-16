@@ -212,6 +212,8 @@ async def _map_chunk(
 
 
 SCOPE_MAX = 8
+SCOPE_CHARS = 60
+WAITING = "다른 요청이 같은 공고를 처리하고 있어요. 끝나면 이어서 보여 드려요"
 
 
 def merge_scope(facts: list[FileFacts]) -> list[str]:
@@ -221,7 +223,7 @@ def merge_scope(facts: list[FileFacts]) -> list[str]:
     for s in (s for f in facts for s in f.scope):
         if s.strip() and (key := _flat(s)) not in seen:
             seen.add(key)
-            out.append(s.strip())
+            out.append(s.strip()[:SCOPE_CHARS])
     return out[:SCOPE_MAX]
 
 
@@ -258,6 +260,7 @@ async def _summarize(
             f"문서를 읽고 있어요 ({done}/{total})",
             progress={"done": done, "total": total},
             cache=False,
+            expected_s=deps.settings.analyze_expected_s,
         )
 
     async def mapped(k: int) -> tuple[list[FileFacts], list[str]]:
@@ -353,7 +356,8 @@ async def get_or_create_summary(deps: Deps, bid_id: int) -> tuple[BidSummary, bo
     if not pending:
         usage.status("files", "첨부 파일은 이미 받아 두었어요", cache=True)
         usage.status("extract", "추출한 본문을 재사용해요", cache=True)
-    usage.status("summarize", "문서를 요약하고 있어요", cache=False)
+    expected_s = deps.settings.analyze_expected_s
+    usage.status("summarize", "문서를 요약하고 있어요", cache=False, expected_s=expected_s)
 
     async def compute() -> BidSummary:
         with usage.track() as sub:
@@ -384,6 +388,9 @@ async def get_or_create_summary(deps: Deps, bid_id: int) -> tuple[BidSummary, bo
         check,
         compute,
         wait_s=deps.settings.llm_lock_wait_s,
+        on_wait=lambda: usage.status(
+            "summarize", WAITING, cache=False, waiting=True, expected_s=expected_s
+        ),
     )
     usage.set_cache("summary", hit)
     return row, hit

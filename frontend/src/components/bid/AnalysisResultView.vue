@@ -9,7 +9,8 @@ import { copy } from '@/copy'
 import AnalysisResultLegacy from './AnalysisResultLegacy.vue'
 import ScoreBadge from './ScoreBadge.vue'
 
-const props = defineProps<{ analysis: AnyAnalysis }>()
+// fromTeam: 팀원이 팀 프로필로 만든 분석 — 프로필 보완 안내는 두되 '내 프로필 고치기' 링크는 뺀다
+const props = defineProps<{ analysis: AnyAnalysis; fromTeam?: boolean }>()
 const legacy = computed(() => (isLegacy(props.analysis) ? props.analysis : null))
 const a = computed(() => (isLegacy(props.analysis) ? null : (props.analysis as AnalysisResult)))
 const showProfileNotice = computed(
@@ -70,7 +71,9 @@ const sevTone = { high: 'danger', mid: 'warning', low: 'neutral' } as const
             <li v-for="(m, i) in a.profile_missing" :key="i">{{ m }}</li>
           </ul>
         </template>
-        <RouterLink to="/settings/profiles" class="mt-2 inline-block text-sm font-medium underline">
+        <RouterLink
+          v-if="!fromTeam"
+          to="/settings/profiles" class="mt-2 inline-block text-sm font-medium underline">
           {{ copy.analysis.editProfile }}
         </RouterLink>
       </div>

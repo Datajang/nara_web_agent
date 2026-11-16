@@ -13,6 +13,7 @@ export type LegacyAnalysisResult = S['LegacyAnalysisResult'] // v9 이하에 저
 export type AnyAnalysis = AnalysisResult | LegacyAnalysisResult
 export const isLegacy = (a: AnyAnalysis): a is LegacyAnalysisResult => !('understanding' in a)
 export type Profile = S['ProfileOut']
+export type ProfileList = S['ProfileList']
 export type ProfileIn = S['ProfileIn']
 export type ProfilePatch = S['ProfilePatch']
 export type SearchRun = S['SearchRunOut']

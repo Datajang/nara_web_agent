@@ -34,6 +34,26 @@ describe('progressState', () => {
     expect(progressState(st, 0, 60 * S)).toMatchObject({ percent: 75, remainingS: 90 })
   })
 
+  it('다른 요청의 요약을 기다리는 동안(진행률 없음)에도 10%에서 천천히 움직인다', () => {
+    const st: Stamped[] = [{ stage: 'summarize', waiting: true, at: 0 }]
+    expect(progressState(st, 0, 120 * S)).toMatchObject({ percent: 41, remainingS: null })
+  })
+
+  it('첫 조각을 읽는 동안에도 첫 칸(10→20%) 안에서 움직인다', () => {
+    const st: Stamped[] = [{ stage: 'summarize', progress: { done: 0, total: 6 }, at: 0 }]
+    expect(progressState(st, 0, 60 * S).percent).toBe(15)
+    expect(progressState(st, 0, 600 * S).percent).toBeLessThan(20)
+  })
+
+  it('요약 중 남은 시간에는 서버가 준 분석 예상(expected_s)을 쓴다', () => {
+    const st: Stamped[] = [
+      { stage: 'summarize', progress: { done: 0, total: 6 }, expected_s: 60, at: 0 },
+      { stage: 'summarize', progress: { done: 1, total: 6 }, expected_s: 60, at: 10 * S },
+      { stage: 'summarize', progress: { done: 3, total: 6 }, expected_s: 60, at: 30 * S },
+    ]
+    expect(progressState(st, 0, 30 * S).remainingS).toBe(105)
+  })
+
   it('요약 0/6이면 남은 시간을 추정하지 않는다', () => {
     const st: Stamped[] = [{ stage: 'summarize', progress: { done: 0, total: 6 }, at: 0 }]
     expect(progressState(st, 0, 5 * S)).toMatchObject({ percent: 10, remainingS: null })
@@ -69,7 +89,7 @@ describe('AnalyzeProgress', () => {
   afterEach(() => vi.useRealTimers())
 
   const analyzing = (expected: number): StreamEvent[] => [
-    { type: 'status', stage: 'analyze', message: '분석 중', expected_s: expected, progress: null, cache: false },
+    { type: 'status', stage: 'analyze', message: '분석 중', expected_s: expected, progress: null, cache: false, waiting: null },
   ]
 
   it('progressbar 역할과 현재 값, 경과·남은 시간', async () => {
@@ -87,6 +107,26 @@ describe('AnalyzeProgress', () => {
     const w = mount(AnalyzeProgress, { props: { events: analyzing(10) } })
     await vi.advanceTimersByTimeAsync(30 * S)
     expect(w.text()).toContain(copy.progress.almostDone)
+    w.unmount()
+  })
+
+  it('기다리는 중이면 안내 문구, 막대는 뒤로 가지 않는다', async () => {
+    const events: StreamEvent[] = [
+      { type: 'status', stage: 'summarize', message: 'x', waiting: true, progress: null, cache: false, expected_s: 90 },
+    ]
+    const w = mount(AnalyzeProgress, { props: { events } })
+    await vi.advanceTimersByTimeAsync(120 * S)
+    expect(w.text()).toContain(copy.progress.waiting)
+    expect(w.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('41')
+    await w.setProps({
+      events: [
+        ...events,
+        { type: 'status', stage: 'summarize', message: 'x', progress: { done: 1, total: 6 }, cache: false, expected_s: 90, waiting: null },
+      ],
+    })
+    await vi.advanceTimersByTimeAsync(1 * S)
+    expect(w.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('41')
+    expect(w.text()).not.toContain(copy.progress.waiting)
     w.unmount()
   })
 

@@ -8,6 +8,7 @@ export interface Stamped {
   stage: Stage
   progress?: { done: number; total: number } | null
   expected_s?: number | null
+  waiting?: boolean | null
   at: number // 받은 시각(ms)
 }
 
@@ -36,22 +37,34 @@ export function progressState(
 
   if (last.stage === 'summarize') {
     const sums = stamped.filter((s) => s.stage === 'summarize')
-    const p = [...sums].reverse().find((s) => s.progress)?.progress
-    if (!p || p.total <= 0) return { percent: 10, elapsedS, remainingS: null }
-    const firstDone = sums.find((s) => (s.progress?.done ?? 0) >= 1)
-    if (p.done < 1 || !firstDone) return { percent: Math.floor(10 + (60 * p.done) / p.total), elapsedS, remainingS: null }
     const start = sums[0]!.at
+    const e = (now - start) / 1000
+    const analyzeS = [...stamped].reverse().find((s) => s.expected_s)?.expected_s ?? DEFAULT_ANALYZE_S
+    const p = [...sums].reverse().find((s) => s.progress)?.progress
+    // 진행률이 없으면(다른 요청을 기다리는 중 등) 10→60%를 천천히, 남은 시간은 모름
+    if (!p || p.total <= 0)
+      return {
+        percent: Math.floor(10 + 50 * (1 - Math.exp(-e / 120))),
+        elapsedS,
+        remainingS: null,
+      }
+    const firstDone = sums.find((s) => (s.progress?.done ?? 0) >= 1)
+    if (p.done < 1 || !firstDone) {
+      // 첫 조각을 읽는 중: 첫 칸 안에서만 천천히(다음 칸을 넘지 않음)
+      const percent = Math.floor(10 + (60 / p.total) * 0.9 * (1 - Math.exp(-e / 60)))
+      return { percent, elapsedS, remainingS: null }
+    }
     const reduceS = ((firstDone.at - start) / 1000) * REDUCE_FACTOR
     if (p.done >= p.total) {
       // 합치는 중: 70→75%, 남은 시간은 줄어든다
       const lastAt = [...sums].reverse().find((s) => s.progress)!.at
       const r = (now - lastAt) / 1000
       const percent = Math.floor(70 + 5 * Math.min(1, reduceS > 0 ? r / reduceS : 1))
-      return { percent, elapsedS, remainingS: Math.round(Math.max(0, reduceS - r) + DEFAULT_ANALYZE_S) }
+      return { percent, elapsedS, remainingS: Math.round(Math.max(0, reduceS - r) + analyzeS) }
     }
     const percent = Math.floor(10 + (60 * p.done) / p.total)
-    const perChunk = (now - start) / 1000 / p.done
-    const remainingS = Math.round(perChunk * (p.total - p.done) + reduceS + DEFAULT_ANALYZE_S)
+    const perChunk = e / p.done
+    const remainingS = Math.round(perChunk * (p.total - p.done) + reduceS + analyzeS)
     return { percent, elapsedS, remainingS }
   }
 

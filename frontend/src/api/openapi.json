@@ -4625,6 +4625,11 @@
             },
             "type": "array",
             "title": "Items"
+          },
+          "detail_min_chars": {
+            "type": "integer",
+            "title": "Detail Min Chars",
+            "default": 200
           }
         },
         "type": "object",
@@ -5822,6 +5827,18 @@
             ],
             "default": null,
             "title": "Expected S"
+          },
+          "waiting": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Waiting"
           }
         },
         "required": [

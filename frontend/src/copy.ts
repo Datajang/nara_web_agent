@@ -125,6 +125,7 @@ export const copy = {
     elapsed: (t: string) => `경과 ${t}`,
     remaining: (s: number) => (s < 60 ? '1분 이내 남음' : `약 ${Math.ceil(s / 60)}분 남음`),
     almostDone: '거의 다 됐어요',
+    waiting: '다른 요청이 같은 공고를 처리 중이에요',
     duration: (m: number, r: number) => (!m ? `${r}초` : r ? `${m}분 ${r}초` : `${m}분`),
   },
   detail: {
@@ -380,7 +381,8 @@ export const copy = {
     description: '팀 소개',
     descriptionPlaceholder:
       '주력 분야와 기술, 인력 규모와 주요 자격(PM·정보처리기사 등), 최근 3년 유사 사업 실적, 보유 인증·면허, 하지 않는 일을 적어 주세요.',
-    descriptionHint: '자세히 적을수록 공고 분석의 적합도 판단이 정확해져요(200자 이상 권장).',
+    descriptionHint: (n: number, min: number) =>
+      `자세히 적을수록 공고 분석의 적합도 판단이 정확해져요. 지금 ${n}자 / ${min}자 이상 권장(공백 정리 후)`,
     keywords: '키워드',
     keywordsHint: '추천 후보를 찾을 때만 써요. 점수에는 영향이 없어요.',
     suggest: '키워드 제안',

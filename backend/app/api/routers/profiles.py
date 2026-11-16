@@ -15,9 +15,12 @@ router = APIRouter(prefix="/profiles", tags=["profiles"])
 
 
 @router.get("")
-async def list_profiles(user: ActiveUser, s: DbSession) -> ProfileList:
+async def list_profiles(user: ActiveUser, s: DbSession, ctx: Ctx) -> ProfileList:
     rows = await repo.list_profiles(s, user)
-    return ProfileList(items=[ProfileOut.model_validate(p) for p in rows])
+    return ProfileList(
+        items=[ProfileOut.model_validate(p) for p in rows],
+        detail_min_chars=ctx.deps.settings.profile_min_chars,
+    )
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)

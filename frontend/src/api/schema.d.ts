@@ -1658,6 +1658,11 @@ export interface components {
         ProfileList: {
             /** Items */
             items: components["schemas"]["ProfileOut"][];
+            /**
+             * Detail Min Chars
+             * @default 200
+             */
+            detail_min_chars: number;
         };
         /** ProfileOut */
         ProfileOut: {
@@ -2141,6 +2146,11 @@ export interface components {
              * @default null
              */
             expected_s: number | null;
+            /**
+             * Waiting
+             * @default null
+             */
+            waiting: boolean | null;
         };
         /** TokenEvent */
         TokenEvent: {

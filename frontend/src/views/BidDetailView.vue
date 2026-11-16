@@ -349,7 +349,7 @@ async function toggleBookmark() {
         <p v-if="fromTeam" class="rounded-control bg-primary-soft px-3 py-2 text-sm text-primary-hover">{{ copy.detail.teamAnalysis }}</p>
         <p v-else-if="fromCache" class="text-sm text-text-3">{{ copy.analysis.fromCache }}</p>
         <div class="rounded-card border border-border bg-surface p-4">
-          <AnalysisResultView :analysis="analysis" />
+          <AnalysisResultView :analysis="analysis" :from-team="fromTeam" />
         </div>
         <div class="flex flex-wrap gap-2">
           <UiButton variant="secondary" size="sm" @click="copyMarkdown">

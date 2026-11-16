@@ -135,6 +135,9 @@ class ProfileOut(BaseModel):
 
 class ProfileList(BaseModel):
     items: list[ProfileOut]
+    detail_min_chars: int = (
+        200  # 팀 소개가 이보다 짧으면 간략 분석(정규화 후 글자 수, 설정 profile_min_chars)
+    )
 
 
 class DevMail(BaseModel):

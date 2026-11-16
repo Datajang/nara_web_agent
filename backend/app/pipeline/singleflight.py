@@ -32,8 +32,10 @@ async def _locked(
     check: Callable[[], Awaitable[T | None]],
     compute: Callable[[], Awaitable[T]],
     wait_s: float,
+    on_wait: Callable[[], None] | None = None,
 ) -> tuple[T, bool]:
     deadline = time.monotonic() + wait_s
+    told = False
     async with db.lock_engine.connect() as conn:
         while not (
             await conn.execute(
@@ -42,6 +44,9 @@ async def _locked(
         ).scalar():
             if time.monotonic() >= deadline:
                 raise LockTimeout(key)
+            if on_wait is not None and not told:  # 다른 요청이 처리 중: 한 번만 알린다(로딩바)
+                told = True
+                on_wait()
             await asyncio.sleep(POLL_S)
         try:
             if (hit := await check()) is not None:  # 락 획득 후 이중 확인
@@ -60,11 +65,12 @@ async def single_flight(
     check: Callable[[], Awaitable[T | None]],
     compute: Callable[[], Awaitable[T]],
     wait_s: float = 120,
+    on_wait: Callable[[], None] | None = None,
 ) -> tuple[T, bool]:
     """(값, cache_hit). check()는 캐시 조회(없으면 None), compute()는 실제 작업 후 DB 저장."""
     if (hit := await check()) is not None:
         return hit, True
-    task = asyncio.ensure_future(_locked(db, key, check, compute, wait_s))
+    task = asyncio.ensure_future(_locked(db, key, check, compute, wait_s, on_wait))
     _background.add(task)
     task.add_done_callback(_background.discard)
     return await asyncio.shield(task)

@@ -398,3 +398,19 @@ async def test_conditions_drop_money_and_dates(deps, fake_llm):
     )
     a, _ = await get_or_create_analysis(deps, bid_id, PROFILE)
     assert a.result["understanding"]["conditions"] == ["PM 1명 상주"]
+
+
+async def test_summary_status_carries_the_analysis_estimate(deps, fake_llm):
+    """리뷰: 요약 중 남은 시간이 프론트 상수(90초)라 서버 설정과 따로 → 요약에도 expected_s."""
+    bid_id = await _bid(deps)
+    deps.settings.analyze_expected_s = 77
+    events: list[dict] = []
+    with usage.track(on_status=events.append):
+        await get_or_create_summary(deps, bid_id)
+    assert {e.get("expected_s") for e in events if e["stage"] == "summarize"} == {77}
+
+
+def test_merged_scope_items_are_trimmed():
+    long = "가" * 90
+    facts = [FileFacts(scope=[long])]
+    assert summarize.merge_scope(facts) == ["가" * summarize.SCOPE_CHARS]

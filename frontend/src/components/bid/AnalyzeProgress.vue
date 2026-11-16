@@ -17,7 +17,13 @@ watch(
   (n) => {
     for (const e of props.events.slice(seen, n)) {
       if (e.type !== 'status') continue
-      stamped.value.push({ stage: e.stage, progress: e.progress, expected_s: e.expected_s, at: Date.now() })
+      stamped.value.push({
+        stage: e.stage,
+        progress: e.progress,
+        expected_s: e.expected_s,
+        waiting: e.waiting,
+        at: Date.now(),
+      })
     }
     seen = n
   },
@@ -27,8 +33,16 @@ watch(
 const timer = setInterval(() => (now.value = Date.now()), 1000)
 onBeforeUnmount(() => clearInterval(timer))
 
-const state = computed(() => progressState(stamped.value, startedAt, now.value))
+// 막대는 뒤로 가지 않는다(기다리는 동안 천천히 채운 뒤 실제 진행률이 더 낮게 올 때)
+let shown = 0
+const state = computed(() => {
+  const s = progressState(stamped.value, startedAt, now.value)
+  shown = Math.max(shown, s.percent)
+  return { ...s, percent: shown }
+})
+const waiting = computed(() => stamped.value[stamped.value.length - 1]?.waiting === true)
 const remainingText = computed(() => {
+  if (waiting.value) return copy.progress.waiting
   const r = state.value.remainingS
   if (r === null) return ''
   return r <= 0 ? copy.progress.almostDone : copy.progress.remaining(r)

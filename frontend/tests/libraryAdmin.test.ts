@@ -107,7 +107,7 @@ describe('LibraryView', () => {
 describe('Settings', () => {
   it('프로필: 키워드 제안으로 칩을 채우고 저장한다', async () => {
     const api = mockApi({
-      'GET /api/v1/profiles': json({ items: [] }),
+      'GET /api/v1/profiles': json({ items: [], detail_min_chars: 150 }),
       'POST /api/v1/profiles/suggest-keywords': json({ keywords: ['인공지능', 'AI'] }),
       'POST /api/v1/profiles': json(profile(), 201),
     })
@@ -115,10 +115,12 @@ describe('Settings', () => {
     expect(text(m.wrapper)).toContain(copy.profile.empty)
     await m.wrapper.findAll('button').find((b) => b.text() === copy.profile.newProfile)!.trigger('click')
     await settle()
-    expect(text(m.wrapper)).toContain(copy.profile.descriptionHint) // 상세히 쓸수록 분석이 정확 (2026-11-16)
     const inputs = m.wrapper.findAll('input')
     await inputs[0]!.setValue('AI 팀')
     const desc = '인공지능 검색 플랫폼을 만듭니다'
+    await m.wrapper.get('textarea').setValue(`  ${desc}\n\n\n`)
+    // 서버와 같은 기준(공백 정리 후 글자 수)과 서버가 준 기준값(150자)으로 안내 (2026-11-16 리뷰)
+    expect(text(m.wrapper)).toContain(copy.profile.descriptionHint(desc.length, 150))
     await m.wrapper.get('textarea').setValue(desc)
     expect(text(m.wrapper)).toContain(copy.common.chars(desc.length, 4000))
     await m.wrapper.findAll('button').find((b) => b.text() === copy.profile.suggest)!.trigger('click')

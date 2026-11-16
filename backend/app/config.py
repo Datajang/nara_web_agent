@@ -54,7 +54,9 @@ class Settings(BaseSettings):
     llm_tokenizer_path: str = ""  # Qwen tokenizer.json. 비우면 글자 수 × 1.2 (§8.3-1)
     llm_lock_wait_s: float = 120  # single-flight 대기 상한 (§5.5)
     summary_max_chunks: int = 12  # §8.3-4
-    profile_min_chars: int = 200  # 팀 소개가 이보다 짧으면 간략 분석 + 프로필 보완 안내
+    # 팀 소개(정규화 후)가 이보다 짧으면 간략 분석 + 프로필 보완 안내. 바꾸면 PROMPT_VERSION을 올려
+    # 저장된 분석을 새로 만든다(캐시 키에 없어 예전 판정이 남음, 2026-11-16 리뷰)
+    profile_min_chars: int = 200
     analyze_expected_s: int = 90  # 분석 단계 예상(초), 로딩바용. 골든셋 중앙값 89초
 
     # 인증 (§9.7)

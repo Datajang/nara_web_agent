@@ -61,3 +61,8 @@ export function formatShortDate(iso: string): string {
   const p = kstParts(new Date(iso))
   return `${pad(p.m)}.${pad(p.d)} ${pad(p.hh)}:${pad(p.mm)}`
 }
+
+/** 서버 normalize_profile(NFKC, 공백 묶음 → 한 칸, 앞뒤 공백 제거)과 같은 기준의 글자 수. */
+export function normalizedLength(text: string): number {
+  return [...text.normalize('NFKC').replace(/\s+/g, ' ').trim()].length
+}

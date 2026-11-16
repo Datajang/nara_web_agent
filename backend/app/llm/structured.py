@@ -94,7 +94,6 @@ CAPS: dict[str, Cap] = {
     "BidSummary.risks": Cap(items=4, chars=80),
     "BidSummary.keywords": Cap(items=10, chars=20),
     "Coverage.warnings": Cap(items=3, chars=60),
-    "BidSummary.scope": Cap(items=8, chars=60),
     "Understanding.purpose": Cap(chars=300),
     "Understanding.scope": Cap(items=8, chars=80),
     "Understanding.conditions": Cap(items=5, chars=80),

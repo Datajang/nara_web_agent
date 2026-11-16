@@ -23,7 +23,8 @@ class StatusEvent(BaseModel):
     message: str
     progress: Progress | None = None
     cache: bool | None = None
-    expected_s: int | None = None  # analyze 단계 예상 시간(초), 로딩바용
+    expected_s: int | None = None  # 분석 단계 예상 시간(초), 로딩바용 (summarize·analyze)
+    waiting: bool | None = None  # 다른 요청이 같은 작업을 처리 중이라 기다리는 중
 
 
 class TokenEvent(BaseModel):

@@ -178,6 +178,43 @@ describe('팀 분석 공유', () => {
     expect(t).toContain(copy.detail.teamAnalysis)
   })
 
+  it('팀원 분석의 프로필 보완 안내에는 내 프로필 고치기 링크를 두지 않는다', async () => {
+    mockApi({
+      'GET /api/v1/bids/b101': json({
+        ...card(),
+        prespec_reg_no: null,
+        related_bid_id: null,
+        files: [],
+        summary: null,
+        my_analysis_id: null,
+        team_analysis_id: 56,
+      }),
+      'GET /api/v1/profiles': json({ items: [profile()] }),
+      'GET /api/v1/analyses/56': json({
+        analysis_id: 56,
+        bid_id: 'b101',
+        profile_id: 9,
+        markdown: '',
+        created_at: '2026-11-10T00:00:00Z',
+        analysis: {
+          understanding: { purpose: '팀원 분석', scope: [], conditions: [] },
+          fit: { score: 70, verdict: 'possible', reasoning: '' },
+          team_needs: { have: [], need: [] },
+          profile_missing: ['PM 자격'],
+          risks: [],
+          next_actions: [],
+          warnings: [],
+          profile_brief: true,
+        },
+      }),
+    })
+    m = await mountAt('/bids/b101')
+    await settle()
+    const note = m.wrapper.get('[data-test="profile-notice"]')
+    expect(note.text()).toContain(copy.analysis.profileNotice)
+    expect(note.find('a').exists()).toBe(false)
+  })
+
   it('내 기록에서 팀 분석을 따로 본다', async () => {
     const api = mockApi({
       'GET /api/v1/analyses': (_init, url) =>

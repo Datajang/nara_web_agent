@@ -54,3 +54,11 @@ describe('날짜 표시', () => {
     expect(formatDataAsOf('2026-11-09T01:20:00Z')).toBe('11-09 10:20')
   })
 })
+
+describe('normalizedLength', () => {
+  it('서버 normalize_profile과 같이 NFKC·공백 한 칸·앞뒤 공백 제거 후 글자 수', async () => {
+    const { normalizedLength } = await import('@/utils/format')
+    expect(normalizedLength('  가  나\n\n다 ')).toBe(5) // '가 나 다'
+    expect(normalizedLength('ＡＢ')).toBe(2)
+  })
+})

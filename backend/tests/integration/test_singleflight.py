@@ -66,3 +66,31 @@ async def test_lock_timeout(db):
         await single_flight(db, "k:slow", miss, slow, wait_s=0.3)
     release.set()
     await holder
+
+
+async def test_waiter_is_told_once_that_it_is_waiting(db):
+    """2026-11-16 리뷰: 다른 요청이 같은 요약을 만드는 동안 진행률이 안 와 로딩바가 10%에 멈춤
+    → 기다리기 시작할 때 on_wait를 한 번 부른다(앞선 요청은 부르지 않음)."""
+    store: dict[str, int] = {}
+    waits: list[str] = []
+    release = asyncio.Event()
+
+    async def check():
+        return store.get("v")
+
+    async def compute():
+        await release.wait()
+        store["v"] = 1
+        return 1
+
+    first = asyncio.create_task(
+        single_flight(db, "test:w", check, compute, on_wait=lambda: waits.append("a"))
+    )
+    await asyncio.sleep(0.2)
+    second = asyncio.create_task(
+        single_flight(db, "test:w", check, compute, on_wait=lambda: waits.append("b"))
+    )
+    await asyncio.sleep(0.3)
+    release.set()
+    await asyncio.gather(first, second)
+    assert waits == ["b"]

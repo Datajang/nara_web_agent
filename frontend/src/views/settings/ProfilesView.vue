@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref } from 'vue'
 import { teamsApi } from '@/api/teams'
 import { profilesApi } from '@/api/profiles'
+import { normalizedLength } from '@/utils/format'
 import type { Profile } from '@/api/types'
 import SubNav from '@/components/layout/SubNav.vue'
 import { SETTINGS_NAV } from '@/components/layout/subnavs'
@@ -34,6 +35,8 @@ interface Draft {
 const ui = useUiStore()
 const queryClient = useQueryClient()
 const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => profilesApi.list() })
+const minChars = computed(() => profiles.data.value?.detail_min_chars ?? 200)
+const descLength = computed(() => normalizedLength(draft.value?.description ?? ''))
 const team = useQuery({ queryKey: ['team'], queryFn: () => teamsApi.me() })
 const scopeOptions = [
   { value: 'personal' as const, label: copy.profile.scopePersonal },
@@ -143,7 +146,7 @@ async function confirmRemove() {
         :max-length="4000"
         :rows="6"
       />
-      <p class="-mt-2 text-sm text-text-3">{{ copy.profile.descriptionHint }}</p>
+      <p class="-mt-2 text-sm text-text-3">{{ copy.profile.descriptionHint(descLength, minChars) }}</p>
       <p v-if="descriptionChanged" class="text-sm text-warning-fg" role="status">{{ copy.profile.changed }}</p>
       <ChipInput ref="chips" v-model="draft.keywords" :label="copy.profile.keywords" :hint="copy.profile.keywordsHint" />
       <div>

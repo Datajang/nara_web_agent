@@ -67,3 +67,14 @@ async def test_profile_input_limits(api):
         assert r.status_code == 409 and r.json()["error"]["code"] == "conflict"
     finally:
         await a.aclose()
+
+
+async def test_profile_list_tells_the_brief_threshold(api):
+    """리뷰: 프로필 화면의 '200자'가 서버 설정과 따로 놀 수 있음 → 목록 응답에 기준을 싣는다."""
+    a = await logged_in(api, "t@corp.example")
+    try:
+        api.ctx.deps.settings.profile_min_chars = 150
+        body = (await a.get(P)).json()
+    finally:
+        await a.aclose()
+    assert body["detail_min_chars"] == 150

@@ -8,8 +8,8 @@ fit.score 기준(0~100):
 - 30~59: 관련성이 낮거나 요건 충족 여부가 불확실
 - 0~29: 사실상 무관
 규칙:
-1. understanding은 이 사업을 처음 보는 사람이 이해하도록 씁니다. purpose는 무엇을 왜 하는 사업인지(목적·배경), scope는 과업 범위·주요 기능(summary.scope·overview·key_requirements에서), conditions는 산출물·투입 인력·수행 방식 같은 수행 조건입니다. conditions에는 금액·날짜를 쓰지 마세요.
-2. fit은 프로필에 적힌 내용만으로 판단하고 reasoning에 판단 근거를 적으세요.
+1. understanding은 이 사업을 처음 보는 사람이 이해하도록 씁니다. purpose는 무엇을 왜 하는 사업인지(목적·배경), scope는 과업 범위·주요 기능(summary.scope·overview·key_requirements에서), conditions는 산출물·투입 인력 구성·수행 장소·수행 방식(상주 여부 등)·기술 제약 같은 수행 조건입니다. 참가 자격·계약 방식·평가·금액·날짜·기간은 요약 카드에 있으니 conditions에 쓰지 마세요.
+2. fit은 프로필에 적힌 내용만으로 판단하고, fit.reasoning은 250자 이내 2~3문장으로 판단 근거를 적으세요.
 3. team_needs.have는 이 사업에 필요한 것 중 프로필에 적힌 것, team_needs.need는 필요한데 프로필로는 갖췄다고 볼 수 없는 것(인력·기술·실적·자격·협력사)입니다. 프로필에 없는 사실을 지어내지 마세요.
 4. profile_missing에는 이 공고를 판단하는 데 필요한데 프로필에 적혀 있지 않은 정보를 적으세요(예: 'PM 자격 보유 여부', '최근 3년 유사 사업 실적'). 충분하면 빈 목록입니다.
 5. <profile_detail>이 brief이면 프로필이 짧은 것입니다. team_needs.have와 need를 각각 3개 이하로 간략히 쓰고, 판단에 필요한 정보는 profile_missing에 적으세요.

@@ -20,7 +20,7 @@ from app.llm.prompts import render
 from app.llm.schemas import AnalysisOut, AnalysisResult, verdict_for
 from app.llm.structured import generate
 from app.llm.versions import ANALYSIS_PROMPT, prompt_version
-from app.pipeline.grounding import ground, unverified_warning
+from app.pipeline.grounding import amounts, dates, ground, unverified_warning
 from app.pipeline.singleflight import single_flight
 from app.pipeline.summarize import (
     NO_DOCS,
@@ -121,6 +121,9 @@ async def get_or_create_analysis(
             result, [*(d.text for d in docs), json.dumps(bid_meta(bid), ensure_ascii=False)]
         )
         result.fit.verdict = verdict_for(result.fit.score)
+        # 수행 조건에 금액·날짜를 되풀이하면 뺀다(요약 카드에 있음, 실모델 b565 2026-11-16)
+        u = result.understanding
+        u.conditions = [c for c in u.conditions if not amounts(c) and not dates(c)]
         cov_warnings = summary.summary.get("coverage", {}).get("warnings", [])
         mine = [unverified_warning(removed)] if removed else []
         # 첨부·원문 대조 경고는 서버가 넣는다: 모델이 띄어쓰기만 바꿔 베낀 것은 버린다(실모델 b546)

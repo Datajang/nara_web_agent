@@ -386,3 +386,15 @@ async def test_analysis_has_only_new_sections(deps, fake_llm):
         "understanding", "fit", "team_needs", "profile_missing",
         "risks", "next_actions", "warnings", "profile_brief",
     }  # fmt: skip
+
+
+async def test_conditions_drop_money_and_dates(deps, fake_llm):
+    """실모델(b565, 2026-11-16): 수행 조건에 '2027년 1월 29일까지 완료'처럼 요약 카드의 날짜·금액을
+    되풀이함 → 원문에 있어도 수행 조건에서는 뺀다(요약 카드에 있음)."""
+    bid_id = await _bid(deps, text="사업비 50,000,000원. 2027. 1. 29.까지 완료. PM 1명 상주")
+    conditions = ["PM 1명 상주", "2027 년 1 월 29 일까지 완료", "사업비 50,000,000원 이내"]
+    fake_llm.queue(
+        "analyze_bid", _analysis_json(understanding={"purpose": "개요", "conditions": conditions})
+    )
+    a, _ = await get_or_create_analysis(deps, bid_id, PROFILE)
+    assert a.result["understanding"]["conditions"] == ["PM 1명 상주"]

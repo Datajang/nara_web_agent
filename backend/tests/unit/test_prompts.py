@@ -50,3 +50,10 @@ def test_analysis_prompt_explains_v10_sections():
     for word in ("understanding", "team_needs", "profile_missing", "brief", "3개 이하"):
         assert word in system, word
     assert "requirements와 risks" not in system  # 예전 규칙(요구사항 근거)이 남지 않음
+
+
+def test_analysis_prompt_keeps_summary_card_items_out_of_conditions():
+    """실모델(b568): 수행 조건에 참가 자격·계약 방식을 되풀이, 근거가 300자에서 잘림."""
+    system = PROMPTS["analyze_bid"].system
+    assert "참가 자격·계약 방식" in system
+    assert "reasoning은 250자 이내" in system

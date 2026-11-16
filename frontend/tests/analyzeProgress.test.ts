@@ -13,14 +13,25 @@ describe('progressState', () => {
     expect(progressState([], 0, 5 * S)).toEqual({ percent: 0, elapsedS: 5, remainingS: null })
   })
 
-  it('요약 3/6: 10 + 60×½ = 40%, 남은 시간 = 조각 속도 × 남은 조각 + 첫 조각 시간 + 분석 예상', () => {
+  it('요약 3/6: 10 + 60×½ = 40%, 남은 시간 = 조각 속도 × 남은 조각 + 합치기(첫 조각 × 1.5) + 분석 예상', () => {
     const st: Stamped[] = [
       { stage: 'files', at: 0 },
       { stage: 'summarize', progress: { done: 0, total: 6 }, at: 0 },
       { stage: 'summarize', progress: { done: 1, total: 6 }, at: 10 * S },
       { stage: 'summarize', progress: { done: 3, total: 6 }, at: 30 * S },
     ]
-    expect(progressState(st, 0, 30 * S)).toEqual({ percent: 40, elapsedS: 30, remainingS: 130 })
+    expect(progressState(st, 0, 30 * S)).toEqual({ percent: 40, elapsedS: 30, remainingS: 135 })
+  })
+
+  it('조각을 다 읽은 뒤 합치는 동안에도 70→75%로 움직이고 남은 시간이 줄어든다 (실측 b565: 100초 멈춤)', () => {
+    const st: Stamped[] = [
+      { stage: 'summarize', progress: { done: 0, total: 2 }, at: 0 },
+      { stage: 'summarize', progress: { done: 1, total: 2 }, at: 10 * S },
+      { stage: 'summarize', progress: { done: 2, total: 2 }, at: 20 * S },
+    ]
+    // 합치기 예상 = 첫 조각 10초 × 1.5 = 15초. 6초 지남 → 남은 9초 + 분석 90초
+    expect(progressState(st, 0, 26 * S)).toEqual({ percent: 72, elapsedS: 26, remainingS: 99 })
+    expect(progressState(st, 0, 60 * S)).toMatchObject({ percent: 75, remainingS: 90 })
   })
 
   it('요약 0/6이면 남은 시간을 추정하지 않는다', () => {

@@ -196,6 +196,8 @@ describe('회사 설정 (/admin/company)', () => {
     ],
     calls_today: 12,
     calls_budget: 300,
+    openings_calls_today: 7,
+    openings_calls_budget: 300,
     unidentified_count: 2,
     reclassify_started: false,
   }
@@ -220,6 +222,8 @@ describe('회사 설정 (/admin/company)', () => {
     const t = text(m.wrapper)
     for (const s of ['2024-04-01', copy.company.calls(12, 300), copy.awards.unidentified(2), copy.company.done, '75%'])
       expect(t).toContain(s)
+    // 개찰 결과(P12) 몫은 낙찰 호출과 따로 보인다
+    expect(m.wrapper.get('[data-openings-calls]').text()).toContain(copy.company.calls(7, 300))
 
     await byLabel(m.wrapper, copy.company.bizno).setValue('123-45-67890')
     await m.wrapper.findAll('button').find((b) => b.text() === copy.company.lookup)!.trigger('click')

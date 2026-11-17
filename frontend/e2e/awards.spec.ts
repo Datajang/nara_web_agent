@@ -1,8 +1,8 @@
 // P9~P11 시나리오 (SPEC §15.11): 회사 설정(사업자번호 → 이름 자동) → 우리 수주 현황 → 업체 검색 → 낙찰 목록
 // → 우리 회사와 비교(강점·약점·판정 표, 공동수급 파트너, AI 해설) → 경쟁사 레이더 → 관심 경쟁사 추가·빼기
-// → 공고 상세 '경쟁 구도' 탭.
+// → 공고 상세 '경쟁 구도' 탭. P12: 우리 수주 현황 '투찰 결과' 탭(낙찰·탈락)과 상세.
 // 데이터: backend `python -m scripts.seed_e2e`(낙찰 5건·개찰 결과 캐시·공동수급 1건). 외부 호출 없음, LLM은 가짜.
-// 화면 캡처는 test-results/p9-*.png, p10-*.png, p11-*.png (git 제외).
+// 화면 캡처는 test-results/p9-*.png, p10-*.png, p11-*.png, p12-*.png (git 제외).
 import { expect, test } from '@playwright/test'
 import { copy } from '../src/copy'
 
@@ -43,6 +43,25 @@ test('회사 설정부터 업체 검색 낙찰 목록까지', async ({ page }) =
   await expect(page.locator('[data-award-table] tbody tr')).toHaveCount(3)
   await expect(page.getByText('E2E 데이터 정비 사업')).toBeVisible()
   await page.screenshot({ path: 'test-results/p9-my-awards.png', fullPage: true })
+
+  // P12: 투찰 결과 탭 — 낙찰 3, 탈락 2(2위 1건, 순위 없이 사유만 1건) → 상세에 참가 업체 전체·비교 링크
+  await page.getByRole('tab', { name: copy.myBids.tabBids }).click()
+  await expect(page).toHaveURL(/tab=bids/)
+  await expect(page.locator('[data-my-bids] tbody tr')).toHaveCount(5)
+  await expect(page.locator('[data-my-bid="R26BKE2A00004"] [data-rank]')).toHaveText(copy.myBids.rank(2, 2))
+  const dq = page.locator('[data-my-bid="R26BKE2A00005"]')
+  await expect(dq.locator('[data-rank]')).toHaveText(`${copy.myBids.noRank} · 낙찰하한선 미달`)
+  await page.getByText(copy.myBids.filterLost(2)).click()
+  await expect(page).toHaveURL(/result=lost/)
+  await expect(page.locator('[data-my-bids] tbody tr')).toHaveCount(2)
+  await page.screenshot({ path: 'test-results/p12-my-bids.png', fullPage: true })
+  await dq.getByRole('link', { name: 'E2E 데이터 품질 진단' }).click()
+  await page.waitForURL('**/my-awards/bids/R26BKE2A00005/**')
+  await expect(page.locator('[data-our-result]')).toContainText('낙찰하한선 미달')
+  const prow = page.locator('[data-participants] tbody tr')
+  await expect(prow).toHaveCount(2)
+  await expect(prow.first().getByRole('link', { name: copy.myBids.compare })).toHaveAttribute('href', '/competitors/2345678901')
+  await page.screenshot({ path: 'test-results/p12-my-bid-detail.png', fullPage: true })
 
   // 업체 검색 → 고르기 → 목록
   await page.getByRole('link', { name: copy.nav.companies }).click()

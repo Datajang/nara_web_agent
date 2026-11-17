@@ -713,6 +713,8 @@ export const copy = {
     noCoverage: '아직 수집된 범위가 없어요.',
     yearProgress: (y: number) => `${y}년 수집`,
     callsToday: '오늘 낙찰 호출',
+    openingsCallsToday: '오늘 개찰 결과 호출',
+    openingsCallsHelp: '투찰 결과(낙찰·탈락)를 찾으려고 낙찰 공고마다 개찰 결과를 받아요. 낙찰 호출과 따로 세요.',
     calls: (used: number, budget: number) => `${used.toLocaleString('ko-KR')} / ${budget.toLocaleString('ko-KR')}회`,
     done: '완료',
     adminOnly: '회사 설정은 관리자만 바꿀 수 있어요.',

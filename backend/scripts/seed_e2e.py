@@ -49,6 +49,7 @@ AWARDS = [  # (공고번호, 며칠 전, 사업자번호, 상호, 사업명, 금
     ("R26BKE2A00005", 60, E2E_RIVAL_BIZNO, E2E_RIVAL_NAME, "E2E 데이터 품질 진단", "90000000"),
 ]
 
+E2E_DISQUALIFIED = "R26BKE2A00005"  # 우리가 부적격(낙찰하한선 미달)으로 떨어진 공고
 E2E_PARTNER_BIZNO = "3456789012"
 E2E_PARTNER_NAME = "E2E 파트너(주)"
 E2E_ORG = ("1234567", "행정안전부")  # award_item 기본 수요기관
@@ -115,9 +116,19 @@ async def seed(
         for no, _d, winner, name, _t, amount in AWARDS:  # 개찰 결과 캐시: 두 회사가 맞붙음
             loser = E2E_RIVAL_BIZNO if winner == E2E_OUR_BIZNO else E2E_OUR_BIZNO
             loser_name = E2E_RIVAL_NAME if winner == E2E_OUR_BIZNO else E2E_OUR_NAME
+            # P12 투찰 결과: 마지막 낙찰에서 우리는 부적격(순위 없음, 비고에 사유)
+            dq = no == E2E_DISQUALIFIED
             rows = [
                 opening_item(no, winner, rank="1", name=name, amount=amount, total="91.5"),
-                opening_item(no, loser, rank="2", name=loser_name, amount=amount, total="84.25"),
+                opening_item(
+                    no,
+                    loser,
+                    rank="" if dq else "2",
+                    name=loser_name,
+                    amount=amount,
+                    total="84.25",
+                    remark="낙찰하한선 미달" if dq else "정상",
+                ),
             ]
             await participants.store(s, (no, "000"), rows)
         partner = ("도급업체", E2E_PARTNER_NAME, "40", E2E_PARTNER_BIZNO)

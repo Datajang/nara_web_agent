@@ -159,6 +159,13 @@ const progress = computed(() => status.data.value?.years ?? [])
           <span class="font-medium">{{ copy.company.callsToday }}</span>
           <span class="ml-2 tabular text-text-2">{{ copy.company.calls(status.data.value.calls_today, status.data.value.calls_budget) }}</span>
         </p>
+        <p class="text-base" data-openings-calls>
+          <span class="font-medium">{{ copy.company.openingsCallsToday }}</span>
+          <span class="ml-2 tabular text-text-2">{{
+            copy.company.calls(status.data.value.openings_calls_today, status.data.value.openings_calls_budget)
+          }}</span>
+          <span class="block text-sm text-text-3">{{ copy.company.openingsCallsHelp }}</span>
+        </p>
         <p v-if="status.data.value.unidentified_count" class="text-sm text-text-3">
           {{ copy.awards.unidentified(status.data.value.unidentified_count) }}
         </p>

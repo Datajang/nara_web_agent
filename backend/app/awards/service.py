@@ -138,12 +138,15 @@ def year_progress(
     return out
 
 
-async def award_calls_today(s: AsyncSession, now: datetime) -> int:
+async def award_calls_today(
+    s: AsyncSession, now: datetime, sources: frozenset[str] = AWARD_SOURCES
+) -> int:
+    """오늘(KST) 이 소스들의 G2B 호출 수. 기본은 낙찰 몫(낙찰·계약·경쟁 구도)."""
     start = kst_start(kst_date(now))
     used = await s.scalar(
         select(func.coalesce(func.sum(UsageLog.g2b_calls), 0)).where(
             UsageLog.created_at >= start,
-            UsageLog.cache["source"].astext.in_(sorted(AWARD_SOURCES)),
+            UsageLog.cache["source"].astext.in_(sorted(sources)),
         )
     )
     return int(used or 0)

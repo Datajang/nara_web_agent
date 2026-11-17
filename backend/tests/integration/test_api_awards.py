@@ -70,6 +70,7 @@ async def test_company_status_reports_progress_and_budget(full_api):
     async with full_api.db.transaction() as s:
         s.add(UsageLog(event="collector", g2b_calls=12, cache={"source": "awards"}))
         s.add(UsageLog(event="collector", g2b_calls=50, cache={"source": "regular"}))
+        s.add(UsageLog(event="collector", g2b_calls=7, cache={"source": "openings"}))
     a = await admin_client(full_api)
     r = (await a.get("/api/v1/company")).json()
     await a.aclose()
@@ -78,6 +79,8 @@ async def test_company_status_reports_progress_and_budget(full_api):
     years = {y["year"]: y["ratio"] for y in r["years"]}
     assert years[2022] == 0 and years[2025] == 1 and 0 < years[2024] < 1
     assert r["calls_today"] == 12 and r["calls_budget"] == 300
+    # 개찰 결과(P12)는 낙찰 몫과 따로 센다
+    assert r["openings_calls_today"] == 7 and r["openings_calls_budget"] == 300
     assert r["unidentified_count"] == 1
 
 

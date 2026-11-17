@@ -75,6 +75,8 @@ class CompanyOut(BaseModel):
     years: list[YearProgressOut]
     calls_today: int
     calls_budget: int
+    openings_calls_today: int  # 개찰 결과 자동 수집 몫(P12)
+    openings_calls_budget: int
     unidentified_count: int  # 사업자번호가 없어 업체 통계에서 뺀 낙찰 수 (§15.9)
     reclassify_started: bool = False  # PUT에서 분야 사전이 바뀌어 재분류를 시작했는가
 

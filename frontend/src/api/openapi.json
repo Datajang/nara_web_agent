@@ -4928,6 +4928,14 @@
             "type": "integer",
             "title": "Calls Budget"
           },
+          "openings_calls_today": {
+            "type": "integer",
+            "title": "Openings Calls Today"
+          },
+          "openings_calls_budget": {
+            "type": "integer",
+            "title": "Openings Calls Budget"
+          },
           "unidentified_count": {
             "type": "integer",
             "title": "Unidentified Count"
@@ -4950,6 +4958,8 @@
           "years",
           "calls_today",
           "calls_budget",
+          "openings_calls_today",
+          "openings_calls_budget",
           "unidentified_count"
         ],
         "title": "CompanyOut",

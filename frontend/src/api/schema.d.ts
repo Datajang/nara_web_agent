@@ -1628,6 +1628,10 @@ export interface components {
             calls_today: number;
             /** Calls Budget */
             calls_budget: number;
+            /** Openings Calls Today */
+            openings_calls_today: number;
+            /** Openings Calls Budget */
+            openings_calls_budget: number;
             /** Unidentified Count */
             unidentified_count: number;
             /**

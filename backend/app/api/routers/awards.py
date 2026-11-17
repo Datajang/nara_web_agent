@@ -35,6 +35,7 @@ from app.awards.reclassify import reclassify
 from app.db.models import OrgSettings
 from app.deps import Deps
 from app.errors import ApiError
+from app.g2b.client import OPENINGS_SOURCE
 
 log = logging.getLogger(__name__)
 router = APIRouter(tags=["awards"])
@@ -69,6 +70,8 @@ async def _company_out(s: AsyncSession, deps: Deps, reclassify_started: bool = F
         ],
         calls_today=await svc.award_calls_today(s, now),
         calls_budget=deps.settings.g2b_awards_daily_budget,
+        openings_calls_today=await svc.award_calls_today(s, now, frozenset({OPENINGS_SOURCE})),
+        openings_calls_budget=deps.settings.g2b_openings_daily_budget,
         unidentified_count=await svc.unidentified_count(s),
         reclassify_started=reclassify_started,
     )

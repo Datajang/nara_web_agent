@@ -22,6 +22,8 @@
   --color-danger-bg: var(--danger-bg);
   --color-neutral-fg: var(--neutral-fg);
   --color-neutral-bg: var(--neutral-bg);
+  --color-on-primary-2: var(--on-primary-2);
+  --color-on-primary-3: var(--on-primary-3);
   --color-series-other: var(--series-other);
   --shadow-card: var(--shadow-card);
   --shadow-pop: var(--shadow-pop);
@@ -58,6 +60,9 @@
     font-size: 14px;
     line-height: 22px;
     -webkit-font-smoothing: antialiased;
+    /* 한국어는 어절 단위로 줄을 바꾼다. 긴 URL·영문은 칸을 넘지 않게 자른다 */
+    word-break: keep-all;
+    overflow-wrap: break-word;
   }
   body {
     margin: 0;

@@ -24,11 +24,20 @@ onMounted(async () => {
 </script>
 
 <template>
-  <AuthCard v-if="state === 'loading'" :title="copy.auth.verifyingTitle" :subtitle="copy.common.loading" />
+  <AuthCard
+    v-if="state === 'loading'"
+    :title="copy.auth.verifyingTitle"
+    :subtitle="copy.common.loading"
+    aside="steps"
+    :step="2"
+  />
   <AuthCard
     v-else-if="state === 'failed'"
     :title="copy.auth.verifyFailedTitle"
     :subtitle="copy.auth.verifyFailedBody"
+    aside="steps"
+    :step="2"
+    icon="alert"
   >
     <template #footer>
       <RouterLink class="text-primary hover:underline" to="/login">{{ copy.auth.toLogin }}</RouterLink>
@@ -38,12 +47,22 @@ onMounted(async () => {
     v-else-if="state === 'pending_approval'"
     :title="copy.auth.pendingApprovalTitle"
     :subtitle="copy.auth.pendingApprovalBody"
+    aside="steps"
+    :step="3"
+    icon="clock"
   >
     <template #footer>
       <RouterLink class="text-primary hover:underline" to="/login">{{ copy.auth.toLogin }}</RouterLink>
     </template>
   </AuthCard>
-  <AuthCard v-else :title="copy.auth.verifiedTitle" :subtitle="copy.auth.verifiedBody">
+  <AuthCard
+    v-else
+    :title="copy.auth.verifiedTitle"
+    :subtitle="copy.auth.verifiedBody"
+    aside="steps"
+    :step="4"
+    icon="check"
+  >
     <template #footer>
       <RouterLink class="text-primary hover:underline" to="/login">{{ copy.auth.toLogin }}</RouterLink>
     </template>

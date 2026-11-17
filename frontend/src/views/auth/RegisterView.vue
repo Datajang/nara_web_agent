@@ -48,21 +48,24 @@ async function onSubmit() {
 </script>
 
 <template>
-  <AuthCard :title="copy.auth.registerTitle" :subtitle="copy.auth.registerSubtitle">
-    <form class="flex flex-col gap-4" novalidate @submit.prevent="onSubmit">
+  <AuthCard :title="copy.auth.registerTitle" :subtitle="copy.auth.registerSubtitle" aside="steps" :step="1">
+    <form class="flex flex-col gap-4.5" novalidate @submit.prevent="onSubmit">
       <UiInput
         v-model="email"
         :label="copy.auth.email"
         type="email"
         autocomplete="email"
+        size="lg"
+        :placeholder="copy.auth.emailPlaceholder"
         required
         :error="errors.email"
       />
       <UiInput
         v-model="displayName"
-        :label="copy.auth.displayName"
+        :label="`${copy.auth.displayName} ${copy.auth.optional}`"
         autocomplete="name"
-        :hint="copy.auth.displayNameHint"
+        size="lg"
+        :placeholder="copy.auth.displayNamePlaceholder"
         :max-length="50"
       />
       <UiInput
@@ -70,6 +73,7 @@ async function onSubmit() {
         :label="copy.auth.password"
         type="password"
         autocomplete="new-password"
+        size="lg"
         required
         :hint="copy.auth.passwordHint"
         :error="errors.password"
@@ -79,10 +83,13 @@ async function onSubmit() {
         role="alert"
         class="rounded-control bg-danger-bg px-3 py-2 text-base text-danger-fg"
       >{{ errors.form }}</p>
-      <UiButton type="submit" :loading="busy" block>{{ copy.auth.submitRegister }}</UiButton>
+      <UiButton class="mt-2" type="submit" size="lg" :loading="busy" block>{{ copy.auth.submitRegister }}</UiButton>
     </form>
     <template #footer>
-      <RouterLink class="text-primary hover:underline" to="/login">{{ copy.auth.toLogin }}</RouterLink>
+      <p>
+        {{ copy.auth.hasAccount }}
+        <RouterLink class="font-semibold text-primary hover:underline" to="/login">{{ copy.auth.loginLink }}</RouterLink>
+      </p>
     </template>
   </AuthCard>
 </template>

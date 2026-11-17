@@ -38,13 +38,15 @@ async function onSubmit() {
   <AuthCard
     :title="copy.auth.resetTitle"
     :subtitle="done ? copy.auth.resetDone : !token ? copy.auth.missingToken : undefined"
+    :icon="done ? 'check' : !token ? 'alert' : undefined"
   >
-    <form v-if="token && !done" class="flex flex-col gap-4" novalidate @submit.prevent="onSubmit">
+    <form v-if="token && !done" class="flex flex-col gap-4.5" novalidate @submit.prevent="onSubmit">
       <UiInput
         v-model="password"
         :label="copy.auth.newPassword"
         type="password"
         autocomplete="new-password"
+        size="lg"
         required
         :hint="copy.auth.passwordHint"
         :error="fieldError"
@@ -52,7 +54,7 @@ async function onSubmit() {
       <p v-if="error" role="alert" class="rounded-control bg-danger-bg px-3 py-2 text-base text-danger-fg">
         {{ error }}
       </p>
-      <UiButton type="submit" :loading="busy" block>{{ copy.auth.resetSubmit }}</UiButton>
+      <UiButton class="mt-2" type="submit" size="lg" :loading="busy" block>{{ copy.auth.resetSubmit }}</UiButton>
     </form>
     <template #footer>
       <RouterLink class="text-primary hover:underline" to="/login">{{ copy.auth.toLogin }}</RouterLink>

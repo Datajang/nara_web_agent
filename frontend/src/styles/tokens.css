@@ -21,6 +21,9 @@
   --danger-bg: #fbe6e3;
   --neutral-fg: #4a5361;
   --neutral-bg: #eceeea;
+  /* primary 바탕 위 글자 (로그인·가입 화면 왼쪽 패널) */
+  --on-primary-2: #d3dcea;
+  --on-primary-3: #b9c6dc;
 
   /* 범주 색 (배점 항목 등). 고정 순서, 순환 금지. dataviz 검증: 인접 CVD ΔE ≥ 9.1, 일반 ≥ 19.6.
      3·4·5번은 흰 바탕 대비 3:1 미만이라 항상 이름·점수를 옆에 적는다. 9번째부터는 '기타'(--series-other). */

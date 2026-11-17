@@ -48,14 +48,23 @@ async function onSubmit() {
 </script>
 
 <template>
-  <AuthCard :title="copy.auth.loginTitle" :subtitle="copy.auth.loginSubtitle">
-    <form class="flex flex-col gap-4" novalidate @submit.prevent="onSubmit">
-      <UiInput v-model="email" :label="copy.auth.email" type="email" autocomplete="email" required />
+  <AuthCard :title="copy.auth.loginTitle" :subtitle="copy.auth.loginLead">
+    <form class="flex flex-col gap-4.5" novalidate @submit.prevent="onSubmit">
+      <UiInput
+        v-model="email"
+        :label="copy.auth.email"
+        type="email"
+        autocomplete="email"
+        size="lg"
+        :placeholder="copy.auth.emailPlaceholder"
+        required
+      />
       <UiInput
         v-model="password"
         :label="copy.auth.password"
         type="password"
         autocomplete="current-password"
+        size="lg"
         required
       />
       <p
@@ -63,11 +72,16 @@ async function onSubmit() {
         role="alert"
         class="rounded-control bg-danger-bg px-3 py-2 text-base text-danger-fg"
       >{{ error }}</p>
-      <UiButton type="submit" :loading="busy" block>{{ copy.auth.submitLogin }}</UiButton>
+      <UiButton class="mt-2" type="submit" size="lg" :loading="busy" block>{{ copy.auth.submitLogin }}</UiButton>
     </form>
     <template #footer>
-      <RouterLink class="text-primary hover:underline" to="/register">{{ copy.auth.toRegister }}</RouterLink>
-      <RouterLink class="text-text-2 hover:underline" to="/forgot-password">{{ copy.auth.toForgot }}</RouterLink>
+      <p>
+        {{ copy.auth.noAccount }}
+        <RouterLink class="font-semibold text-primary hover:underline" to="/register">{{ copy.auth.registerLink }}</RouterLink>
+      </p>
+      <RouterLink class="self-start text-text-2 hover:text-text hover:underline" to="/forgot-password">
+        {{ copy.auth.toForgot }}
+      </RouterLink>
     </template>
   </AuthCard>
 </template>

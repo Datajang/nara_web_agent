@@ -6,7 +6,7 @@ import { computed } from 'vue'
 const props = withDefaults(
   defineProps<{
     variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
-    size?: 'sm' | 'md'
+    size?: 'sm' | 'md' | 'lg'
     type?: 'button' | 'submit'
     loading?: boolean
     disabled?: boolean
@@ -18,7 +18,7 @@ const props = withDefaults(
 const classes = computed(() => [
   'relative inline-flex items-center justify-center gap-2 rounded-control font-medium',
   'transition-colors duration-150 ease-out disabled:cursor-not-allowed disabled:opacity-60',
-  props.size === 'sm' ? 'h-8 px-3 text-sm' : 'h-10 px-4 text-base',
+  { sm: 'h-8 px-3 text-sm', md: 'h-10 px-4 text-base', lg: 'h-12 px-5 text-md font-semibold' }[props.size],
   props.block ? 'w-full' : '',
   {
     primary: 'bg-primary text-white hover:bg-primary-hover',

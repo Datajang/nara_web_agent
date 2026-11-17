@@ -5,7 +5,13 @@ import { copy } from '@/copy'
 </script>
 
 <template>
-  <AuthCard :title="copy.auth.pendingApprovalTitle" :subtitle="copy.auth.pendingApprovalBody">
+  <AuthCard
+    :title="copy.auth.pendingApprovalTitle"
+    :subtitle="copy.auth.pendingApprovalBody"
+    aside="steps"
+    :step="3"
+    icon="clock"
+  >
     <template #footer>
       <RouterLink class="text-primary hover:underline" to="/login">{{ copy.auth.toLogin }}</RouterLink>
     </template>

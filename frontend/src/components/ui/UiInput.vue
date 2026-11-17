@@ -12,8 +12,20 @@ const props = withDefaults(
     required?: boolean
     maxLength?: number
     name?: string
+    placeholder?: string
+    size?: 'md' | 'lg'
   }>(),
-  { type: 'text', hint: '', error: '', autocomplete: 'off', required: false, maxLength: undefined, name: undefined },
+  {
+    type: 'text',
+    hint: '',
+    error: '',
+    autocomplete: 'off',
+    required: false,
+    maxLength: undefined,
+    name: undefined,
+    placeholder: undefined,
+    size: 'md',
+  },
 )
 const model = defineModel<string>({ default: '' })
 
@@ -27,7 +39,9 @@ const describedBy = computed(
 
 <template>
   <div class="flex flex-col gap-1.5">
-    <label :for="id" class="text-base font-medium text-text">{{ label }}</label>
+    <label :for="id" class="text-base text-text" :class="size === 'lg' ? 'font-semibold' : 'font-medium'">{{
+      label
+    }}</label>
     <input
       :id="id"
       v-model="model"
@@ -36,10 +50,14 @@ const describedBy = computed(
       :autocomplete="autocomplete"
       :required="required"
       :maxlength="maxLength"
+      :placeholder="placeholder"
       :aria-invalid="error ? 'true' : undefined"
       :aria-describedby="describedBy"
-      class="h-10 rounded-control border bg-surface px-3 text-base text-text placeholder:text-text-3"
-      :class="error ? 'border-danger-fg' : 'border-border-input'"
+      class="rounded-control border bg-surface text-text placeholder:text-text-3"
+      :class="[
+        error ? 'border-danger-fg' : 'border-border-input',
+        size === 'lg' ? 'h-12 px-3.5 text-md' : 'h-10 px-3 text-base',
+      ]"
     />
     <p v-if="hint" :id="hintId" class="text-sm text-text-3">{{ hint }}</p>
     <p v-if="error" :id="errorId" class="text-sm text-danger-fg">{{ error }}</p>

@@ -27,14 +27,23 @@ async function resend() {
 </script>
 
 <template>
-  <AuthCard
-    :title="copy.auth.checkEmailTitle"
-    :subtitle="email ? copy.auth.checkEmailBody(email) : copy.auth.checkEmailBodyNoAddress"
-  >
-    <UiButton v-if="email" variant="secondary" block :loading="busy" @click="resend">
+  <AuthCard :title="copy.auth.checkEmailTitle" aside="steps" :step="2" icon="mail">
+    <template #subtitle>
+      <p v-if="email">
+        <strong class="font-semibold text-text">{{ copy.auth.checkEmailSent(email) }}</strong>
+        {{ copy.auth.checkEmailAction }}
+      </p>
+      <p v-else>{{ copy.auth.checkEmailBodyNoAddress }}</p>
+    </template>
+    <p class="rounded-control bg-warning-bg px-3.5 py-3 text-base text-warning-fg">{{ copy.auth.checkEmailSpam }}</p>
+    <UiButton v-if="email" class="mt-6" variant="secondary" size="lg" block :loading="busy" @click="resend">
       {{ copy.auth.resend }}
     </UiButton>
     <template #footer>
+      <p>
+        {{ copy.auth.wrongAddress }}
+        <RouterLink class="font-semibold text-primary hover:underline" to="/register">{{ copy.auth.registerAgain }}</RouterLink>
+      </p>
       <RouterLink class="text-primary hover:underline" to="/login">{{ copy.auth.toLogin }}</RouterLink>
     </template>
   </AuthCard>

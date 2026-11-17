@@ -1,7 +1,11 @@
-"""메일 (SPEC §9.2-8, §9.6). 백엔드: memory(테스트·개발), console(개발), smtp(운영)."""
+"""메일 (SPEC §9.2-8, §9.6). 백엔드: memory(테스트·개발), console(개발), smtp(운영).
+
+링크가 있는 메일은 텍스트 본문과 HTML 본문(눌러지는 버튼·링크)을 함께 보낸다(multipart/alternative).
+"""
 
 from __future__ import annotations
 
+import html as _html
 import logging
 import sys
 from dataclasses import dataclass, field
@@ -17,7 +21,8 @@ from app.config import Settings
 class Mail:
     to: str
     subject: str
-    body: str
+    body: str  # 텍스트 본문(HTML을 못 보는 메일 앱용, 항상 있음)
+    html: str | None = None
 
 
 class Mailer(Protocol):
@@ -43,14 +48,21 @@ class ConsoleMailer:
         print(f"\n[메일] To: {mail.to}\n제목: {mail.subject}\n{mail.body}\n", file=sys.stdout)
 
 
+def build_message(settings: Settings, mail: Mail) -> EmailMessage:
+    msg = EmailMessage()
+    msg["From"], msg["To"], msg["Subject"] = settings.mail_from, mail.to, mail.subject
+    msg.set_content(mail.body)
+    if mail.html:
+        msg.add_alternative(mail.html, subtype="html")
+    return msg
+
+
 class SmtpMailer:
     def __init__(self, settings: Settings) -> None:
         self.s = settings
 
     async def send(self, mail: Mail) -> None:
-        msg = EmailMessage()
-        msg["From"], msg["To"], msg["Subject"] = self.s.mail_from, mail.to, mail.subject
-        msg.set_content(mail.body)
+        msg = build_message(self.s, mail)
         await aiosmtplib.send(
             msg,
             hostname=self.s.smtp_host,
@@ -68,32 +80,60 @@ def _subject(settings: Settings, text: str) -> str:
     return f"[{settings.service_name}] {text}"
 
 
+def _html_body(settings: Settings, before: str, link: str, label: str, after: str) -> str:
+    """버튼 하나와, 버튼이 안 눌릴 때 쓸 주소 링크. 메일 앱 호환을 위해 인라인 스타일만."""
+    e = _html.escape
+    href = e(link, quote=True)
+    p = 'style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#1f2937"'
+    small = 'style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#6b7280"'
+    button = (
+        'style="display:inline-block;padding:12px 20px;border-radius:6px;background:#2563eb;'
+        'color:#ffffff;font-size:15px;font-weight:600;text-decoration:none"'
+    )
+    return (
+        '<!doctype html><html lang="ko"><body style="margin:0;padding:24px;background:#f3f4f6">'
+        '<div style="max-width:520px;margin:0 auto;padding:24px;background:#ffffff;'
+        'border-radius:8px;font-family:sans-serif">'
+        f'<p style="margin:0 0 16px;font-size:13px;color:#6b7280">{e(settings.service_name)}</p>'
+        f"<p {p}>{e(before)}</p>"
+        f'<p style="margin:0 0 24px"><a href="{href}" {button}>{e(label)}</a></p>'
+        f"<p {small}>버튼이 눌리지 않으면 아래 주소를 눌러 주세요.</p>"
+        f'<p {small}><a href="{href}" style="color:#2563eb;word-break:break-all">{e(link)}</a></p>'
+        f'<p style="margin:16px 0 0;font-size:13px;color:#6b7280">{e(after)}</p>'
+        "</div></body></html>"
+    )
+
+
 def verify_mail(settings: Settings, to: str, token: str) -> Mail:
     link = f"{settings.app_origin}/verify-email?token={token}"
     hours = settings.verify_token_hours
-    body = (
-        f"가입을 완료하려면 {hours}시간 안에 아래 링크를 눌러 주세요.\n\n{link}\n\n"
-        "본인이 가입하지 않았다면 이 메일을 무시해 주세요."
-    )
-    return Mail(to, _subject(settings, "이메일 인증"), body)
+    before = f"가입을 완료하려면 {hours}시간 안에 아래 링크를 눌러 주세요."
+    after = "본인이 가입하지 않았다면 이 메일을 무시해 주세요."
+    body = f"{before}\n\n{link}\n\n{after}"
+    html = _html_body(settings, before, link, "이메일 인증하기", after)
+    return Mail(to, _subject(settings, "이메일 인증"), body, html)
 
 
 def reset_mail(settings: Settings, to: str, token: str) -> Mail:
     link = f"{settings.app_origin}/reset-password?token={token}"
     hours = max(1, settings.reset_token_minutes // 60)
-    body = (
-        f"{hours}시간 안에 아래 링크에서 새 비밀번호를 설정해 주세요.\n\n{link}\n\n"
-        "요청하지 않았다면 무시해도 됩니다."
-    )
-    return Mail(to, _subject(settings, "비밀번호 재설정"), body)
+    before = f"{hours}시간 안에 아래 링크에서 새 비밀번호를 설정해 주세요."
+    after = "요청하지 않았다면 무시해도 됩니다."
+    body = f"{before}\n\n{link}\n\n{after}"
+    html = _html_body(settings, before, link, "새 비밀번호 설정하기", after)
+    return Mail(to, _subject(settings, "비밀번호 재설정"), body, html)
 
 
 def already_registered_mail(settings: Settings, to: str) -> Mail:
-    body = (
+    before = (
         "이 주소로 이미 가입된 계정이 있어요. 비밀번호를 잊었다면 로그인 화면의 "
-        f"'비밀번호 재설정'을 이용해 주세요.\n\n{settings.app_origin}/login"
+        "'비밀번호 재설정'을 이용해 주세요."
     )
-    return Mail(to, _subject(settings, "이미 가입된 계정입니다"), body)
+    link = f"{settings.app_origin}/login"
+    after = "본인이 가입을 시도하지 않았다면 이 메일을 무시해 주세요."
+    body = f"{before}\n\n{link}"
+    html = _html_body(settings, before, link, "로그인하러 가기", after)
+    return Mail(to, _subject(settings, "이미 가입된 계정입니다"), body, html)
 
 
 def build_mailer(settings: Settings) -> Mailer:

@@ -28,13 +28,25 @@ async function onSubmit() {
 </script>
 
 <template>
-  <AuthCard :title="copy.auth.forgotTitle" :subtitle="sent ? copy.auth.forgotSent : copy.auth.forgotSubtitle">
-    <form v-if="!sent" class="flex flex-col gap-4" novalidate @submit.prevent="onSubmit">
-      <UiInput v-model="email" :label="copy.auth.email" type="email" autocomplete="email" required />
+  <AuthCard
+    :title="copy.auth.forgotTitle"
+    :subtitle="sent ? copy.auth.forgotSent : copy.auth.forgotSubtitle"
+    :icon="sent ? 'mail' : undefined"
+  >
+    <form v-if="!sent" class="flex flex-col gap-4.5" novalidate @submit.prevent="onSubmit">
+      <UiInput
+        v-model="email"
+        :label="copy.auth.email"
+        type="email"
+        autocomplete="email"
+        size="lg"
+        :placeholder="copy.auth.emailPlaceholder"
+        required
+      />
       <p v-if="error" role="alert" class="rounded-control bg-danger-bg px-3 py-2 text-base text-danger-fg">
         {{ error }}
       </p>
-      <UiButton type="submit" :loading="busy" block>{{ copy.auth.forgotSubmit }}</UiButton>
+      <UiButton class="mt-2" type="submit" size="lg" :loading="busy" block>{{ copy.auth.forgotSubmit }}</UiButton>
     </form>
     <template #footer>
       <RouterLink class="text-primary hover:underline" to="/login">{{ copy.auth.toLogin }}</RouterLink>

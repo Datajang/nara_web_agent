@@ -55,6 +55,10 @@ describe('색상 토큰 대비 (§10.1)', () => {
     expect(contrast(WHITE, token(bg))).toBeGreaterThanOrEqual(4.5)
   })
 
+  it.each(['on-primary-2', 'on-primary-3'])('--%s / --primary ≥ 4.5', (fg) => {
+    expect(contrast(token(fg), token('primary'))).toBeGreaterThanOrEqual(4.5)
+  })
+
   it.each(['surface', 'bg'])('--border-input / --%s ≥ 3.0 (비텍스트)', (bg) => {
     expect(contrast(token('border-input'), token(bg))).toBeGreaterThanOrEqual(3.0)
   })

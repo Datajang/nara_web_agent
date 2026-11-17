@@ -143,4 +143,13 @@ async def extract_text(
         return ExtractOutcome(
             "ok", text=""
         )  # 스캔본 등. 요약 단계에서 '본문을 읽지 못함' 경고(§5.6-8)
-    return ExtractOutcome("ok", text=raw)
+    return ExtractOutcome("ok", text=clean_text(raw))
+
+
+def clean_text(text: str) -> str:
+    """PostgreSQL text에 넣을 수 없는 NUL(0x00)을 공백으로 바꾼다.
+
+    일부 PDF는 단어 사이 띄어쓰기를 NUL로 내보낸다(실측 2026-11-17, b1557 공고문).
+    그대로 저장하면 'invalid byte sequence for encoding UTF8: 0x00'으로 분석 전체가 실패한다.
+    """
+    return text.replace("\x00", " ")

@@ -25,6 +25,9 @@ _TERM = re.compile(
     r"\s*(조|억|천만|백만|만|천)?"
 )
 _PCT = re.compile(r"\s*(%|퍼센트|프로)")
+_MONEY_UNITS = frozenset({"조", "억", "천만", "백만", "만"})
+# '10억 이상'·'5천만 원 미만' 같은 구간 경계는 특정 공고의 금액이 아니다
+_BOUND = re.compile(r"\s*(?:원\s*)?(?:이상|이하|미만|초과|넘|까지|대(?!\w))")
 _WON = re.compile(r"\s*원")
 _LIST_MARK = re.compile(r"(?m)^\s*\d{1,2}[.)]\s+")  # 마크다운 번호 목록 '3. …'은 숫자가 아니다
 _ISO_T = re.compile(r"(?<=\d)T(?=\d)")  # 2026-11-12T03:00 → 날짜·시각을 나눠 읽는다
@@ -38,6 +41,8 @@ class Num:
     value: Decimal
     precision: Decimal  # 표시한 마지막 자리의 크기('5.9억' → 0.1억)
     pct: bool
+    money: bool = False  # 억·만 단위가 있거나 '원'이 붙은 금액
+    end: int = 0  # 글에서 끝 위치
 
 
 def numbers(text: str) -> list[Num]:
@@ -48,6 +53,7 @@ def numbers(text: str) -> list[Num]:
     while i < len(ms):
         m = ms[i]
         start, value, prec, last_unit = m.start(), Decimal(0), Decimal(1), None
+        big_unit = False
         j = i
         while j < len(ms):
             mm = ms[j]
@@ -64,6 +70,7 @@ def numbers(text: str) -> list[Num]:
             frac = mm.group(2) or ""
             n = Decimal(mm.group(1).replace(",", "") + (f".{frac}" if frac else ""))
             value += n * unit
+            big_unit = big_unit or (mm.group(3) or "") in _MONEY_UNITS
             prec = Decimal(unit) / (Decimal(10) ** len(frac))
             last_unit = unit if mm.group(3) else None
             j += 1
@@ -71,7 +78,8 @@ def numbers(text: str) -> list[Num]:
                 break
         end = ms[j - 1].end()
         pct = bool(_PCT.match(text, end))
-        out.append(Num(text[start:end].strip(), value, prec, pct))
+        money = big_unit or bool(_WON.match(text, end))
+        out.append(Num(text[start:end].strip(), value, prec, pct, money, end))
         i = j
     return out
 
@@ -120,6 +128,23 @@ def unsupported(texts: Iterable[str], payload: Any) -> list[str]:
     return bad
 
 
+def unsupported_money(texts: Iterable[str], payload: Any) -> list[str]:
+    """입력에 없는 금액만(억·만 단위나 '원'). 건수·날짜·구간 경계('10억 이상')는 보지 않는다.
+
+    공고 검색 답용: 모델이 원 단위를 억·만으로 바꾸다 자릿수를 틀리는 것을 잡는다.
+    """
+    allowed = allowed_values(payload)
+    bad: list[str] = []
+    for t in texts:
+        t = _LIST_MARK.sub("", t)
+        for n in numbers(t):
+            if not n.money or n.pct or _BOUND.match(t, n.end):
+                continue
+            if not _ok(n, allowed) and n.text not in bad:
+                bad.append(n.text)
+    return bad
+
+
 def multipliers(texts: Iterable[str]) -> list[str]:
     """글로 쓴 배수('두 배', '배 가까이'). 숫자를 새로 만든 표현."""
     return [m.group(0) for m in _BANNED_RE.finditer("\n".join(texts))]
@@ -134,16 +159,18 @@ def banned_phrases(texts: Iterable[str]) -> list[str]:
 _SENT_END = re.compile(r"(?<=[^\d\s][.!?])\s+")
 
 
-def keep_supported(text: str, payload: Any) -> tuple[str, int]:
+def keep_supported(text: str, payload: Any, money_only: bool = False) -> tuple[str, int]:
     """입력에 없는 숫자나 글로 쓴 배수가 든 문장만 뺀 글과 뺀 문장 수 (어시스턴트 답용).
 
     줄 단위로 나눈 뒤 문장으로 나눈다. 표·목록의 한 줄도 한 문장으로 본다.
+    money_only면 금액만 본다(공고 검색 답).
     """
+    check = unsupported_money if money_only else unsupported
     lines: list[str] = []
     dropped = 0
     for line in text.split("\n"):
         parts = [p for p in _SENT_END.split(line) if p.strip()]
-        kept = [p for p in parts if not unsupported([p], payload) and not multipliers([p])]
+        kept = [p for p in parts if not check([p], payload) and not multipliers([p])]
         dropped += len(parts) - len(kept)
         if kept or not parts:
             lines.append(" ".join(kept) if kept else line)

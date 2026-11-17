@@ -65,7 +65,66 @@ async def test_default_flow_calls_tool_then_answers_with_cards():
     assert tools.calls[0][0] == "search_bids"
     assert _tokens(events) == "찾은 공고예요: b5, b6."
     assert result.card_ids == [5, 6] and result.warnings == []
-    assert [e["type"] for e in events if e["type"] != "token"] == ["status"]
+    # 도구를 쓴 답은 금액을 맞춰 본 뒤 내보낸다: 검색 상태 → 확인 상태
+    assert [e.get("stage") for e in events if e["type"] == "status"] == ["search", "explain"]
+
+
+class BudgetTools(Tools):
+    async def __call__(self, name, args):
+        self.calls.append((name, args))
+        item = {"bid_id": "b5", "title": "예찰 용역", "budget": "302,727,273원 (약 3억 272만 원)"}
+        return ToolOutcome(text=json.dumps({"items": [item]}, ensure_ascii=False), bid_ids=[5])
+
+
+async def test_search_answer_with_wrong_money_reading_is_rewritten():
+    """2026-11-18 실측: 302,727,273원을 '약 30억 2700만원'으로 읽음 → 다시 쓰게 한다."""
+    llm, tools = FakeLLM(), BudgetTools()
+    llm.script_chat(
+        tool_round("search_bids", {"keywords": ["예찰"]}),
+        text_round("**예산:** 302,727,273원 (약 30 억 2700 만원)"),
+        text_round("**예산:** 302,727,273원 (약 3억 272만 원)"),
+    )
+    result, events = await _turn(llm, tools)
+    assert _tokens(events) == "**예산:** 302,727,273원 (약 3억 272만 원)"
+    assert "30 억 2700 만" in result.warnings[0]
+    retry = llm.payloads[-1][1][-1]["content"]
+    assert "30 억 2700 만" in retry
+
+
+async def test_search_answer_checks_money_only_and_allows_bounds_and_question_numbers():
+    """검색 답은 금액만 본다: 건수·날짜, '10억 이상' 같은 구간, 질문에 나온 금액은 통과."""
+    llm, tools = FakeLLM(), BudgetTools()
+    answer = (
+        "**고액 공고 (10억 이상):** 없음\n"
+        "**5천만 원 미만:** 없음\n"
+        "| 공고 | 예산 | 마감 |\n|---|---|---|\n| b5 | 3억 272만 원 | 2026-11-30 |\n"
+        "1건 찾았어요. 질문하신 2억 원보다 커요."
+    )
+    llm.script_chat(tool_round("search_bids", {"keywords": ["예찰"]}), text_round(answer))
+    events: list[dict] = []
+    result = await run_turn(
+        llm,
+        profile="AI 팀",
+        history=[],
+        user_text="예산 2억 원 넘는 예찰 공고",
+        execute=tools,
+        emit=events.append,
+    )
+    assert _tokens(events) == answer and result.warnings == []
+
+
+async def test_search_answer_drops_wrong_money_sentence_when_retry_fails():
+    from app.llm.assistant import MONEY_HINT
+
+    llm, tools = FakeLLM(), BudgetTools()
+    bad = "예산은 약 30억 원이에요."
+    llm.script_chat(
+        tool_round("search_bids", {"keywords": ["예찰"]}),
+        text_round(f"b5를 찾았어요. {bad}"),
+        text_round(f"b5를 찾았어요. {bad}"),  # 다시 써도 틀리면 그 문장만 뺀다
+    )
+    _result, events = await _turn(llm, tools)
+    assert _tokens(events) == f"b5를 찾았어요.\n\n{MONEY_HINT}"
 
 
 async def test_hallucinated_id_never_reaches_user_or_cards():

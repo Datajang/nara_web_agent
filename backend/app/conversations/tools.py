@@ -15,7 +15,7 @@ from sqlalchemy import select
 
 from app.awards import views
 from app.awards.mapper import normalize_name
-from app.bids.meta import budget_text, kst_text
+from app.bids.meta import kst_text, money_text
 from app.db.models import Bid, BidSummary, Profile
 from app.deps import Deps
 from app.errors import ApiError
@@ -107,7 +107,7 @@ async def _items(deps: Deps, bids: list[Bid], extra: dict[int, dict[str, Any]] |
             "bid_id": bid_ref(b.id),
             "title": b.title,
             "org": b.org_name,
-            "budget": budget_text(b.budget),
+            "budget": money_text(b.budget),
             "deadline": kst_text(b.deadline_at),
         }
         if b.id in heads:

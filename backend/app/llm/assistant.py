@@ -30,6 +30,7 @@ from app.analysis.explain_check import (
     strip_tool_text,
     tidy,
     unsupported,
+    unsupported_money,
 )
 from app.llm import usage
 from app.llm.base import LLMClient, Message, StreamUsage, TextDelta, ToolCall, ToolCalls
@@ -48,7 +49,15 @@ NUMBER_FAILED = (
     "조회 결과와 맞는 숫자로 답을 만들지 못했어요. 정확한 값은 '업체 검색'·'경쟁사' 화면에서 "
     "확인해 주세요."
 )
+MONEY_HINT = (
+    "※ 조회 결과와 맞는지 확인되지 않은 금액이 있는 문장은 뺐어요. "
+    "정확한 금액은 공고 상세에서 확인해 주세요."
+)
+MONEY_FAILED = (
+    "조회 결과와 맞는 금액으로 답을 만들지 못했어요. 정확한 금액은 공고 상세에서 확인해 주세요."
+)
 CHECK_STATUS = "답을 만들고 숫자를 조회 결과와 맞춰 보고 있어요"
+# 낙찰·경쟁사 도구: 답의 모든 숫자를 대조. 그 밖의 도구(공고 검색 등): 금액만 대조
 NUMBER_CHECKED = frozenset({"search_companies", "get_company_awards", "compare_companies"})
 _REF = re.compile(r"(\[)?(?<![A-Za-z0-9])b(\d+)(?![0-9])(?(1)\]|)")
 _TAIL = re.compile(r"(\[?(?<![A-Za-z0-9])b\d*|\[)$")
@@ -226,8 +235,10 @@ def _tool_message(call_id: str, payload: str) -> Message:
     }
 
 
-def number_problems(text: str, checked: list[Any]) -> list[str]:
-    """도구 결과에 없는 숫자와 글로 쓴 배수."""
+def number_problems(text: str, checked: list[Any], strict: bool = True) -> list[str]:
+    """도구 결과에 없는 숫자(strict가 아니면 금액만)와 글로 쓴 배수."""
+    if not strict:
+        return unsupported_money([text], checked)
     return [*unsupported([text], checked), *multipliers([text])]
 
 
@@ -238,7 +249,7 @@ def number_retry_message(text: str, bad: list[str]) -> str:
     return (
         f"위 답에 조회 결과에 없는 숫자나 표현이 있습니다: {', '.join(bad[:10])}\n"
         f"문제가 된 줄:\n{quoted}\n"
-        "조회 결과에 있는 숫자만 그대로(금액은 쉼표를 넣은 원 단위) 쓰도록 고치거나 "
+        "조회 결과에 있는 숫자만 그대로(금액은 조회 결과 표기 그대로) 쓰도록 고치거나 "
         "그 문장을 빼고, 도구는 다시 부르지 말고 위 조회 결과만으로 답 전체를 다시 쓰세요. "
         "차이·비율·배수를 계산하거나 목록 개수를 세지 마세요."
     )
@@ -276,8 +287,9 @@ async def run_turn(
     actions: list[dict[str, Any]] = []
     removed: list[str] = []
     emitted: list[str] = []
-    checked: list[Any] = []  # 숫자를 대조할 도구 결과(낙찰·경쟁사)
-    held: list[str] = []  # 낙찰 도구를 쓴 뒤의 답: 검증 뒤에 내보낸다
+    checked: list[Any] = []  # 숫자를 대조할 도구 결과(+ 사용자 질문·도구 인자)
+    strict = False  # 낙찰·경쟁사 도구를 썼으면 모든 숫자, 아니면 금액만 대조
+    held: list[str] = []  # 도구를 쓴 뒤의 답: 검증 뒤에 내보낸다
     fallback = False
 
     def out(text: str) -> None:
@@ -370,18 +382,21 @@ async def run_turn(
             if outcome.action is not None:
                 actions.append(outcome.action)
             tool_log.append({"name": call.name, "args": args, "summary": outcome.summary})
-            if call.name in NUMBER_CHECKED:
-                try:
-                    checked.append(json.loads(outcome.text))
-                except ValueError:
-                    checked.append(outcome.text)
+            strict = strict or call.name in NUMBER_CHECKED
+            if not checked:
+                checked.append(user_text)  # 질문에 나온 숫자('10억 이상')는 써도 된다
+            checked.append(args)
+            try:
+                checked.append(json.loads(outcome.text))
+            except ValueError:
+                checked.append(outcome.text)
             messages.append(_tool_message(call.id, outcome.text))
 
     number_warnings: list[str] = []
     hint = ""
     if checked:
         answer = strip_tool_text("".join(held))
-        bad = number_problems(answer, checked)
+        bad = number_problems(answer, checked, strict)
         if bad or not answer:
             number_warnings.append(f"조회 결과에 없는 숫자·표현: {', '.join(bad[:10]) or '빈 답'}")
             messages.append({"role": "assistant", "content": answer or "(빈 답)"})
@@ -389,19 +404,19 @@ async def run_turn(
             again: list[str] = []
             await stream(True, again.append)
             retry = strip_tool_text("".join(again))
-            bad = number_problems(retry, checked)
+            bad = number_problems(retry, checked, strict)
             if retry and not bad:
                 answer = retry
             else:
                 # 다시 만든 답이 비었거나 도구 호출 글뿐이면 첫 답에서 문장을 뺀다
                 base = retry or answer
-                answer, dropped = keep_supported(base, checked)
-                left = number_problems(base, checked)
+                answer, dropped = keep_supported(base, checked, money_only=not strict)
+                left = number_problems(base, checked, strict)
                 number_warnings.append(
                     f"답에서 문장 {dropped}개 뺌: {', '.join(left[:10]) or '빈 답'}"
                 )
-                hint = NUMBER_HINT if answer else ""
-                answer = answer or NUMBER_FAILED
+                hint = (NUMBER_HINT if strict else MONEY_HINT) if answer else ""
+                answer = answer or (NUMBER_FAILED if strict else MONEY_FAILED)
         out(tidy(answer))
     if fallback:
         out(f"\n\n{FALLBACK_HINT}")

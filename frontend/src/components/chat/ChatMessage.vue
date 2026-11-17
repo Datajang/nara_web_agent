@@ -2,6 +2,7 @@
 // 말풍선 (SPEC §10.4): 사용자는 오른쪽, 도우미는 왼쪽 평탄 배경. 스트리밍 중에는 커서.
 import type { BidCard as Card } from '@/api/types'
 import BidCard from '@/components/bid/BidCard.vue'
+import MarkdownView from '@/components/ui/MarkdownView.vue'
 import { copy } from '@/copy'
 
 export interface ChatAction {
@@ -29,18 +30,26 @@ function tabName(a: ChatAction): string {
 <template>
   <div class="flex" :class="role === 'user' ? 'justify-end' : 'justify-start'">
     <div
-      class="flex max-w-[min(680px,100%)] flex-col gap-2"
-      :class="role === 'user' ? 'items-end' : 'items-start'"
+      class="flex flex-col gap-2"
+      :class="role === 'user' ? 'max-w-[min(680px,100%)] items-end' : 'w-full max-w-[min(880px,100%)] items-start'"
     >
       <span class="sr-only">{{ role === 'user' ? copy.assistant.you : copy.assistant.bot }}</span>
       <div
-        v-if="content || streaming"
-        class="whitespace-pre-wrap rounded-card px-4 py-3 text-base"
-        :class="role === 'user' ? 'bg-primary text-white' : 'bg-surface-2 text-text'"
+        v-if="role === 'user' && content"
+        class="whitespace-pre-wrap rounded-card bg-primary px-4 py-3 text-base text-white"
       >
-        {{ content }}<span
+        {{ content }}
+      </div>
+      <!-- 도우미 답은 마크다운(굵게·목록·표)으로 보여 준다. 정제는 MarkdownView가 한다 -->
+      <div
+        v-else-if="role === 'assistant' && (content || streaming)"
+        class="w-full rounded-card bg-surface-2 px-4 py-3 text-base text-text"
+        data-assistant-answer
+      >
+        <MarkdownView v-if="content" :source="content" />
+        <span
           v-if="streaming"
-          class="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-text-3 align-middle motion-reduce:animate-none"
+          class="mt-1 inline-block h-4 w-1.5 animate-pulse bg-text-3 align-middle motion-reduce:animate-none"
           aria-hidden="true"
         />
       </div>

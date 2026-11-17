@@ -202,6 +202,20 @@ describe('AssistantView', () => {
     expect(m.wrapper.find('a[href="/bids/b101"]').exists()).toBe(true)
   })
 
+  it('도우미 답은 마크다운으로: 굵게·표, 질문은 글자 그대로', async () => {
+    const answer =
+      '**고액 공고 (10억 이상):** 없음\n\n| 공고 | 예산 |\n|---|---|\n| b101 | 302,727,273원 (약 3억 272만 원) |\n'
+    mockApi(chatRoutes(sse([{ type: 'token', text: answer }, { ...DONE, message_id: 78 }])))
+    m = await mountAt('/assistant/4')
+    await send(m.wrapper, '**굵게** 보여 줘')
+    const box = m.wrapper.get('[data-assistant-answer]')
+    expect(box.get('strong').text()).toBe('고액 공고 (10억 이상):')
+    expect(box.findAll('th').map((x) => x.text())).toEqual(['공고', '예산'])
+    expect(box.findAll('td').map((x) => x.text())).toEqual(['b101', '302,727,273원 (약 3억 272만 원)'])
+    expect(box.text()).not.toContain('**')
+    expect(text(m.wrapper)).toContain('**굵게** 보여 줘') // 사용자 글은 해석하지 않는다
+  })
+
   it('Shift+Enter는 줄바꿈, 4000자 제한과 글자 수', async () => {
     mockApi(chatRoutes(sse([DONE])))
     m = await mountAt('/assistant/4')

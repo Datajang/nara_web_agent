@@ -89,6 +89,7 @@ const pct = (v: number | null | undefined) => (v === null || v === undefined ? c
                 {{ p.name ?? p.bizno }}
                 <UiBadge v-if="p.is_winner" tone="success" class="ml-1">{{ copy.competition.winner }}</UiBadge>
                 <UiBadge v-if="p.is_us" tone="primary" class="ml-1">{{ copy.competition.us }}</UiBadge>
+                <span v-if="p.rank == null && p.remark" class="block text-xs text-warning-fg" data-remark>{{ p.remark }}</span>
               </td>
               <td class="px-2 py-1.5 text-right tabular">{{ formatMoney(p.bid_amount) }}</td>
               <td class="px-2 py-1.5 text-right tabular">{{ score(p.tech_score) }}</td>

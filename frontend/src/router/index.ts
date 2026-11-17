@@ -72,6 +72,11 @@ const routes: RouteRecordRaw[] = [
         meta: { title: copy.nav.myAwards },
       },
       {
+        path: 'my-awards/bids/:no/:ord/:clsfc/:rbid',
+        component: () => import('@/views/MyBidDetailView.vue'),
+        meta: { title: copy.myBids.detailTitle },
+      },
+      {
         path: 'companies',
         component: () => import('@/views/CompaniesView.vue'),
         meta: { title: copy.nav.companies },

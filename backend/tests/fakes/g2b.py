@@ -171,8 +171,9 @@ def opening_item(
     total: str = "89.7373",
     clsfc: str = "0",
     rbid: str = "000",
+    remark: str = "정상",
 ) -> dict[str, Any]:
-    """개찰완료 목록 항목(OpengCompt 녹화본이 틀)."""
+    """개찰완료 목록 항목(OpengCompt 녹화본이 틀). 순위가 비면 remark에 탈락 사유(P12-a)."""
     it = copy.deepcopy(OPENING_TEMPLATE)
     it.update(
         bidNtceNo=no,
@@ -187,6 +188,7 @@ def opening_item(
         techEvlVal=tech,
         bidPrceEvlVal=price,
         totalEvlAmtVal=total,
+        rmrk=remark,
     )
     return it
 

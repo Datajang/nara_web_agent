@@ -1661,6 +1661,156 @@
         }
       }
     },
+    "/api/v1/my-bids": {
+      "get": {
+        "tags": [
+          "mybids"
+        ],
+        "summary": "List My Bids",
+        "operationId": "list_my_bids_api_v1_my_bids_get",
+        "parameters": [
+          {
+            "name": "result",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "all",
+                "won",
+                "lost"
+              ],
+              "type": "string",
+              "default": "all",
+              "title": "Result"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 30,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyBidListOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/my-bids/{no}/{ord}/{clsfc}/{rbid}": {
+      "get": {
+        "tags": [
+          "mybids"
+        ],
+        "summary": "Get My Bid",
+        "operationId": "get_my_bid_api_v1_my_bids__no___ord___clsfc___rbid__get",
+        "parameters": [
+          {
+            "name": "no",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-Za-z]{1,20}$",
+              "title": "No"
+            }
+          },
+          {
+            "name": "ord",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-Za-z]{1,20}$",
+              "title": "Ord"
+            }
+          },
+          {
+            "name": "clsfc",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-Za-z]{1,20}$",
+              "title": "Clsfc"
+            }
+          },
+          {
+            "name": "rbid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-Za-z]{1,20}$",
+              "title": "Rbid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyBidDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/bids/search": {
       "post": {
         "tags": [
@@ -6626,6 +6776,477 @@
         ],
         "title": "MessageOut"
       },
+      "MyBidCountsOut": {
+        "properties": {
+          "all": {
+            "type": "integer",
+            "title": "All"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "lost": {
+            "type": "integer",
+            "title": "Lost"
+          }
+        },
+        "type": "object",
+        "required": [
+          "all",
+          "won",
+          "lost"
+        ],
+        "title": "MyBidCountsOut"
+      },
+      "MyBidDetailOut": {
+        "properties": {
+          "item": {
+            "$ref": "#/components/schemas/MyBidOut"
+          },
+          "estimated_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Price"
+          },
+          "award_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Award Ratio"
+          },
+          "g2b_award_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "G2B Award Rate"
+          },
+          "is_joint": {
+            "type": "boolean",
+            "title": "Is Joint"
+          },
+          "participants": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MyBidParticipantOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participants"
+          },
+          "budget_exhausted": {
+            "type": "boolean",
+            "title": "Budget Exhausted"
+          },
+          "failed": {
+            "type": "boolean",
+            "title": "Failed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "item",
+          "estimated_price",
+          "award_ratio",
+          "g2b_award_rate",
+          "is_joint",
+          "participants",
+          "budget_exhausted",
+          "failed"
+        ],
+        "title": "MyBidDetailOut"
+      },
+      "MyBidListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MyBidOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/MyBidCountsOut"
+          },
+          "scan": {
+            "$ref": "#/components/schemas/OpeningScanOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor",
+          "counts",
+          "scan"
+        ],
+        "title": "MyBidListOut"
+      },
+      "MyBidOut": {
+        "properties": {
+          "bid_ntce_no": {
+            "type": "string",
+            "title": "Bid Ntce No"
+          },
+          "bid_ntce_ord": {
+            "type": "string",
+            "title": "Bid Ntce Ord"
+          },
+          "bid_clsfc_no": {
+            "type": "string",
+            "title": "Bid Clsfc No"
+          },
+          "rbid_no": {
+            "type": "string",
+            "title": "Rbid No"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "dminstt_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dminstt Name"
+          },
+          "registered_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Registered At"
+          },
+          "opened_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opened At"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "won",
+              "lost",
+              "disqualified"
+            ],
+            "title": "Result"
+          },
+          "our_rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Our Rank"
+          },
+          "valid_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Count"
+          },
+          "participant_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Count"
+          },
+          "our_bid_amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Our Bid Amount"
+          },
+          "our_bid_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Our Bid Rate"
+          },
+          "our_total_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Our Total Score"
+          },
+          "remark": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remark"
+          },
+          "winner_bizno": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Winner Bizno"
+          },
+          "winner_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Winner Name"
+          },
+          "award_amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Award Amount"
+          },
+          "fetched": {
+            "type": "boolean",
+            "title": "Fetched"
+          },
+          "bid_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bid Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bid_ntce_no",
+          "bid_ntce_ord",
+          "bid_clsfc_no",
+          "rbid_no",
+          "title",
+          "dminstt_name",
+          "registered_at",
+          "opened_at",
+          "result",
+          "our_rank",
+          "valid_count",
+          "participant_count",
+          "our_bid_amount",
+          "our_bid_rate",
+          "our_total_score",
+          "remark",
+          "winner_bizno",
+          "winner_name",
+          "award_amount",
+          "fetched",
+          "bid_id"
+        ],
+        "title": "MyBidOut"
+      },
+      "MyBidParticipantOut": {
+        "properties": {
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank"
+          },
+          "bizno": {
+            "type": "string",
+            "title": "Bizno"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "bid_amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bid Amount"
+          },
+          "bid_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bid Rate"
+          },
+          "tech_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tech Score"
+          },
+          "price_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Score"
+          },
+          "total_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Score"
+          },
+          "remark": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remark"
+          },
+          "is_winner": {
+            "type": "boolean",
+            "title": "Is Winner"
+          },
+          "is_us": {
+            "type": "boolean",
+            "title": "Is Us"
+          },
+          "award_count": {
+            "type": "integer",
+            "title": "Award Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rank",
+          "bizno",
+          "name",
+          "bid_amount",
+          "bid_rate",
+          "tech_score",
+          "price_score",
+          "total_score",
+          "is_winner",
+          "is_us",
+          "award_count"
+        ],
+        "title": "MyBidParticipantOut"
+      },
       "MyTeamOut": {
         "properties": {
           "team": {
@@ -6757,6 +7378,38 @@
         ],
         "title": "OfficialFacts"
       },
+      "OpeningScanOut": {
+        "properties": {
+          "since": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "fetched_notices": {
+            "type": "integer",
+            "title": "Fetched Notices"
+          },
+          "award_notices": {
+            "type": "integer",
+            "title": "Award Notices"
+          }
+        },
+        "type": "object",
+        "required": [
+          "since",
+          "fetched_notices",
+          "award_notices"
+        ],
+        "title": "OpeningScanOut",
+        "description": "개찰 결과 자동 수집 현황: 탈락 공고는 받은 공고 안에서만 보인다."
+      },
       "OrgRowOut": {
         "properties": {
           "dminstt_cd": {
@@ -6881,6 +7534,17 @@
               }
             ],
             "title": "Total Score"
+          },
+          "remark": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remark"
           },
           "is_winner": {
             "type": "boolean",

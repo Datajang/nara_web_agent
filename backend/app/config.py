@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     # 계약정보(공동수급) 백필의 한 번 실행 호출 상한. 계약은 하루치가 약 5회라 5년이면 약 8,700회
     # → 낙찰 몫을 다 쓰지 않게 나눠 받는다(경쟁 구도 온디맨드 몫을 남김, P11 결정)
     g2b_contracts_backfill_calls: int = 100
+    # 개찰 결과 자동 수집(P12, 우리 투찰 결과). 용역 낙찰 하루 약 240건 + 남는 만큼 과거 공고
+    g2b_openings_daily_budget: int = 300
     g2b_page_size: int = 999  # docs/decisions/2026-11-11-g2b-probe.md
 
     # 첨부 파일 (§5.6)

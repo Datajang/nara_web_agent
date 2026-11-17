@@ -567,6 +567,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/my-bids": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List My Bids */
+        get: operations["list_my_bids_api_v1_my_bids_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/my-bids/{no}/{ord}/{clsfc}/{rbid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get My Bid */
+        get: operations["get_my_bid_api_v1_my_bids__no___ord___clsfc___rbid__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/bids/search": {
         parameters: {
             query?: never;
@@ -2214,6 +2248,120 @@ export interface components {
              */
             created_at: string;
         };
+        /** MyBidCountsOut */
+        MyBidCountsOut: {
+            /** All */
+            all: number;
+            /** Won */
+            won: number;
+            /** Lost */
+            lost: number;
+        };
+        /** MyBidDetailOut */
+        MyBidDetailOut: {
+            item: components["schemas"]["MyBidOut"];
+            /** Estimated Price */
+            estimated_price: number | null;
+            /** Award Ratio */
+            award_ratio: number | null;
+            /** G2B Award Rate */
+            g2b_award_rate: number | null;
+            /** Is Joint */
+            is_joint: boolean;
+            /** Participants */
+            participants: components["schemas"]["MyBidParticipantOut"][] | null;
+            /** Budget Exhausted */
+            budget_exhausted: boolean;
+            /** Failed */
+            failed: boolean;
+        };
+        /** MyBidListOut */
+        MyBidListOut: {
+            /** Items */
+            items: components["schemas"]["MyBidOut"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+            counts: components["schemas"]["MyBidCountsOut"];
+            scan: components["schemas"]["OpeningScanOut"];
+        };
+        /** MyBidOut */
+        MyBidOut: {
+            /** Bid Ntce No */
+            bid_ntce_no: string;
+            /** Bid Ntce Ord */
+            bid_ntce_ord: string;
+            /** Bid Clsfc No */
+            bid_clsfc_no: string;
+            /** Rbid No */
+            rbid_no: string;
+            /** Title */
+            title: string;
+            /** Dminstt Name */
+            dminstt_name: string | null;
+            /**
+             * Registered At
+             * Format: date-time
+             */
+            registered_at: string;
+            /** Opened At */
+            opened_at: string | null;
+            /**
+             * Result
+             * @enum {string}
+             */
+            result: "won" | "lost" | "disqualified";
+            /** Our Rank */
+            our_rank: number | null;
+            /** Valid Count */
+            valid_count: number | null;
+            /** Participant Count */
+            participant_count: number | null;
+            /** Our Bid Amount */
+            our_bid_amount: number | null;
+            /** Our Bid Rate */
+            our_bid_rate: number | null;
+            /** Our Total Score */
+            our_total_score: number | null;
+            /** Remark */
+            remark: string | null;
+            /** Winner Bizno */
+            winner_bizno: string | null;
+            /** Winner Name */
+            winner_name: string | null;
+            /** Award Amount */
+            award_amount: number | null;
+            /** Fetched */
+            fetched: boolean;
+            /** Bid Id */
+            bid_id: string | null;
+        };
+        /** MyBidParticipantOut */
+        MyBidParticipantOut: {
+            /** Rank */
+            rank: number | null;
+            /** Bizno */
+            bizno: string;
+            /** Name */
+            name: string | null;
+            /** Bid Amount */
+            bid_amount: number | null;
+            /** Bid Rate */
+            bid_rate: number | null;
+            /** Tech Score */
+            tech_score: number | null;
+            /** Price Score */
+            price_score: number | null;
+            /** Total Score */
+            total_score: number | null;
+            /** Remark */
+            remark?: string | null;
+            /** Is Winner */
+            is_winner: boolean;
+            /** Is Us */
+            is_us: boolean;
+            /** Award Count */
+            award_count: number;
+        };
         /**
          * MyTeamOut
          * @description 팀이 없으면 team=null이고 나머지는 비어 있다.
@@ -2248,6 +2396,18 @@ export interface components {
             /** Award Method */
             award_method: string | null;
         };
+        /**
+         * OpeningScanOut
+         * @description 개찰 결과 자동 수집 현황: 탈락 공고는 받은 공고 안에서만 보인다.
+         */
+        OpeningScanOut: {
+            /** Since */
+            since: string | null;
+            /** Fetched Notices */
+            fetched_notices: number;
+            /** Award Notices */
+            award_notices: number;
+        };
         /** OrgRowOut */
         OrgRowOut: {
             /** Dminstt Cd */
@@ -2277,6 +2437,8 @@ export interface components {
             price_score: number | null;
             /** Total Score */
             total_score: number | null;
+            /** Remark */
+            remark?: string | null;
             /** Is Winner */
             is_winner: boolean;
             /** Is Us */
@@ -4092,6 +4254,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CompetitionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_my_bids_api_v1_my_bids_get: {
+        parameters: {
+            query?: {
+                result?: "all" | "won" | "lost";
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyBidListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_bid_api_v1_my_bids__no___ord___clsfc___rbid__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                no: string;
+                ord: string;
+                clsfc: string;
+                rbid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyBidDetailOut"];
                 };
             };
             /** @description Validation Error */

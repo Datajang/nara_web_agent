@@ -38,9 +38,12 @@ ENDPOINTS: dict[str, tuple[str, str, str | None]] = {
     "awards": (AWARD_BASE, "getScsbidListSttusServc", None),
     "opening_compt": (AWARD_BASE, "getOpengResultListInfoOpengCompt", None),
     "contracts": (CONTRACT_BASE, "getCntrctInfoListServc", None),
+    # 개찰 결과 자동 수집(P12). 같은 오퍼레이션이지만 예산을 따로 센다(G2B_OPENINGS_DAILY_BUDGET)
+    "openings": (AWARD_BASE, "getOpengResultListInfoOpengCompt", None),
 }
 # 낙찰정보·계약정보 서비스 소스. 키는 NARA_AWARD_API_KEY(없으면 NARA_API_KEY)
 AWARD_SOURCES = frozenset({"awards", "opening_compt", "contracts"})
+OPENINGS_SOURCE = "openings"  # 낙찰정보 서비스 키를 쓰지만 낙찰 몫 예산이 아니라 자기 몫으로 센다
 # 번호 단건 조회: 일반 조회 + inqryDiv=2. 검색용 PPSSrch는 번호 필터를 무시한다
 # (docs/decisions/2026-11-12-g2b-single-lookup.md)
 LOOKUP_ENDPOINTS = {
@@ -179,9 +182,14 @@ class G2BClient:
         body = await self._call(source, f"{base}/{op}", params)
         return [it for it in _items(body) if str(it.get(field) or "") == number]
 
-    async def opening_results(self, bid_ntce_no: str, bid_ntce_ord: str) -> list[dict[str, Any]]:
-        """공고(차수) 하나의 개찰완료 목록(업체별 순위·투찰·점수, §15.2). 모든 분류·재입찰 행."""
-        base, op, _ = ENDPOINTS["opening_compt"]
+    async def opening_results(
+        self, bid_ntce_no: str, bid_ntce_ord: str, source: str = "opening_compt"
+    ) -> list[dict[str, Any]]:
+        """공고(차수) 하나의 개찰완료 목록(업체별 순위·투찰·점수·비고, §15.2). 모든 분류·재입찰 행.
+
+        source: 'opening_compt'(화면 온디맨드, 낙찰 몫) 또는 'openings'(자동 수집, 자기 몫).
+        """
+        base, op, _ = ENDPOINTS[source]
         params = {
             "type": "json",
             "bidNtceNo": bid_ntce_no,
@@ -191,9 +199,7 @@ class G2BClient:
         items: list[dict[str, Any]] = []
         page = 1
         while True:
-            body = await self._call(
-                "opening_compt", f"{base}/{op}", {**params, "pageNo": str(page)}
-            )
+            body = await self._call(source, f"{base}/{op}", {**params, "pageNo": str(page)})
             got, total = _items(body), int(body.get("totalCount") or 0)
             items.extend(got)
             if not got or len(items) >= total:

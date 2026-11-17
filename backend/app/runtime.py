@@ -11,7 +11,7 @@ from app.config import Settings, get_settings
 from app.db.session import Database
 from app.deps import Deps
 from app.files.download import HttpDownloader
-from app.g2b.client import AWARD_SOURCES, G2BClient
+from app.g2b.client import AWARD_SOURCES, OPENINGS_SOURCE, G2BClient
 from app.usage.budget import DbCallBudget
 
 
@@ -24,6 +24,7 @@ def g2b_keys(settings: Settings) -> dict[str, str]:
         "regular": settings.nara_api_key.get_secret_value(),
         "prespec": settings.nara_prespec_api_key.get_secret_value(),
         **dict.fromkeys(AWARD_SOURCES, award_key),
+        OPENINGS_SOURCE: award_key,
     }
 
 
@@ -37,7 +38,16 @@ def build_g2b(http: httpx.AsyncClient, db: Database, settings: Settings) -> G2BC
         g2b_keys(settings),
         page_size=settings.g2b_page_size,
         budget=DbCallBudget(db, settings.g2b_daily_call_budget),
-        source_budgets=dict.fromkeys(AWARD_SOURCES, awards_budget),
+        source_budgets={
+            **dict.fromkeys(AWARD_SOURCES, awards_budget),
+            # 개찰 결과 자동 수집(P12)은 낙찰 몫과 따로 센다
+            OPENINGS_SOURCE: DbCallBudget(
+                db,
+                settings.g2b_openings_daily_budget,
+                sources=[OPENINGS_SOURCE],
+                label="개찰 결과",
+            ),
+        },
     )
 
 

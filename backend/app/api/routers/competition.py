@@ -71,6 +71,7 @@ def _award_out(
                 tech_score=_f(p.tech_score),
                 price_score=_f(p.price_score),
                 total_score=_f(p.total_score),
+                remark=p.remark,
                 is_winner=p.bizno == a.bizno,
                 is_us=us is not None and p.bizno == us,
             )

@@ -117,6 +117,8 @@ class BidParticipant(Base):
     tech_score: Mapped[Decimal | None] = mapped_column(Numeric(9, 4))
     price_score: Mapped[Decimal | None] = mapped_column(Numeric(9, 4))
     total_score: Mapped[Decimal | None] = mapped_column(Numeric(9, 4))
+    # 비고(rmrk). 순위가 비면 부적격·탈락 사유('낙찰하한선 미달' 등, P12)
+    remark: Mapped[str | None] = mapped_column(Text)
     fetched_at: Mapped[datetime] = ts_now()
 
 

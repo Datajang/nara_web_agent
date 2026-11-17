@@ -7,6 +7,8 @@
   python -m app.collector backfill --source awards [--days 30]  # 낙찰: 기본 org_settings 연수
   python -m app.collector incremental --source contracts     # 공동수급(계약정보): 최근 14일 (P11)
   python -m app.collector backfill --source contracts        # 낙찰 수집 범위 안에서 과거로
+  python -m app.collector incremental --source openings      # 개찰 결과: 최근 14일 낙찰 공고 (P12)
+  python -m app.collector backfill --source openings         # 개찰 결과: 그보다 오래된 공고
 
 `--source all`은 공고(regular·prespec)만이다. 낙찰·계약은 따로 부른다(낙찰 몫 예산·timer).
 
@@ -21,7 +23,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 
 from app.awards import collector as awards
-from app.awards import contracts
+from app.awards import contracts, openings
 from app.collector import runner
 from app.logging_setup import configure_logging
 from app.runtime import real_deps
@@ -37,7 +39,9 @@ async def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="python -m app.collector")
     ap.add_argument("mode", choices=["incremental", "backfill", "fill"])
     ap.add_argument(
-        "--source", choices=["regular", "prespec", "awards", "contracts", "all"], default="all"
+        "--source",
+        choices=["regular", "prespec", "awards", "contracts", "openings", "all"],
+        default="all",
     )
     ap.add_argument(
         "--days",
@@ -49,8 +53,8 @@ async def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--to", dest="date_to", type=_date)
     args = ap.parse_args(argv)
     configure_logging()
-    if args.source in ("awards", "contracts") and args.mode == "fill":
-        ap.error("낙찰·계약(awards·contracts)에는 fill을 쓰지 않습니다 (§15.4)")
+    if args.source in ("awards", "contracts", "openings") and args.mode == "fill":
+        ap.error("낙찰·계약·개찰 결과(awards·contracts·openings)에는 fill을 쓰지 않습니다 (§15.4)")
     sources = ["regular", "prespec"] if args.source == "all" else [args.source]
     ok = True
     async with real_deps() as deps:
@@ -61,6 +65,8 @@ async def main(argv: list[str] | None = None) -> int:
                     if args.mode == "backfill"
                     else awards.incremental(deps)
                 )
+            elif src == "openings":
+                r = await openings.run(deps, args.mode)
             elif src == "contracts":
                 r = await (
                     contracts.backfill(deps, args.days)

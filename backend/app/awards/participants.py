@@ -4,7 +4,7 @@
 - 한 요청에서 새로 부르는 호출은 MAX_NEW_CALLS(6)회까지(재시도 포함, client.call_cap).
   못 부른 공고는 '일부만 불러왔어요'로 남기고 다음 요청에서 이어 부른다
 - 불러온 공고는 bid_participant_fetches에 표시해 0행이어도 다시 부르지 않는다
-- 화이트리스트 필드만 저장한다(업체명·사업자번호·순위·투찰·점수). 사업자번호가 없으면 버린다
+- 화이트리스트 필드만 저장한다(업체명·사업자번호·순위·투찰·점수·비고). 사업자번호가 없으면 버린다
 - 호출 수는 usage_logs(event='competition', cache.source='opening_compt')로 남겨 낙찰 몫 예산에 센다
 """
 
@@ -67,6 +67,7 @@ def to_participant(item: dict[str, Any]) -> dict[str, Any] | None:
         "tech_score": _dec(item.get("techEvlVal")),
         "price_score": _dec(item.get("bidPrceEvlVal")),
         "total_score": _dec(item.get("totalEvlAmtVal")),
+        "remark": (str(item.get("rmrk") or "").strip()[:100] or None),
     }
 
 
@@ -90,6 +91,7 @@ async def store(s: AsyncSession, notice: Notice, items: list[dict[str, Any]]) ->
             "tech_score",
             "price_score",
             "total_score",
+            "remark",
         )
         await s.execute(
             ins.on_conflict_do_update(

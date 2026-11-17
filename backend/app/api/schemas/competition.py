@@ -18,6 +18,7 @@ class ParticipantOut(BaseModel):
     tech_score: float | None  # 기술평가
     price_score: float | None  # 가격평가
     total_score: float | None  # 총점
+    remark: str | None = None  # 비고. 순위가 비면 부적격·탈락 사유(낙찰하한선 미달 등, P12)
     is_winner: bool
     is_us: bool
 

@@ -5,7 +5,8 @@
   is_joint는 계약정보(bid_joint_members)가 있으면 true로 맞춘다(mark_joint, 수집 순서와 무관).
 - 업체는 사업자번호로 upsert. 이름은 더 최근 낙찰의 상호로만 바꾼다(백필은 과거로 가므로).
 - estimated_price는 같은 공고가 bids에 있을 때 추정가격(presmptPrce)을 가져오고, award_ratio는
-  낙찰금액·추정가격이 둘 다 있을 때만 계산한다 (§15.1 원칙 4).
+  낙찰금액·추정가격이 둘 다 있을 때만 계산한다 (§15.1 원칙 4). 비율이 RATIO_MAX를 넘으면 추정가격이
+  잘못된 값이라 비운다(실측 2026-11-17: 추정가격 1원 → 비율 16,490, 열 넘침으로 백필 배치 실패).
 """
 
 from __future__ import annotations
@@ -52,10 +53,15 @@ class AwardStats:
     unidentified: int = 0  # 사업자번호 없음(업체 통계 제외)
 
 
+# 낙찰금액(부가세 포함)/추정가격(부가세 제외)은 보통 0.6~1.2 (개발 DB 99%가 1.1 이하)
+RATIO_MAX = Decimal(2)
+
+
 def award_ratio(amount: int | None, estimated: int | None) -> Decimal | None:
     if not amount or not estimated or estimated <= 0:
         return None
-    return (Decimal(amount) / Decimal(estimated)).quantize(Decimal("0.00001"), ROUND_HALF_UP)
+    ratio = (Decimal(amount) / Decimal(estimated)).quantize(Decimal("0.00001"), ROUND_HALF_UP)
+    return ratio if ratio <= RATIO_MAX else None
 
 
 def _dedupe(rows: Iterable[AwardRow]) -> list[AwardRow]:

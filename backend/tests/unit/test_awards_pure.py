@@ -101,6 +101,9 @@ def test_award_ratio():
     assert award_ratio(None, 100) is None
     assert award_ratio(80, None) is None
     assert award_ratio(80, 0) is None
+    # 추정가격이 잘못된 값(1원)이면 비율을 비운다 (실측: 비율 16,490 → 열 넘침으로 배치 실패)
+    assert award_ratio(16490, 1) is None
+    assert award_ratio(200, 100) == Decimal("2.00000") and award_ratio(201, 100) is None
 
 
 def _dates(s: datetime, e: datetime) -> int:

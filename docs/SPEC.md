@@ -213,7 +213,7 @@ nara_web_agent/
 
 | 테이블 | 핵심 컬럼 | 키·인덱스·규칙 |
 | --- | --- | --- |
-| `bids` | `bid_key` text, `source` ('regular'\|'prespec'), `bid_no` text, `revision` int, `prespec_reg_no` text null, `title` text, `org_name` text null, `budget` bigint null, `deadline_at` timestamptz null, `notice_at` timestamptz null, `detail_url` text null, `files` jsonb, `content_hash` text, `raw` jsonb, `first_seen_at`, `last_seen_at`, `updated_at` | UNIQUE(`bid_key`); GIN(`title` gin\_trgm\_ops); (`source`, `notice_at` DESC); (`deadline_at`); (`prespec_reg_no`) WHERE NOT NULL. `budget`은 일반공고는 `bdgtAmt` 또는 `presmptPrce`, 사전규격은 `asignBdgtAmt`에서 파싱하고 실패하면 NULL. 0은 그대로 저장하고 화면에서 ‘미공개’로 표시. `content_hash`는 메타·파일 목록의 정규화 JSON의 sha256. 같은 `bid_key`는 차수(`bidNtceOrd`)가 가장 큰 행만 반영하고 낮은 차수는 무시 \[확인됨: P1\]. 취소공고는 별도 열 없이 `raw->>'ntceKindNm' = '취소공고'`로 판정해 API 카드의 `cancelled`로 내보내며, 검색·진행중 필터에서 빼지 않음 \[결정: P1·P3a\] |
+| `bids` | `bid_key` text, `source` ('regular'\|'prespec'), `bid_no` text, `revision` int, `prespec_reg_no` text null, `title` text, `org_name` text null, `budget` bigint null, `deadline_at` timestamptz null, `notice_at` timestamptz null, `detail_url` text null, `files` jsonb, `content_hash` text, `raw` jsonb, `first_seen_at`, `last_seen_at`, `updated_at` | UNIQUE(`bid_key`); GIN(`title` gin\_trgm\_ops); (`source`, `notice_at` DESC); (`deadline_at`); (`prespec_reg_no`) WHERE NOT NULL. `budget`은 일반공고는 `bdgtAmt` 또는 `presmptPrce`, 사전규격은 `asignBdgtAmt`에서 파싱하고 실패하면 NULL. 0은 그대로 저장하고 화면에서 ‘미공개’로 표시. `content_hash`는 메타·파일 목록의 정규화 JSON의 sha256. 같은 `bid_key`는 차수(`bidNtceOrd`)가 가장 큰 행만 반영하고 낮은 차수는 무시 \[확인됨: P1\]. 취소공고는 별도 열 없이 `raw->>'ntceKindNm' = '취소공고'`로 판정해 API 카드의 `cancelled`로 내보내며, 모든 공고 검색(검색 탭·맞춤 추천·어시스턴트·관심 공고)에서 뺀다. 북마크·지난 기록·번호로 열기에서는 표시만 \[결정: 2026-11-17, P1·P3a의 '빼지 않음'을 바꿈\] |
 | `bid_files` | `bid_id` FK, `url` text, `url_hash` text, `name` text, `kind` ('rfp'\|'spec'\|'other'), `origin` ('notice'\|'eorder'\|'prespec'), `status` ('new'\|'ok'\|'failed'\|'unsupported'), `error` text null, `sha256` text null, `size_bytes` int null, `downloaded_at`, `attempts` int (실패 재시도 횟수, §5.1의 24시간·최대 3회) \[결정: P1\] | UNIQUE(`bid_id`, `url_hash`). `kind`는 파일명에 ‘제안요청’·‘과업지시’가 있으면 rfp, 사전규격 문서면 spec |
 | `file_texts` | `sha256` text PK, `text` text, `char_count` int, `extractor_version` text, `extracted_at` | 파일 내용 기반 저장이라 같은 파일이 여러 공고에 붙어 있어도 한 번만 추출. 본문이 커서 목록 조회에서는 절대 함께 SELECT하지 않음 |
 | `bid_summaries` | `bid_id` FK, `source_hash` text, `prompt_version` text, `model_id` text, `summary` jsonb, `input_tokens` int, `output_tokens` int, `created_at` | UNIQUE(`bid_id`, `source_hash`, `prompt_version`). `source_hash` = 입력으로 쓴 파일들의 sha256을 정렬해 이어 붙인 값의 sha256. 프로필과 무관한 공통 요약 (스키마 §8) |
@@ -654,12 +654,12 @@ MCP 서버의 세 도구를 웹 탭으로 옮기고, 어시스턴트·기록·�
 
 | 항목 | 명세 |
 | --- | --- |
-| 입력 | 프로필 선택(필수, 기본 프로필 자동 선택. 프로필이 없으면 ‘프로필 만들기’ 안내), 기간(7·14·30일), 구분, 상위 N(10·20·30), 키워드 직접 지정(선택) |
-| 후보 선정 | 키워드를 직접 지정하지 않으면 `profiles.keywords`를 사용합니다. 후보는 기간 안의 진행중 공고 중 키워드가 하나라도 맞는 것으로 하고, 후보가 너무 많으면(예: 300건 초과 \[가정\]) 최신 순으로 자릅니다 |
-| 점수 | 후보 중 캐시에 없는 공고만 5.7의 배치로 계산하고, 상위 N건을 점수 내림차순으로 보여 줍니다 |
+| 입력 | 프로필 선택(필수, 기본 프로필 자동 선택. 프로필이 없으면 ‘프로필 만들기’ 안내), 기간(7·14·30일), 구분, 검토할 공고 수(20·30·40·50, 기본 20) \[결정: 2026-11-17\], 키워드 직접 지정(선택) |
+| 후보 선정 | 키워드를 직접 지정하지 않으면 `profiles.keywords`를 사용합니다. 후보는 기간 안의 진행중 공고 중 키워드가 하나라도 맞는 것으로 하고, 예산 1억 원 미만(예산 미상 포함)은 기본으로 빼고 ‘1억 원 미만 사업도 포함’ 체크 때만 넣습니다(API `include_small`, 어시스턴트 도구는 제한 없음). 후보는 최신 순으로 ‘검토할 공고 수’만큼만 자릅니다(API `candidates` 20\~50). 어시스턴트 도구는 300건 상한을 유지합니다 \[결정: 2026-11-17\] |
+| 점수 | 후보 중 캐시에 없는 공고만 5.7의 배치로 계산하고, 검토한 공고 전부를 점수 내림차순으로 보여 줍니다(화면은 `top_n`을 후보 수와 같게 보냄) |
 | 진행 표시 | `status(score)`의 `progress`로 ‘처리한 공고 수 / 전체’ 진행 막대를 보여 줍니다 |
 | 결과 카드 | 7.3의 카드 + 점수 배지(0\~100. 80 이상 높음, 60\~79 보통, 60 미만 낮음) + 근거 1\~2줄. 점수 툴팁은 ‘프로필과 공고 요약을 바탕으로 한 AI 추정’ |
-| 기록 | 실행마다 `search_runs`(kind=recommend)로 저장하고 내 기록에서 다시 열 수 있습니다 |
+| 기록 | 실행마다 `search_runs`(kind=recommend)로 저장하고 내 기록에서 다시 열 수 있습니다. 조건·진행·결과는 화면 밖 스토어에 두어 다른 화면에 다녀와도 그대로이고(스트림도 끊지 않음), 새로고침·다른 기기에서 처음 열면 그 계정의 마지막 추천 기록과 조건을 불러와 ‘…에 받은 추천이에요’를 보여 줍니다 \[결정: 2026-11-17\] |
 | 안내 | `done.usage.cache.score`가 true이면 ‘저장된 점수를 재사용했어요’를 작게 표시합니다 |
 
 ### 7.5 공고 상세·분석 (`/bids/:bidId`)

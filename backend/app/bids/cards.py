@@ -2,7 +2,8 @@
 
 - bid_id는 외부용 문자열 `b{id}` (§6.1). LLM에도 같은 ID만 준다.
 - status는 deadline_at에서 계산, null이면 open (§4).
-- cancelled: 취소공고 표시 (P1 사용자 결정: 검색에서 빼지 않고 표시만). 원본 raw.ntceKindNm.
+- cancelled: 취소공고 표시. 원본 raw.ntceKindNm. 검색 결과에서는 빠지고(2026-11-17 결정),
+  북마크·지난 기록·번호로 열기처럼 이미 아는 공고에서만 보인다.
 - summary_ready: 현재 프롬프트 버전의 요약이 이미 있는지(조회가 요약을 만들지 않는다).
 """
 

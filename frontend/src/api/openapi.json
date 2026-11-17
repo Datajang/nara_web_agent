@@ -7888,6 +7888,18 @@
             "title": "Top N",
             "default": 20
           },
+          "candidates": {
+            "type": "integer",
+            "maximum": 50.0,
+            "minimum": 20.0,
+            "title": "Candidates",
+            "default": 20
+          },
+          "include_small": {
+            "type": "boolean",
+            "title": "Include Small",
+            "default": false
+          },
           "keywords": {
             "anyOf": [
               {

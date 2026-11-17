@@ -8,6 +8,7 @@ from typing import Annotated, Any, Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 from sqlalchemy import ColumnElement, Select, and_, func, or_, select
 
+from app.bids.cards import CANCELLED_KIND
 from app.db.models import Bid
 
 KST = timezone(timedelta(hours=9))
@@ -66,11 +67,19 @@ def title_contains(text: str) -> ColumnElement[bool] | None:
     return squashed.ilike(_like(flat), escape="\\")
 
 
+def not_cancelled() -> ColumnElement[bool]:
+    """취소공고가 아님. 공고종류가 없는 줄(사전규격 등)은 남긴다 [결정: 2026-11-17]."""
+    return Bid.raw["ntceKindNm"].astext.is_distinct_from(CANCELLED_KIND)
+
+
 def build_query(
     q: SearchQuery, start: datetime, end: datetime, now: datetime, limit: int
 ) -> Select[Any]:
-    """키워드는 공백으로 나눠 title ILIKE, match=all이면 AND (§5.4). 취소공고도 결과에 남긴다."""
-    stmt = select(Bid).where(Bid.notice_at >= start, Bid.notice_at < end)
+    """키워드는 공백으로 나눠 title ILIKE, match=all이면 AND (§5.4).
+
+    취소공고는 모든 검색(검색 탭·추천·어시스턴트·관심 공고)에서 뺀다 [결정: 2026-11-17].
+    """
+    stmt = select(Bid).where(Bid.notice_at >= start, Bid.notice_at < end, not_cancelled())
     if q.source != "all":
         stmt = stmt.where(Bid.source == q.source)
     words = [w for kw in q.keywords for w in kw.split() if w]

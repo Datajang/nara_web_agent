@@ -225,6 +225,60 @@ async def test_recommend_streams_progress_then_sorted_cards(full_api, fake_g2b):
     assert run.profile_id == pid and run.result_count == 2
 
 
+async def test_recommend_scores_only_newest_candidates(full_api, fake_g2b):
+    """§7.4: 후보는 사용자가 고른 수(20~50)만큼 최신 순으로 잘라 점수를 매긴다."""
+    fake_g2b.add(
+        "regular",
+        *(
+            regular_item(f"R26BK82{i:06d}", NOW - timedelta(hours=i + 1), title=f"AI 사업 {i}")
+            for i in range(23)
+        ),
+    )
+    c = await member(full_api, "a@corp.example")
+    pid = await make_profile(c, "AI 플랫폼 개발팀", keywords=["AI"])
+    body = {"profile_id": pid, "days": 7, "top_n": 50, "candidates": 20}
+    events = await sse(c, "/api/v1/recommend", body)
+    bad = [
+        (await c.post("/api/v1/recommend", json={**body, "candidates": n})).status_code
+        for n in (19, 51)
+    ]
+    runs = (await c.get("/api/v1/search-runs", params={"kind": "recommend"})).json()
+    await c.aclose()
+    progress = [e["progress"] for e in events if e["type"] == "status" and e.get("progress")]
+    assert progress[-1] == {"done": 20, "total": 20}
+    titles = {card["title"] for card in events[-2]["items"]}
+    assert len(titles) == 20 and "AI 사업 22" not in titles and "AI 사업 0" in titles
+    assert bad == [422, 422]
+    query = runs["items"][0]["query"]
+    assert query["candidates_max"] == 20 and query["custom_keywords"] is False
+
+
+async def test_recommend_skips_small_and_cancelled_unless_small_requested(full_api, fake_g2b):
+    """§7.4: 1억원 미만은 기본으로 빼고 include_small이면 넣는다. 취소공고는 늘 뺀다."""
+    fake_g2b.add(
+        "regular",
+        regular_item("R26BK83000001", NOW - timedelta(hours=1), title="AI 큰 사업"),
+        regular_item(
+            "R26BK83000002", NOW - timedelta(hours=2), title="AI 작은 사업", budget="99999999"
+        ),
+        regular_item(
+            "R26BK83000003", NOW - timedelta(hours=3), title="AI 취소 사업", kind="취소공고"
+        ),
+    )
+    c = await member(full_api, "a@corp.example")
+    pid = await make_profile(c, "AI 플랫폼 개발팀", keywords=["AI"])
+    body = {"profile_id": pid, "days": 7}
+    default = await sse(c, "/api/v1/recommend", body)
+    small = await sse(c, "/api/v1/recommend", {**body, "include_small": True})
+    await c.aclose()
+
+    def titles(events):
+        return {card["title"] for card in events[-2]["items"]}
+
+    assert titles(default) == {"AI 큰 사업"}
+    assert titles(small) == {"AI 큰 사업", "AI 작은 사업"}
+
+
 async def test_suggest_keywords(full_api, fake_llm):
     c = await member(full_api, "a@corp.example")
     r = await c.post(

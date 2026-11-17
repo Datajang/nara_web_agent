@@ -44,6 +44,8 @@ async def post_recommend(
             source=body.source,
             top_n=body.top_n,
             keywords=body.keywords,
+            candidates=body.candidates,
+            include_small=body.include_small,
         )
         scores = {b.id: (sc.score, sc.reason) for b, sc in rec.ranked}
         async with deps.db.session() as s2:

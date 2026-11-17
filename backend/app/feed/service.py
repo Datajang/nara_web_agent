@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Bid, User
 from app.profiles.repo import clean_keywords, team_keywords
-from app.search.query import _like, title_contains
+from app.search.query import _like, not_cancelled, title_contains
 
 WINDOW_DAYS = 30
 MIN_KEYWORDS = 3
@@ -80,6 +80,7 @@ async def load_feed(
         Bid.notice_at >= now - timedelta(days=WINDOW_DAYS),
         or_(Bid.deadline_at.is_(None), Bid.deadline_at > now),
         or_(*[_cond(k) for k in chosen]),
+        not_cancelled(),
     )
     if min_budget is not None:
         where += (Bid.budget >= min_budget,)

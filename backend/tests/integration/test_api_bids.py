@@ -43,24 +43,22 @@ async def test_search_returns_spec_shape_and_second_search_is_from_cache(full_ap
         "truncated", "items",
     }  # fmt: skip
     assert first["from_cache"] is False and second["from_cache"] is True
-    assert first["total"] == 2 and first["truncated"] is False
+    assert first["total"] == 1 and first["truncated"] is False
     item = first["items"][0]
     assert set(item) == CARD_KEYS
     assert item["bid_id"].startswith("b") and item["status"] == "open"
     assert item["deadline_at"].endswith("Z") or item["deadline_at"].endswith("+00:00")
-    # 취소공고는 빼지 않고 표시만 (P1 사용자 결정)
-    assert {i["bid_no"]: i["cancelled"] for i in first["items"]} == {
-        "R26BK70000001": False,
-        "R26BK70000002": True,
-    }
+    # 취소공고는 검색에서 뺀다 (2026-11-17 결정, P1의 '표시만'을 바꿈)
+    assert {i["bid_no"]: i["cancelled"] for i in first["items"]} == {"R26BK70000001": False}
 
 
-async def test_cancelled_bids_stay_in_open_filter(full_api, fake_g2b):
+@pytest.mark.parametrize("status", ["open", "all"])
+async def test_cancelled_bids_are_excluded_from_search(full_api, fake_g2b, status):
     fake_g2b.add("regular", *_items())
     c = await member(full_api, "a@corp.example")
-    body = (await c.post(SEARCH, json={**Q, "status": "open"})).json()
+    body = (await c.post(SEARCH, json={**Q, "status": status})).json()
     await c.aclose()
-    assert "R26BK70000002" in {i["bid_no"] for i in body["items"]}
+    assert "R26BK70000002" not in {i["bid_no"] for i in body["items"]}
 
 
 @pytest.mark.parametrize(
@@ -138,7 +136,7 @@ async def test_slow_fill_answers_collecting_then_logs_late_calls(db, clock, fake
     await http.aclose()
     assert late and late[0].g2b_calls > 0  # 응답 뒤의 G2B 호출도 기록된다
     assert second["from_cache"] is True and second["collecting"] is False
-    assert second["total"] == 2
+    assert second["total"] == 1  # 취소공고는 빠진다
 
 
 RFP_URL = "https://www.g2b.go.kr/files/rfp-api.docx"

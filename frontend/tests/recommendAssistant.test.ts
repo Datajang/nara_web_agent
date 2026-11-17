@@ -52,6 +52,106 @@ describe('RecommendView', () => {
     expect(t).toContain(copy.recommend.cached)
     expect(m.wrapper.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('2')
   })
+
+  it('검토할 공고 수는 20~50건(기본 20), 고른 수만큼 후보·결과를 요청한다', async () => {
+    const api = mockApi({
+      'GET /api/v1/profiles': json({ items: [profile()] }),
+      'POST /api/v1/recommend': sse([{ type: 'cards', run_id: 1, items: [] }, DONE]),
+    })
+    m = await mountAt('/recommend')
+    const group = m.wrapper
+      .findAll('fieldset')
+      .find((f) => f.text().includes(copy.recommend.candidates))!
+    const radios = group.findAll('input[type="radio"]')
+    expect(radios.map((r) => (r.element as HTMLInputElement).value)).toEqual(['20', '30', '40', '50'])
+    expect((radios[0]!.element as HTMLInputElement).checked).toBe(true)
+    await radios[3]!.setValue(true)
+    await m.wrapper.findAll('button').find((b) => b.text() === copy.recommend.submit)!.trigger('click')
+    await settle(10)
+    expect(api.calls.find((c) => c.url === '/api/v1/recommend')?.body).toMatchObject({
+      candidates: 50,
+      top_n: 50,
+      include_small: false,
+    })
+  })
+
+  it('1억 원 미만 사업은 기본으로 빼고, 체크하면 포함해 요청한다', async () => {
+    const api = mockApi({
+      'GET /api/v1/profiles': json({ items: [profile()] }),
+      'POST /api/v1/recommend': sse([{ type: 'cards', run_id: 1, items: [] }, DONE]),
+    })
+    m = await mountAt('/recommend')
+    expect(text(m.wrapper)).toContain(copy.recommend.minBudgetNote)
+    const box = m.wrapper.get('input[name="recommend-small"]')
+    expect((box.element as HTMLInputElement).checked).toBe(false)
+    await box.setValue(true)
+    expect(text(m.wrapper)).not.toContain(copy.recommend.minBudgetNote)
+    await m.wrapper.findAll('button').find((b) => b.text() === copy.recommend.submit)!.trigger('click')
+    await settle(10)
+    expect(api.calls.find((c) => c.url === '/api/v1/recommend')?.body).toMatchObject({ include_small: true })
+  })
+
+  it('다른 화면에 다녀와도 추천 결과가 그대로 남는다', async () => {
+    const api = mockApi({
+      'GET /api/v1/profiles': json({ items: [profile()] }),
+      'POST /api/v1/recommend': sse([
+        { type: 'cards', run_id: 9, items: [card({ score: 88, reason: '주력 일치' })] },
+        DONE,
+      ]),
+      'POST /api/v1/search': sse([DONE]),
+    })
+    m = await mountAt('/recommend')
+    await m.wrapper.findAll('button').find((b) => b.text() === copy.recommend.submit)!.trigger('click')
+    await settle(10)
+    await m.router.push('/search')
+    await settle()
+    expect(text(m.wrapper)).not.toContain('주력 일치')
+    await m.router.push('/recommend')
+    await settle()
+    expect(text(m.wrapper)).toContain('주력 일치')
+    expect(api.calls.filter((c) => c.url === '/api/v1/recommend')).toHaveLength(1)
+  })
+
+  it('처음 열면 이 계정의 마지막 추천 기록과 조건을 불러온다', async () => {
+    mockApi({
+      'GET /api/v1/profiles': json({ items: [profile()] }),
+      'GET /api/v1/search-runs': json({
+        items: [{ id: 5, kind: 'recommend', profile_id: 7, query: {}, result_count: 1 }],
+        total: 1,
+      }),
+      'GET /api/v1/search-runs/5': json({
+        id: 5,
+        kind: 'recommend',
+        profile_id: 7,
+        query: {
+          days: 30,
+          source: 'regular',
+          candidates_max: 40,
+          keywords: ['AI'],
+          custom_keywords: false,
+          include_small: true,
+        },
+        result_count: 1,
+        data_as_of: null,
+        from_cache: true,
+        created_at: '2026-11-17T01:00:00Z',
+        items: [card({ score: 72, reason: '지난 추천' })],
+        offset: 0,
+        limit: 50,
+      }),
+    })
+    m = await mountAt('/recommend')
+    await settle()
+    const t = text(m.wrapper)
+    expect(t).toContain('지난 추천')
+    expect(t).toContain(copy.recommend.restored('').trim())
+    const checked = m.wrapper
+      .findAll('input[type="radio"]')
+      .filter((r) => (r.element as HTMLInputElement).checked)
+      .map((r) => (r.element as HTMLInputElement).value)
+    expect(checked).toEqual(['30', '40'])
+    expect((m.wrapper.get('input[name="recommend-small"]').element as HTMLInputElement).checked).toBe(true)
+  })
 })
 
 const CONV = {

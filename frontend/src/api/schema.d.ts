@@ -2582,6 +2582,16 @@ export interface components {
              * @default 20
              */
             top_n: number;
+            /**
+             * Candidates
+             * @default 20
+             */
+            candidates: number;
+            /**
+             * Include Small
+             * @default false
+             */
+            include_small: boolean;
             /** Keywords */
             keywords?: string[] | null;
         };

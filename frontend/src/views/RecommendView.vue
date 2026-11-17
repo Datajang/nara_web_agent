@@ -1,10 +1,11 @@
 <script setup lang="ts">
 // 맞춤 추천 (SPEC §7.4). 프로필 필수, status(score)의 progress로 진행 막대, 점수 내림차순 카드.
+// 조건·진행·결과는 스토어에 있어 다른 화면에 다녀와도 그대로이고, 새로고침하면 마지막 추천 기록을 불러온다.
 import { useQuery } from '@tanstack/vue-query'
+import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { profilesApi } from '@/api/profiles'
-import type { BidCard, StreamEvent } from '@/api/types'
 import BidList from '@/components/bid/BidList.vue'
 import ProgressSteps from '@/components/bid/ProgressSteps.vue'
 import ChipInput from '@/components/ui/ChipInput.vue'
@@ -14,24 +15,38 @@ import UiSegmented from '@/components/ui/UiSegmented.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { useBookmarkToggle } from '@/composables/useBookmarkToggle'
-import { useSse } from '@/composables/useSse'
 import { copy } from '@/copy'
+import { useAuthStore } from '@/stores/auth'
+import { CANDIDATE_OPTIONS, DAY_OPTIONS, useRecommendStore } from '@/stores/recommend'
 import { generalMessage } from '@/utils/authErrors'
+import { formatDateTime } from '@/utils/format'
+
+const auth = useAuthStore()
+const store = useRecommendStore()
+const {
+  profileId,
+  days,
+  source,
+  candidates,
+  keywords,
+  includeSmall,
+  events,
+  stage,
+  streaming,
+  error,
+  cards,
+  ran,
+  restoredAt,
+} = storeToRefs(store)
+if (auth.me) void store.ensureFor(auth.me.id)
 
 const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => profilesApi.list() })
-const profileId = ref<number | null>(null)
-const days = ref<7 | 14 | 30>(14)
-const source = ref<'all' | 'regular' | 'prespec'>('all')
-const topN = ref<10 | 20 | 30>(20)
-const keywords = ref<string[]>([])
 const chips = ref<InstanceType<typeof ChipInput> | null>(null)
-const sse = useSse<StreamEvent>()
-const cards = ref<BidCard[]>([])
-const ran = ref(false)
 
+// 선택한(또는 기록에서 불러온) 프로필이 없어졌으면 기본 프로필로
 watch(
-  () => profiles.data.value?.items,
-  (items) => {
+  [() => profiles.data.value?.items, profileId],
+  ([items]) => {
     if (items?.length && !items.some((p) => p.id === profileId.value)) {
       profileId.value = (items.find((p) => p.is_default) ?? items[0])!.id
     }
@@ -40,37 +55,26 @@ watch(
 )
 
 const progress = computed(() => {
-  const last = [...sse.events.value]
+  const last = [...events.value]
     .reverse()
     .find((e) => e.type === 'status' && e.stage === 'score' && e.progress)
   return last && last.type === 'status' ? last.progress : null
 })
 const cachedScore = computed(() => {
-  const done = sse.events.value.find((e) => e.type === 'done')
+  const done = events.value.find((e) => e.type === 'done')
   return done?.type === 'done' && done.usage.cache.score === true
 })
 const errorText = computed(() => {
-  const err = sse.error.value
+  const err = error.value
   if (!err) return ''
   if (err.code === 'llm_unavailable') return copy.llm.unavailable
   if (err.code === 'stream_interrupted') return copy.common.streamInterrupted
   return err.status ? generalMessage(err) : copy.common.unknownError
 })
 
-async function run() {
-  if (profileId.value === null) return
+function run() {
   chips.value?.commit()
-  ran.value = true
-  cards.value = []
-  await sse.start('/recommend', {
-    profile_id: profileId.value,
-    days: days.value,
-    source: source.value,
-    top_n: topN.value,
-    keywords: keywords.value.length ? keywords.value : null,
-  })
-  const ev = sse.events.value.find((e) => e.type === 'cards')
-  if (ev?.type === 'cards') cards.value = ev.items
+  void store.run()
 }
 const toggleBookmark = useBookmarkToggle(cards)
 </script>
@@ -110,13 +114,16 @@ const toggleBookmark = useBookmarkToggle(cards)
         <UiSegmented
           v-model="days"
           :label="copy.recommend.days"
-          :options="[7, 14, 30].map((d) => ({ value: d as 7 | 14 | 30, label: copy.search.recentDays(d) }))"
+          :options="DAY_OPTIONS.map((d) => ({ value: d, label: copy.search.recentDays(d) }))"
         />
-        <UiSegmented
-          v-model="topN"
-          :label="copy.recommend.topN"
-          :options="[10, 20, 30].map((n) => ({ value: n as 10 | 20 | 30, label: copy.recommend.topNOption(n) }))"
-        />
+        <div class="flex flex-col gap-1">
+          <UiSegmented
+            v-model="candidates"
+            :label="copy.recommend.candidates"
+            :options="CANDIDATE_OPTIONS.map((n) => ({ value: n, label: copy.recommend.candidatesOption(n) }))"
+          />
+          <p class="text-sm text-text-3">{{ copy.recommend.candidatesHint }}</p>
+        </div>
         <div class="md:col-span-2">
           <ChipInput
             ref="chips"
@@ -125,13 +132,18 @@ const toggleBookmark = useBookmarkToggle(cards)
             :hint="copy.recommend.keywordsHint"
           />
         </div>
+        <label class="inline-flex items-center gap-2 text-sm text-text-2 md:col-span-2">
+          <input v-model="includeSmall" name="recommend-small" type="checkbox" class="size-4" />
+          {{ copy.recommend.includeSmall }}
+          <span v-if="!includeSmall" class="text-text-3">{{ copy.recommend.minBudgetNote }}</span>
+        </label>
         <div class="md:col-span-2">
-          <UiButton type="button" :loading="sse.streaming.value" @click="run">{{ copy.recommend.submit }}</UiButton>
+          <UiButton type="button" :loading="streaming" @click="run">{{ copy.recommend.submit }}</UiButton>
         </div>
       </form>
 
-      <div v-if="sse.streaming.value || progress" class="flex flex-col gap-2">
-        <ProgressSteps :stages="['search', 'score']" :current="sse.streaming.value ? sse.stage.value : null" />
+      <div v-if="streaming || progress" class="flex flex-col gap-2">
+        <ProgressSteps :stages="['search', 'score']" :current="streaming ? stage : null" />
         <div v-if="progress" class="flex items-center gap-3">
           <div
             role="progressbar"
@@ -155,7 +167,10 @@ const toggleBookmark = useBookmarkToggle(cards)
         <UiButton variant="secondary" size="sm" @click="run">{{ copy.common.retry }}</UiButton>
       </div>
       <p v-if="cachedScore" class="text-sm text-text-3">{{ copy.recommend.cached }}</p>
-      <EmptyState v-if="ran && !sse.streaming.value && !errorText && !cards.length" :title="copy.recommend.empty" />
+      <p v-if="restoredAt && !streaming" class="text-sm text-text-3">
+        {{ copy.recommend.restored(formatDateTime(restoredAt)) }}
+      </p>
+      <EmptyState v-if="ran && !streaming && !errorText && !cards.length" :title="copy.recommend.empty" />
       <BidList v-if="cards.length" :bids="cards" show-score @toggle-bookmark="toggleBookmark" />
     </template>
   </div>

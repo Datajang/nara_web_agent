@@ -75,4 +75,8 @@ class RecommendIn(BaseModel):
     days: int = Field(default=14, ge=1, le=90)
     source: Literal["regular", "prespec", "all"] = "all"
     top_n: int = Field(default=20, ge=1, le=50)
+    # 점수를 매길 후보 수(최신 순). 많을수록 오래 걸린다 (§7.4)
+    candidates: int = Field(default=20, ge=20, le=50)
+    # true면 1억원 미만(예산 미상 포함) 사업도 후보에 넣는다. 기본은 뺀다 (§7.4)
+    include_small: bool = False
     keywords: Annotated[list[Keyword], Field(max_length=10)] | None = None

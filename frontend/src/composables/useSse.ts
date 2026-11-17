@@ -35,7 +35,10 @@ export function parseEvent(block: string): SseEvent | null {
   return { ...parsed, type: eventName ?? String(parsed.type ?? 'message') } as SseEvent
 }
 
-export function useSse<E extends SseEvent = SseEvent>(): SseState<E> {
+/**
+ * keepAlive: 화면을 떠나도 스트림을 끊지 않는다(스토어에 두고 다른 탭에 다녀와도 진행을 이어 볼 때).
+ */
+export function useSse<E extends SseEvent = SseEvent>({ keepAlive = false } = {}): SseState<E> {
   const events = ref([]) as Ref<E[]>
   const stage = ref<string | null>(null)
   const streaming = ref(false)
@@ -111,7 +114,7 @@ export function useSse<E extends SseEvent = SseEvent>(): SseState<E> {
     streaming.value = false
   }
 
-  if (getCurrentInstance()) onBeforeUnmount(abort)
+  if (!keepAlive && getCurrentInstance()) onBeforeUnmount(abort)
 
   return { events, stage, streaming, error, start, abort }
 }

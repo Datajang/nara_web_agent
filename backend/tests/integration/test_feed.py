@@ -9,10 +9,10 @@ from tests.helpers import member, seed
 F = "/api/v1/feed"
 
 
-def _bid(no: str, title: str, days_ago: int = 1, deadline_in: int = 10):
+def _bid(no: str, title: str, days_ago: int = 1, deadline_in: int = 10, kind: str = "등록공고"):
     notice = NOW - timedelta(days=days_ago)
     return regular_item(
-        no, notice, title=title, deadline=kst_str(NOW + timedelta(days=deadline_in))
+        no, notice, title=title, deadline=kst_str(NOW + timedelta(days=deadline_in)), kind=kind
     )
 
 
@@ -27,6 +27,7 @@ async def _seed(full_api):
         _bid("R26BK74000005", "도로 포장 공사"),  # 관련 없음
         _bid("R26BK74000006", "AI 플랫폼 고도화", deadline_in=-1),  # 마감 지남
         _bid("R26BK74000007", "데이터 센터 이전", days_ago=40),  # 30일보다 오래됨
+        _bid("R26BK74000008", "데이터 분석 플랫폼", kind="취소공고"),  # 취소공고는 뺀다
     )
 
 

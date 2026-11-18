@@ -1,6 +1,6 @@
 """P6 관심 공고 (SPEC §13 P6 관심 공고 1~3). DB만 읽고 G2B·LLM을 부르지 않는다."""
 
-from datetime import timedelta
+from datetime import timedelta, timezone
 
 from tests.conftest import NOW
 from tests.fakes.g2b import kst_str, prespec_item, regular_item
@@ -148,4 +148,51 @@ async def test_feed_filters_by_title_source_and_selected_keywords(full_api):
     assert two_kw == ["공공 데이터 품질 관리", "클라우드 전환 컨설팅"]
     assert unknown_kw == everything
     assert combined == ["AI 플랫폼 구축 사업"]
+    assert bad.status_code == 422
+
+
+async def test_feed_counts_and_filters_by_deadline_window(full_api):
+    """2026-11-18 마감 보드: 한국 시간 날짜로 오늘 마감(D-day) / 3일 안(D-1~3) / 7일 안(D-4~7) /
+    8일 이후로 나눠 한 구간만 본다. 다른 조건(공고명 등)과 함께 걸리고, total은 그 구간 건수."""
+    kst = timezone(timedelta(hours=9))
+    # 11.10 00:00 KST
+    today = NOW.astimezone(kst).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    def at(days: int, hour: int) -> str:
+        return kst_str(today + timedelta(days=days, hours=hour))
+
+    notice = NOW - timedelta(days=1)
+    items = [
+        ("R26BK77000001", "AI 오늘 마감", at(0, 18)),
+        ("R26BK77000002", "AI 내일 마감", at(1, 10)),
+        ("R26BK77000003", "AI 사흘 뒤 밤", at(3, 23)),
+        ("R26BK77000004", "AI 나흘 뒤 아침", at(4, 9)),
+        ("R26BK77000005", "AI 이레 뒤", at(7, 18)),
+        ("R26BK77000006", "AI 여드레 뒤", at(8, 10)),
+    ]
+    await seed(
+        full_api.ctx.deps,
+        "regular",
+        *[regular_item(no, notice, title=t, deadline=d) for no, t, d in items],
+    )
+    c = await member(full_api, "due@corp.example")
+    await c.patch("/api/v1/me", json={"interest_keywords": ["AI", "검색", "데이터"]})
+
+    async def get(**params) -> dict:
+        return (await c.get(F, params=params)).json()
+
+    everything = await get()
+    windows = {d: await get(due=d) for d in ("today", "d3", "d7", "later")}
+    narrowed = await get(due="d3", q="내일")
+    bad = await c.get(F, params={"due": "x"})
+    await c.aclose()
+    assert everything["total"] == 6
+    assert {d: [it["title"] for it in r["items"]] for d, r in windows.items()} == {
+        "today": ["AI 오늘 마감"],
+        "d3": ["AI 내일 마감", "AI 사흘 뒤 밤"],
+        "d7": ["AI 나흘 뒤 아침", "AI 이레 뒤"],
+        "later": ["AI 여드레 뒤"],
+    }
+    assert {d: r["total"] for d, r in windows.items()} == {"today": 1, "d3": 2, "d7": 2, "later": 1}
+    assert [it["title"] for it in narrowed["items"]] == ["AI 내일 마감"] and narrowed["total"] == 1
     assert bad.status_code == 422

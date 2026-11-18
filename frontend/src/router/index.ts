@@ -9,6 +9,8 @@ declare module 'vue-router' {
     requiresAdmin?: boolean
     guestOnly?: boolean
     title?: string
+    /** 읽는 화면(상세·설정·양식)은 본문 최대 1200px. 표시 없으면 넓은 화면을 다 쓴다 (2026-11-18) */
+    narrow?: boolean
   }
 }
 
@@ -57,9 +59,9 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'onboarding',
         component: () => import('@/views/OnboardingView.vue'),
-        meta: { title: copy.onboarding.title },
+        meta: { title: copy.onboarding.title, narrow: true },
       },
-      { path: 'join', component: () => import('@/views/JoinView.vue'), meta: { title: copy.team.joinTitle } },
+      { path: 'join', component: () => import('@/views/JoinView.vue'), meta: { title: copy.team.joinTitle, narrow: true } },
       { path: 'search', component: () => import('@/views/SearchView.vue'), meta: { title: copy.nav.search } },
       {
         path: 'recommend',
@@ -74,7 +76,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'my-awards/bids/:no/:ord/:clsfc/:rbid',
         component: () => import('@/views/MyBidDetailView.vue'),
-        meta: { title: copy.myBids.detailTitle },
+        meta: { title: copy.myBids.detailTitle, narrow: true },
       },
       {
         path: 'companies',
@@ -89,14 +91,14 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'competitors/:bizno(\\d{10})',
         component: () => import('@/views/CompareView.vue'),
-        meta: { title: copy.competitors.compareTitle },
+        meta: { title: copy.competitors.compareTitle, narrow: true },
       },
       // §15.7의 /company는 관리 영역 하위 메뉴와 맞춰 /admin/company에 둔다
       { path: 'company', redirect: '/admin/company' },
       {
         path: 'bids/:bidId',
         component: () => import('@/views/BidDetailView.vue'),
-        meta: { title: copy.detail.analyzeTitle },
+        meta: { title: copy.detail.analyzeTitle, narrow: true },
       },
       {
         path: 'assistant/:conversationId?',
@@ -108,17 +110,17 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'settings/profiles',
         component: () => import('@/views/settings/ProfilesView.vue'),
-        meta: { title: copy.profile.title },
+        meta: { title: copy.profile.title, narrow: true },
       },
       {
         path: 'settings/team',
         component: () => import('@/views/settings/TeamView.vue'),
-        meta: { title: copy.team.title },
+        meta: { title: copy.team.title, narrow: true },
       },
       {
         path: 'settings/account',
         component: () => import('@/views/settings/AccountView.vue'),
-        meta: { title: copy.account.title },
+        meta: { title: copy.account.title, narrow: true },
       },
       {
         path: 'admin/users',
@@ -133,7 +135,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'admin/company',
         component: () => import('@/views/admin/CompanyView.vue'),
-        meta: { requiresAdmin: true, title: copy.company.title },
+        meta: { requiresAdmin: true, title: copy.company.title, narrow: true },
       },
       {
         path: 'admin/collector',
@@ -145,14 +147,14 @@ const routes: RouteRecordRaw[] = [
             {
               path: 'dev/components',
               component: () => import('@/views/dev/ComponentsView.vue'),
-              meta: { title: copy.dev.title },
+              meta: { title: copy.dev.title, narrow: true },
             },
           ]
         : []),
       {
         path: ':pathMatch(.*)*',
         component: () => import('@/views/NotFoundView.vue'),
-        meta: { title: copy.page.notFoundTitle },
+        meta: { title: copy.page.notFoundTitle, narrow: true },
       },
     ],
   },

@@ -4,12 +4,15 @@
 제목을 맞추고, 진행 중이며 최근 30일 공고를 마감 임박 순으로 낸다. 키워드가 3개 미만이면 비운다.
 예산은 기본 1억 원 이상만(예산 없는 공고도 뺀다), 사용자가 설정하면 전부.
 화면에서 고른 조건(FeedFilter: 공고명, 일반/사전규격, 내 키워드 중 일부)으로 더 좁힐 수 있다.
+마감 보드(2026-11-18): 한국 시간 날짜로 오늘(D-day) / 3일 안(D-1~3) / 7일 안(D-4~7) / 8일 이후
+(마감 미정 포함) 중 한 구간만 골라 본다(FeedFilter.due).
+보드는 칸마다 한 번씩 부르고 total을 칸 건수로 쓴다.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from sqlalchemy import ColumnElement, and_, func, or_, select
@@ -22,6 +25,9 @@ from app.search.query import _like, not_cancelled, title_contains
 WINDOW_DAYS = 30
 MIN_KEYWORDS = 3
 MIN_BUDGET = 100_000_000  # 기본은 1억 원 이상만, users.feed_include_small이면 전부 (2026-11-16)
+KST = timezone(timedelta(hours=9))
+
+Due = Literal["all", "today", "d3", "d7", "later"]
 
 
 @dataclass
@@ -41,6 +47,7 @@ class FeedFilter:
     q: str | None = None
     source: Literal["all", "regular", "prespec"] = "all"
     keywords: tuple[str, ...] = ()
+    due: Due = "all"
 
 
 def _words(kw: str) -> list[str]:
@@ -54,6 +61,20 @@ def _cond(kw: str) -> ColumnElement[bool]:
 def matched_keywords(title: str, keywords: list[str]) -> list[str]:
     t = title.casefold()
     return [k for k in keywords if all(w.casefold() in t for w in _words(k))]
+
+
+def due_condition(due: Due, now: datetime) -> ColumnElement[bool] | None:
+    """마감 구간 조건. 경계는 한국 시간 자정 +1일·+4일·+8일. 지난 마감은 다른 조건이 뺀다."""
+    start = now.astimezone(KST).replace(hour=0, minute=0, second=0, microsecond=0)
+    d1, d4, d8 = (start + timedelta(days=n) for n in (1, 4, 8))
+    dl = Bid.deadline_at
+    return {
+        "all": None,
+        "today": dl < d1,
+        "d3": and_(dl >= d1, dl < d4),
+        "d7": and_(dl >= d4, dl < d8),
+        "later": or_(dl.is_(None), dl >= d8),
+    }[due]
 
 
 async def keywords_for(s: AsyncSession, user: User) -> list[str]:
@@ -88,6 +109,8 @@ async def load_feed(
         where += (Bid.source == flt.source,)
     if flt.q and (cond := title_contains(flt.q)) is not None:
         where += (cond,)
+    if (due := due_condition(flt.due, now)) is not None:
+        where += (due,)
     total = await s.scalar(select(func.count()).select_from(Bid).where(*where)) or 0
     rows = await s.scalars(
         select(Bid)

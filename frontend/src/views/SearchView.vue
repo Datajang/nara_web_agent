@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 공고 검색 (SPEC §7.3). 조건은 URL과 동기화하고, 결과는 DB-first 검색(§6.3)의 스냅샷을 쓴다.
+// 2026-11-18 넓은 화면 개편: 접는 큰 폼 대신 두 줄 조건 카드, 정렬은 결과 머리에서 바로 바꾼다.
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
-import { ChevronDown } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { bidsApi } from '@/api/bids'
@@ -15,7 +15,6 @@ import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiSegmented from '@/components/ui/UiSegmented.vue'
-import UiSelect from '@/components/ui/UiSelect.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import {
   defaultState,
@@ -38,7 +37,6 @@ const router = useRouter()
 const queryClient = useQueryClient()
 const form = ref<SearchState>(parseSearch(route.query))
 const chips = ref<InstanceType<typeof ChipInput> | null>(null)
-const open = ref(true)
 const result = ref<SearchResult | null>(null)
 const items = ref<BidCard[]>([])
 const loading = ref(false)
@@ -127,6 +125,16 @@ async function more() {
   }
 }
 
+const sortOptions: Array<{ value: SearchState['sort']; label: string }> = [
+  { value: 'notice_desc', label: copy.search.sortNotice },
+  { value: 'deadline_asc', label: copy.search.sortDeadline },
+  { value: 'budget_desc', label: copy.search.sortBudget },
+]
+function onSort(v: SearchState['sort']) {
+  form.value.sort = v
+  void submit()
+}
+
 const hasMore = computed(() => !!result.value && items.value.length < result.value.total)
 const setView = (v: 'cards' | 'table') => {
   form.value.view = v
@@ -138,105 +146,126 @@ const toggleBookmark = useBookmarkToggle(items)
 
 <template>
   <div class="flex flex-col gap-4">
-    <section class="rounded-card border border-border bg-surface" :aria-label="copy.search.formLabel">
+    <div v-if="recent.data.value?.items.length" class="flex flex-wrap items-center gap-2">
+      <span class="text-xs font-semibold text-text-3">{{ copy.search.recent }}</span>
       <button
+        v-for="r in recent.data.value.items"
+        :key="r.id"
         type="button"
-        class="flex h-12 w-full items-center justify-between px-4 text-base font-semibold"
-        :aria-expanded="open"
-        aria-controls="search-form"
-        @click="open = !open"
+        class="h-8 rounded-control border border-border bg-surface px-3 text-sm text-text-2 hover:border-primary hover:text-primary"
+        @click="useRecent(r.query)"
       >
-        {{ copy.search.formLabel }}
-        <ChevronDown class="size-4 transition-transform" :class="open ? 'rotate-180' : ''" aria-hidden="true" />
+        {{ recentLabel(r.query) }}
       </button>
-      <form
-        v-show="open"
-        id="search-form"
-        class="grid gap-4 border-t border-border p-4 md:grid-cols-2"
-        @submit.prevent="submit"
-      >
-        <div class="md:col-span-2">
+    </div>
+
+    <!-- 조건 카드 (2026-11-18, 시안 D): 1줄 키워드·일치·공고명·검색, 2줄 구분·기간·상태·예산·기관·초기화 -->
+    <form
+      id="search-form"
+      :aria-label="copy.search.formLabel"
+      class="flex flex-col gap-3 rounded-card border border-border bg-surface px-3.5 py-3"
+      @submit.prevent="submit"
+    >
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="min-w-0 flex-[1_1_420px]">
           <ChipInput
             ref="chips"
             v-model="form.keywords"
             :label="copy.search.keywords"
             :hint="copy.search.keywordsHint"
+            :placeholder="copy.search.keywordsPlaceholder"
+            hide-label
             :max="10"
-          />
-        </div>
-        <div class="md:col-span-2">
-          <UiInput
-            v-model="form.title"
-            name="title"
-            :label="copy.search.title"
-            :hint="copy.search.titleHint"
-            :max-length="200"
           />
         </div>
         <UiSegmented
           v-model="form.match"
           :label="copy.search.match"
+          hide-label
           :options="[
             { value: 'all', label: copy.search.matchAll },
             { value: 'any', label: copy.search.matchAny },
           ]"
         />
-        <UiSegmented
-          v-model="form.status"
-          :label="copy.search.status"
-          :options="[
-            { value: 'open', label: copy.search.statusOpen },
-            { value: 'all', label: copy.search.statusAll },
-          ]"
-        />
-        <div class="md:col-span-2">
-          <UiSegmented v-model="form.period" :label="copy.search.period" :options="periodOptions" />
-          <div v-if="form.period === 'custom'" class="mt-3 grid grid-cols-2 gap-3 sm:max-w-md">
-            <UiInput v-model="form.from" type="date" :label="copy.search.from" />
-            <UiInput v-model="form.to" type="date" :label="copy.search.to" />
+        <div class="w-full sm:w-72">
+          <UiInput
+            v-model="form.title"
+            name="title"
+            :label="copy.search.title"
+            :placeholder="copy.search.titlePlaceholder"
+            hide-label
+            :max-length="200"
+          />
+        </div>
+        <UiButton type="submit" :loading="loading">{{ copy.search.submit }}</UiButton>
+      </div>
+      <div class="flex flex-wrap items-center gap-x-5 gap-y-2.5 border-t border-border pt-3">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-text-3" aria-hidden="true">{{ copy.search.source }}</span>
+          <UiSegmented
+            v-model="form.source"
+            :label="copy.search.source"
+            hide-label
+            :options="[
+              { value: 'all', label: copy.search.sourceAll },
+              { value: 'regular', label: copy.bid.regular },
+              { value: 'prespec', label: copy.bid.prespec },
+            ]"
+          />
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-xs font-semibold text-text-3" aria-hidden="true">{{ copy.search.period }}</span>
+          <UiSegmented v-model="form.period" :label="copy.search.period" hide-label :options="periodOptions" />
+          <template v-if="form.period === 'custom'">
+            <div class="w-40"><UiInput v-model="form.from" type="date" :label="copy.search.from" hide-label /></div>
+            <span class="text-text-3" aria-hidden="true">~</span>
+            <div class="w-40"><UiInput v-model="form.to" type="date" :label="copy.search.to" hide-label /></div>
+          </template>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-text-3" aria-hidden="true">{{ copy.search.status }}</span>
+          <UiSegmented
+            v-model="form.status"
+            :label="copy.search.status"
+            hide-label
+            :options="[
+              { value: 'open', label: copy.search.statusOpen },
+              { value: 'all', label: copy.search.statusAll },
+            ]"
+          />
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-text-3" aria-hidden="true">{{ copy.search.budget }}</span>
+          <div class="w-28">
+            <UiInput v-model="form.budgetMin" type="number" :label="copy.search.budgetMin" hide-label />
+          </div>
+          <span class="text-text-3" aria-hidden="true">~</span>
+          <div class="w-28">
+            <UiInput
+              v-model="form.budgetMax"
+              type="number"
+              :label="copy.search.budgetMax"
+              :placeholder="copy.search.budgetMaxPlaceholder"
+              hide-label
+            />
           </div>
         </div>
-        <UiSelect
-          v-model="form.source"
-          :label="copy.search.source"
-          :options="[
-            { value: 'all', label: copy.search.sourceAll },
-            { value: 'regular', label: copy.bid.regular },
-            { value: 'prespec', label: copy.bid.prespec },
-          ]"
-        />
-        <UiSelect
-          v-model="form.sort"
-          :label="copy.search.sort"
-          :options="[
-            { value: 'notice_desc', label: copy.search.sortNotice },
-            { value: 'deadline_asc', label: copy.search.sortDeadline },
-            { value: 'budget_desc', label: copy.search.sortBudget },
-          ]"
-        />
-        <div class="grid grid-cols-2 gap-3">
-          <UiInput v-model="form.budgetMin" type="number" :label="copy.search.budgetMin" :hint="copy.search.budgetMinHint" />
-          <UiInput v-model="form.budgetMax" type="number" :label="copy.search.budgetMax" />
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-text-3" aria-hidden="true">{{ copy.search.org }}</span>
+          <div class="w-44">
+            <UiInput
+              v-model="form.org"
+              :label="copy.search.org"
+              :placeholder="copy.search.orgPlaceholder"
+              hide-label
+              :max-length="100"
+            />
+          </div>
         </div>
-        <UiInput v-model="form.org" :label="copy.search.org" :max-length="100" />
-        <div class="flex gap-2 md:col-span-2">
-          <UiButton type="submit" :loading="loading">{{ copy.search.submit }}</UiButton>
-          <UiButton variant="ghost" @click="reset">{{ copy.search.reset }}</UiButton>
-        </div>
-      </form>
-      <div v-if="recent.data.value?.items.length" class="flex flex-wrap items-center gap-2 border-t border-border px-4 py-3">
-        <span class="text-sm text-text-3">{{ copy.search.recent }}</span>
-        <button
-          v-for="r in recent.data.value.items"
-          :key="r.id"
-          type="button"
-          class="h-8 rounded-control border border-border-input px-3 text-sm text-text-2 hover:bg-surface-2"
-          @click="useRecent(r.query)"
-        >
-          {{ recentLabel(r.query) }}
-        </button>
+        <UiButton variant="ghost" class="lg:ml-auto" @click="reset">{{ copy.search.reset }}</UiButton>
       </div>
-    </section>
+      <p class="text-xs text-text-3">{{ copy.search.budgetMinHint }}</p>
+    </form>
 
     <UiSkeleton v-if="loading" :lines="4" />
     <div v-else-if="failed" class="flex flex-col items-start gap-2 rounded-card border border-border bg-surface p-4" role="alert">
@@ -248,7 +277,14 @@ const toggleBookmark = useBookmarkToggle(items)
         <span class="text-base font-semibold tabular">{{ copy.search.total(result.total) }}</span>
         <DataAsOfBadge :as-of="result.data_as_of" :incomplete="result.incomplete" />
         <UiBadge v-if="result.collecting" tone="warning">{{ copy.data.collecting }}</UiBadge>
-        <div class="ml-auto">
+        <div class="ml-auto flex flex-wrap items-center gap-2">
+          <UiSegmented
+            :model-value="form.sort"
+            :label="copy.search.sort"
+            hide-label
+            :options="sortOptions"
+            @update:model-value="onSort"
+          />
           <UiSegmented
             v-model="view"
             :label="copy.search.view"

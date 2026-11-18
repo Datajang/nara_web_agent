@@ -3825,6 +3825,7 @@ export interface operations {
                 q?: string | null;
                 source?: "all" | "regular" | "prespec";
                 kw?: string[] | null;
+                due?: "all" | "today" | "d3" | "d7" | "later";
             };
             header?: never;
             path?: never;

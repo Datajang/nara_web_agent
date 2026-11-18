@@ -17,21 +17,22 @@ const years = computed(() => [...props.summary.by_year].reverse()) // 최근 해
 
 <template>
   <div class="flex flex-col gap-4">
-    <dl class="grid grid-cols-2 gap-3 lg:grid-cols-4" data-summary-cards>
-      <div class="rounded-card border border-border bg-surface p-4">
-        <dt class="text-sm text-text-2">{{ copy.awards.count }}</dt>
+    <!-- 요약 숫자 띠 (2026-11-18 시안 D): 카드 하나를 칸으로 나눈다(1px 간격이 구분선) -->
+    <dl class="grid grid-cols-2 gap-px overflow-hidden rounded-card border border-border bg-border lg:grid-cols-4" data-summary-cards>
+      <div class="bg-surface px-5 py-4">
+        <dt class="text-xs text-text-3">{{ copy.awards.count }}</dt>
         <dd class="mt-1 text-2xl font-semibold tabular">{{ copy.awards.countUnit(summary.count) }}</dd>
       </div>
-      <div class="rounded-card border border-border bg-surface p-4">
-        <dt class="text-sm text-text-2">{{ copy.awards.amountSum }}</dt>
+      <div class="bg-surface px-5 py-4">
+        <dt class="text-xs text-text-3">{{ copy.awards.amountSum }}</dt>
         <dd class="mt-1 text-2xl font-semibold"><MoneyText :value="summary.amount_sum" /></dd>
       </div>
-      <div class="rounded-card border border-border bg-surface p-4">
-        <dt class="text-sm text-text-2">{{ copy.awards.amountAvg }}</dt>
+      <div class="bg-surface px-5 py-4">
+        <dt class="text-xs text-text-3">{{ copy.awards.amountAvg }}</dt>
         <dd class="mt-1 text-2xl font-semibold"><MoneyText :value="summary.amount_avg" /></dd>
       </div>
-      <div class="rounded-card border border-border bg-surface p-4">
-        <dt class="text-sm text-text-2">{{ copy.awards.orgCount }}</dt>
+      <div class="bg-surface px-5 py-4">
+        <dt class="text-xs text-text-3">{{ copy.awards.orgCount }}</dt>
         <dd class="mt-1 text-2xl font-semibold tabular">{{ copy.awards.orgUnit(summary.org_count) }}</dd>
       </div>
     </dl>

@@ -123,6 +123,20 @@ describe('SearchView', () => {
     expect((m.wrapper.get('input[name="title"]').element as HTMLInputElement).value).toBe(titled)
   })
 
+  it('정렬은 결과 머리에서 바로 바꾸고 다시 검색한다, 조건 칸 이름표는 낭독기용 (2026-11-18)', async () => {
+    const api = mockApi(routes())
+    m = await mountAt('/search?q=AI')
+    await m.wrapper.findAll('label').find((l) => l.text() === copy.search.sortDeadline)!.find('input').setValue(true)
+    await settle()
+    expect(m.router.currentRoute.value.query.sort).toBe('deadline_asc')
+    expect(api.calls.filter((c) => c.url === '/api/v1/bids/search').slice(-1)[0]!.body).toMatchObject({
+      sort: 'deadline_asc',
+    })
+    const form = m.wrapper.get('form#search-form')
+    expect(form.findAll('label').find((l) => l.text() === copy.search.title)!.classes()).toContain('sr-only')
+    expect(form.findAll('label').find((l) => l.text() === copy.search.keywords)!.classes()).toContain('sr-only')
+  })
+
   it('최근 검색 칩에 공고명도 보인다', async () => {
     const withTitle = { ...RECENT, items: [{ ...RECENT.items[0]!, query: { keywords: [], title: '생육지원 데이터센터', days: 14 } }] }
     mockApi({ ...routes(), 'GET /api/v1/search-runs': json(withTitle) })

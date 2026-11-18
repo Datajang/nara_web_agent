@@ -20,11 +20,16 @@ export const teamsApi = {
   leave: () => api.post<void>('/teams/me/leave'),
 }
 
+/** 마감 구간 (2026-11-18 마감 보드): 한국 시간 날짜로 오늘 / 1~3일 / 4~7일 / 8일 이후·미정. */
+export type Due = 'today' | 'd3' | 'd7' | 'later'
+export const DUE_WINDOWS: Due[] = ['today', 'd3', 'd7', 'later']
+
 /** 관심 공고 안에서 좁히기 (2026-11-16). 비운 값은 보내지 않는다. */
 export interface FeedFilter {
   q?: string
   source?: 'all' | 'regular' | 'prespec'
   kw?: string[]
+  due?: Due
 }
 
 export const feedApi = {
@@ -33,6 +38,7 @@ export const feedApi = {
     if (filter.q?.trim()) p.set('q', filter.q.trim())
     if (filter.source && filter.source !== 'all') p.set('source', filter.source)
     for (const k of filter.kw ?? []) p.append('kw', k)
+    if (filter.due) p.set('due', filter.due)
     const f = await api.get<Feed>(`/feed?${p}`)
     const items: FeedItem[] = f.items.map((i) => ({ ...i, score: i.score ?? null, reason: i.reason ?? null }))
     return { ...f, items }

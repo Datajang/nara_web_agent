@@ -49,6 +49,9 @@ describe('RecommendView', () => {
     const t = text(m.wrapper)
     expect(t).toContain('주력 일치')
     expect(t).toContain(copy.score.high)
+    // 적합도는 왼쪽 칸에 숫자로, 막대는 쓰지 않는다 (2026-11-18 사용자 요청)
+    expect(m.wrapper.findAll('[data-score]').map((x) => x.text())).toEqual([`88${copy.score.high}`, `61${copy.score.mid}`])
+    expect(m.wrapper.findAll('[data-score] [role="progressbar"], [data-score] [style*="width"]')).toHaveLength(0)
     expect(t).toContain(copy.recommend.cached)
     expect(m.wrapper.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('2')
   })
@@ -149,7 +152,7 @@ describe('RecommendView', () => {
       .findAll('input[type="radio"]')
       .filter((r) => (r.element as HTMLInputElement).checked)
       .map((r) => (r.element as HTMLInputElement).value)
-    expect(checked).toEqual(['30', '40'])
+    expect(checked).toEqual(['regular', '30', '40']) // 구분·기간·검토 수 (구분도 2026-11-18부터 라디오)
     expect((m.wrapper.get('input[name="recommend-small"]').element as HTMLInputElement).checked).toBe(true)
   })
 })
@@ -200,6 +203,26 @@ describe('AssistantView', () => {
     const t = text(m.wrapper)
     expect(t).toContain('찾은 공고예요: b101')
     expect(m.wrapper.find('a[href="/bids/b101"]').exists()).toBe(true)
+  })
+
+  it('대화에 나온 공고는 오른쪽 칸에 중복 없이, 최근 답 것이 위로 모인다 (2026-11-18)', async () => {
+    mockApi(
+      chatRoutes(json({}), {
+        'GET /api/v1/conversations/4/messages': json({
+          items: [
+            { role: 'user', content: '찾아줘', cards: [] },
+            { role: 'assistant', content: '처음 답', cards: [card(), card({ bid_id: 'b102', title: '데이터 플랫폼' })] },
+            { role: 'user', content: '더', cards: [] },
+            { role: 'assistant', content: '다음 답', cards: [card({ bid_id: 'b103', title: '클라우드 전환' }), card()] },
+          ],
+        }),
+      }),
+    )
+    m = await mountAt('/assistant/4')
+    await settle()
+    const aside = m.wrapper.get('[data-ref-cards]')
+    expect(aside.findAll('h3').map((h) => h.text())).toEqual(['클라우드 전환', card().title, '데이터 플랫폼'])
+    expect(aside.find(`button[aria-label="${copy.bid.bookmarkAdd}"]`).exists()).toBe(false)
   })
 
   it('도우미 답은 마크다운으로: 굵게·표, 질문은 글자 그대로', async () => {

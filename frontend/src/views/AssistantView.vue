@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// AI 어시스턴트 (SPEC §7.6). 좌측 대화 목록, 우측 대화창. 토큰 스트리밍, 인라인 카드, 액션은 버튼으로.
+// AI 어시스턴트 (SPEC §7.6). 좌측 대화 목록, 가운데 대화창. 토큰 스트리밍, 인라인 카드, 액션은 버튼으로.
+// 2026-11-18: 1400px 이상이면 오른쪽에 '대화에 나온 공고'(답에 붙은 카드를 중복 없이 모음) 칸을 둔다.
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { MessageSquarePlus, Trash2 } from 'lucide-vue-next'
 import { computed, nextTick, ref, watch } from 'vue'
@@ -7,6 +8,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { assistantApi } from '@/api/assistant'
 import { profilesApi } from '@/api/profiles'
 import type { BidCard, StreamEvent } from '@/api/types'
+import BidBoardCard from '@/components/bid/BidBoardCard.vue'
 import ChatComposer from '@/components/chat/ChatComposer.vue'
 import ChatMessage, { type ChatAction } from '@/components/chat/ChatMessage.vue'
 import UiButton from '@/components/ui/UiButton.vue'
@@ -49,6 +51,19 @@ const draft = ref('')
 const sse = useSse<StreamEvent>()
 const listEl = ref<HTMLElement | null>(null)
 const removing = ref(false)
+// 대화에 나온 공고: 최근 답에 나온 것이 위로, 같은 공고는 한 번만
+const refCards = computed(() => {
+  const seen = new Set<string>()
+  const out: BidCard[] = []
+  for (const m of [...messages.value].reverse()) {
+    for (const c of m.cards) {
+      if (seen.has(c.bid_id)) continue
+      seen.add(c.bid_id)
+      out.push(c)
+    }
+  }
+  return out
+})
 let seq = 0
 let skipReload = false
 
@@ -215,7 +230,7 @@ const tooLong = computed(() => messages.value.length >= MAX_MESSAGES)
 </script>
 
 <template>
-  <div class="grid gap-4 md:grid-cols-[280px_1fr]">
+  <div class="grid gap-4 md:grid-cols-[260px_minmax(0,1fr)] min-[1400px]:grid-cols-[260px_minmax(0,1fr)_320px]">
     <aside class="flex flex-col gap-2" :aria-label="copy.assistant.listLabel">
       <RouterLink
         to="/assistant"
@@ -282,6 +297,23 @@ const tooLong = computed(() => messages.value.length >= MAX_MESSAGES)
         <ChatComposer v-model="draft" :streaming="sse.streaming.value" @send="send" @stop="stopStream" />
       </div>
     </section>
+
+    <aside
+      class="hidden min-w-0 flex-col gap-3 self-start min-[1400px]:flex"
+      :aria-label="copy.assistant.refsTitle"
+      data-ref-cards
+    >
+      <h2 class="text-md font-bold">
+        {{ copy.assistant.refsTitle }}
+        <span v-if="refCards.length" class="ml-1 text-sm font-semibold tabular text-text-2">{{ refCards.length }}</span>
+      </h2>
+      <p v-if="!refCards.length" class="rounded-card border border-dashed border-border px-4 py-6 text-center text-sm text-text-3">
+        {{ copy.assistant.refsEmpty }}
+      </p>
+      <ul v-else class="flex flex-col gap-2.5">
+        <li v-for="c in refCards" :key="c.bid_id"><BidBoardCard :bid="c" :bookmarkable="false" /></li>
+      </ul>
+    </aside>
 
     <UiModal v-model:open="removing" :title="copy.admin.confirmTitle" :description="copy.assistant.confirmRemove">
       <template #actions>

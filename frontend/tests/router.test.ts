@@ -57,4 +57,12 @@ describe('router guard', () => {
     expect(r.path).toBe('/')
     expect(r.meta.title).toBe(copy.feed.title)
   })
+
+  it('목록 화면은 넓은 화면을 다 쓰고, 읽는 화면만 narrow(최대 1200px) (2026-11-18)', async () => {
+    const wide = ['/', '/search', '/recommend', '/my-awards', '/companies', '/competitors', '/library']
+    const narrow = ['/bids/b1', '/settings/profiles', '/settings/account', '/onboarding', '/competitors/1234567890']
+    const got: Record<string, boolean> = {}
+    for (const p of [...wide, ...narrow]) got[p] = !!(await go(p, MEMBER)).meta.narrow
+    expect(got).toEqual(Object.fromEntries([...wide.map((p) => [p, false]), ...narrow.map((p) => [p, true])]))
+  })
 })

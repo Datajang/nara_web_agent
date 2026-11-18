@@ -13,6 +13,7 @@ import ScoreBadge from '@/components/bid/ScoreBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiFilterBar from '@/components/ui/UiFilterBar.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import UiTabs from '@/components/ui/UiTabs.vue'
@@ -205,13 +206,13 @@ function unbookmark(b: BidCard) {
 
     <!-- 북마크 -->
     <template v-else>
-      <div class="flex flex-wrap items-end gap-3">
+      <UiFilterBar :label="copy.library.tabBookmarks">
         <input
           v-model="filter"
           type="search"
           :aria-label="copy.library.filterTitle"
           :placeholder="copy.library.filterTitle"
-          class="h-10 w-64 rounded-control border border-border-input bg-surface px-3 text-base"
+          class="h-10 w-full rounded-control border border-border-input bg-surface px-3 text-base sm:w-72"
         />
         <div class="w-44">
           <UiSelect
@@ -224,13 +225,19 @@ function unbookmark(b: BidCard) {
             ]"
           />
         </div>
-      </div>
+      </UiFilterBar>
       <UiSkeleton v-if="bookmarks.isPending.value" />
       <EmptyState v-else-if="!bookmarks.data.value?.items.length" :title="copy.library.emptyBookmarks" />
+      <!-- 북마크 한 건 = 카드 하나. 넓으면 오른쪽에 메모를 나란히 (2026-11-18 시안 D) -->
       <ul v-else class="grid gap-3">
-        <li v-for="b in shownBookmarks" :key="b.bid.bid_id" class="flex flex-col gap-2">
+        <li
+          v-for="b in shownBookmarks"
+          :key="b.bid.bid_id"
+          class="overflow-hidden rounded-card border border-border bg-surface xl:grid xl:grid-cols-[minmax(0,1fr)_24rem]"
+          data-bookmark
+        >
           <BidCardView :bid="b.bid" @toggle-bookmark="unbookmark" />
-          <div class="flex flex-col gap-2 rounded-card border border-border bg-surface p-3">
+          <div class="flex flex-col gap-2 border-t border-border bg-surface-2/50 p-3 xl:border-l xl:border-t-0">
             <UiTextarea v-model="notes[b.bid.bid_id]" :label="copy.library.note" :rows="2" :max-length="1000" />
             <div class="flex flex-wrap gap-2">
               <UiButton size="sm" variant="secondary" @click="saveNote(b)">{{ copy.library.noteSave }}</UiButton>

@@ -7,6 +7,7 @@ import { keyPath, myBidsApi, rankText, resultBadge, type MyBid, type MyBidFilter
 import MoneyText from '@/components/bid/MoneyText.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiFilterBar from '@/components/ui/UiFilterBar.vue'
 import UiSegmented from '@/components/ui/UiSegmented.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { copy } from '@/copy'
@@ -66,8 +67,12 @@ const keyOf = (b: MyBid) => keyPath(b)
 <template>
   <section class="flex flex-col gap-3" :aria-label="copy.myBids.tabBids">
     <p class="text-sm text-text-2">{{ copy.myBids.intro }}</p>
-    <p v-if="scanText" class="text-xs text-text-3" data-scan>{{ scanText }}</p>
-    <UiSegmented v-model="filter" :label="copy.myBids.filterLabel" :options="options" hide-label />
+    <UiFilterBar :label="copy.myBids.filterLabel">
+      <UiSegmented v-model="filter" :label="copy.myBids.filterLabel" :options="options" hide-label />
+      <template v-if="scanText" #end>
+        <p class="text-xs text-text-3" data-scan>{{ scanText }}</p>
+      </template>
+    </UiFilterBar>
 
     <p v-if="failed" class="flex items-center gap-3 text-danger-fg" role="alert">
       {{ copy.myBids.loadFailed }}
@@ -77,7 +82,7 @@ const keyOf = (b: MyBid) => keyPath(b)
     <p v-else-if="!items.length" class="py-6 text-center text-text-3">{{ emptyText }}</p>
     <div v-else class="overflow-x-auto rounded-card border border-border bg-surface">
       <table class="w-full min-w-[820px] text-sm" data-my-bids>
-        <thead class="bg-surface-2 text-left text-text-2">
+        <thead class="bg-surface-2 text-left text-xs font-semibold text-text-3">
           <tr>
             <th scope="col" class="px-3 py-2">{{ copy.myBids.colDate }}</th>
             <th scope="col" class="px-3 py-2">{{ copy.myBids.colTitle }}</th>

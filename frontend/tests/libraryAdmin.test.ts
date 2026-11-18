@@ -88,6 +88,8 @@ describe('LibraryView', () => {
       'PUT /api/v1/bookmarks/b101': json(null, 204),
     })
     m = await mountAt('/library?tab=bookmarks')
+    // 북마크 한 건은 카드 하나에 공고와 메모가 같이 (2026-11-18)
+    expect(m.wrapper.get('[data-bookmark]').find('textarea').exists()).toBe(true)
     const note = m.wrapper.findAll('textarea')[0]!
     await note.setValue('다시 검토')
     await m.wrapper.findAll('button').find((b) => b.text() === copy.library.noteSave)!.trigger('click')

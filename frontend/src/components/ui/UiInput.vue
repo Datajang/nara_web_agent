@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// 입력 (SPEC §10.4). 라벨은 항상 보이고, 도움말·오류는 aria-describedby로 연결한다.
+// 입력 (SPEC §10.4). 라벨은 기본으로 보이고, 도움말·오류는 aria-describedby로 연결한다.
+// 조건 막대처럼 자리가 좁은 곳만 hideLabel(화면 낭독기에는 그대로 읽힘) + placeholder로 쓴다.
 import { computed, useId } from 'vue'
 
 const props = withDefaults(
@@ -14,6 +15,7 @@ const props = withDefaults(
     name?: string
     placeholder?: string
     size?: 'md' | 'lg'
+    hideLabel?: boolean
   }>(),
   {
     type: 'text',
@@ -25,6 +27,7 @@ const props = withDefaults(
     name: undefined,
     placeholder: undefined,
     size: 'md',
+    hideLabel: false,
   },
 )
 const model = defineModel<string>({ default: '' })
@@ -39,9 +42,11 @@ const describedBy = computed(
 
 <template>
   <div class="flex flex-col gap-1.5">
-    <label :for="id" class="text-base text-text" :class="size === 'lg' ? 'font-semibold' : 'font-medium'">{{
-      label
-    }}</label>
+    <label
+      :for="id"
+      class="text-base text-text"
+      :class="[size === 'lg' ? 'font-semibold' : 'font-medium', hideLabel ? 'sr-only' : '']"
+    >{{ label }}</label>
     <input
       :id="id"
       v-model="model"

@@ -72,70 +72,72 @@ const orgOptions = computed(() => [
         <AwardsBasis :period="summary.data.value.period" />
       </header>
 
-      <section class="rounded-card border border-border bg-surface p-4" :aria-label="copy.competitors.radar">
-        <div class="mb-3 flex flex-wrap items-end gap-3">
-          <div class="w-full sm:mr-auto sm:w-auto">
-            <h3 class="text-lg font-semibold">{{ copy.competitors.radar }}</h3>
-            <p class="text-sm text-text-2">{{ copy.competitors.radarIntro }}</p>
+      <div class="grid items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <section class="min-w-0 rounded-card border border-border bg-surface p-4" :aria-label="copy.competitors.radar">
+          <div class="mb-3 flex flex-wrap items-end gap-3">
+            <div class="w-full sm:mr-auto sm:w-auto">
+              <h3 class="text-lg font-semibold">{{ copy.competitors.radar }}</h3>
+              <p class="text-sm text-text-2">{{ copy.competitors.radarIntro }}</p>
+            </div>
+            <div class="w-full sm:w-44"><UiSelect v-model="field" :label="copy.awards.filterField" :options="fieldOptions" /></div>
+            <div class="w-full sm:w-56"><UiSelect v-model="org" :label="copy.awards.filterOrg" :options="orgOptions" /></div>
           </div>
-          <div class="w-full sm:w-44"><UiSelect v-model="field" :label="copy.awards.filterField" :options="fieldOptions" /></div>
-          <div class="w-full sm:w-56"><UiSelect v-model="org" :label="copy.awards.filterOrg" :options="orgOptions" /></div>
-        </div>
-        <p class="mb-2 text-xs text-text-3">{{ copy.competitors.overlapHelp }}</p>
-        <UiSkeleton v-if="cands.isPending.value" :lines="2" />
-        <p v-else-if="cands.isError.value" class="text-danger-fg" role="alert">{{ copy.awards.loadFailed }}</p>
-        <p v-else-if="!cands.data.value?.items.length" class="py-6 text-center text-text-3">{{ copy.competitors.noCandidates }}</p>
-        <div v-else class="overflow-x-auto">
-          <table class="w-full min-w-[720px] text-sm" data-candidates>
-            <thead class="bg-surface-2 text-left text-text-2">
-              <tr>
-                <th scope="col" class="w-14 whitespace-nowrap px-3 py-2 text-right">{{ copy.competitors.colRank }}</th>
-                <th scope="col" class="px-3 py-2">{{ copy.competitors.colCompany }}</th>
-                <th scope="col" class="w-56 px-3 py-2">{{ copy.competitors.colOverlap }}</th>
-                <th scope="col" class="px-3 py-2 text-right">{{ copy.competitors.colAwards }}</th>
-                <th scope="col" class="px-3 py-2">{{ copy.competitors.colLast }}</th>
-                <th scope="col" class="px-3 py-2">{{ copy.competitors.colWatch }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(c, i) in cands.data.value.items" :key="c.bizno" class="border-t border-border align-middle">
-                <td class="px-3 py-2 text-right tabular text-text-2">{{ i + 1 }}</td>
-                <td class="px-3 py-2">
-                  <RouterLink :to="`/competitors/${c.bizno}`" class="font-medium text-primary hover:underline">{{ c.name }}</RouterLink>
-                  <span class="block text-xs text-text-3 tabular">{{ formatBizno(c.bizno) }}</span>
-                </td>
-                <td class="px-3 py-2">
-                  <span class="flex items-center gap-2">
-                    <span class="h-2 flex-1 rounded-sm bg-surface-2" aria-hidden="true">
-                      <span class="block h-2 rounded-r-[4px] bg-primary" :style="{ width: `${c.overlap}%` }" />
+          <p class="mb-2 text-xs text-text-3">{{ copy.competitors.overlapHelp }}</p>
+          <UiSkeleton v-if="cands.isPending.value" :lines="2" />
+          <p v-else-if="cands.isError.value" class="text-danger-fg" role="alert">{{ copy.awards.loadFailed }}</p>
+          <p v-else-if="!cands.data.value?.items.length" class="py-6 text-center text-text-3">{{ copy.competitors.noCandidates }}</p>
+          <div v-else class="overflow-x-auto">
+            <table class="w-full min-w-[720px] text-sm" data-candidates>
+              <thead class="bg-surface-2 text-left text-xs font-semibold text-text-3">
+                <tr>
+                  <th scope="col" class="w-14 whitespace-nowrap px-3 py-2 text-right">{{ copy.competitors.colRank }}</th>
+                  <th scope="col" class="px-3 py-2">{{ copy.competitors.colCompany }}</th>
+                  <th scope="col" class="w-56 px-3 py-2">{{ copy.competitors.colOverlap }}</th>
+                  <th scope="col" class="px-3 py-2 text-right">{{ copy.competitors.colAwards }}</th>
+                  <th scope="col" class="px-3 py-2">{{ copy.competitors.colLast }}</th>
+                  <th scope="col" class="px-3 py-2">{{ copy.competitors.colWatch }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(c, i) in cands.data.value.items" :key="c.bizno" class="border-t border-border align-middle">
+                  <td class="px-3 py-2 text-right tabular text-text-2">{{ i + 1 }}</td>
+                  <td class="px-3 py-2">
+                    <RouterLink :to="`/competitors/${c.bizno}`" class="font-medium text-primary hover:underline">{{ c.name }}</RouterLink>
+                    <span class="block text-xs text-text-3 tabular">{{ formatBizno(c.bizno) }}</span>
+                  </td>
+                  <td class="px-3 py-2">
+                    <span class="flex items-center gap-2">
+                      <span class="h-2 flex-1 rounded-sm bg-surface-2" aria-hidden="true">
+                        <span class="block h-2 rounded-r-[4px] bg-primary" :style="{ width: `${c.overlap}%` }" />
+                      </span>
+                      <span class="w-10 text-right font-semibold tabular">{{ formatPct(c.overlap) }}</span>
                     </span>
-                    <span class="w-10 text-right font-semibold tabular">{{ formatPct(c.overlap) }}</span>
-                  </span>
-                  <span class="block text-xs text-text-3 tabular">
-                    {{ copy.competitors.overlapDetail(formatPct(c.org_overlap * 100), formatPct(c.field_overlap * 100)) }}
-                  </span>
-                </td>
-                <td class="px-3 py-2 text-right tabular">{{ copy.awards.countUnit(c.award_count) }}</td>
-                <td class="px-3 py-2 tabular text-text-2">{{ c.last_award_at ? formatDate(c.last_award_at) : '' }}</td>
-                <td class="px-3 py-2"><WatchButton :bizno="c.bizno" :watched="c.watched" /></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+                    <span class="block text-xs text-text-3 tabular">
+                      {{ copy.competitors.overlapDetail(formatPct(c.org_overlap * 100), formatPct(c.field_overlap * 100)) }}
+                    </span>
+                  </td>
+                  <td class="px-3 py-2 text-right tabular">{{ copy.awards.countUnit(c.award_count) }}</td>
+                  <td class="px-3 py-2 tabular text-text-2">{{ c.last_award_at ? formatDate(c.last_award_at) : '' }}</td>
+                  <td class="px-3 py-2"><WatchButton :bizno="c.bizno" :watched="c.watched" /></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-      <section class="rounded-card border border-border bg-surface p-4" :aria-label="copy.competitors.watchList">
-        <h3 class="mb-3 text-lg font-semibold">{{ copy.competitors.watchList }}</h3>
-        <p v-if="!watched.data.value?.items.length" class="text-text-3">{{ copy.competitors.noWatched }}</p>
-        <ul v-else class="flex flex-col divide-y divide-border" data-watch-list>
-          <li v-for="w in watched.data.value.items" :key="w.bizno" class="flex flex-wrap items-center gap-3 py-2 text-sm">
-            <RouterLink :to="`/competitors/${w.bizno}`" class="min-w-0 flex-1 truncate font-medium text-primary hover:underline">{{ w.name }}</RouterLink>
-            <span class="tabular text-text-2">{{ copy.awards.countUnit(w.award_count) }}</span>
-            <span v-if="w.last_award_at" class="tabular text-text-3">{{ copy.companies.lastAward(formatDate(w.last_award_at)) }}</span>
-            <WatchButton :bizno="w.bizno" :watched="true" />
-          </li>
-        </ul>
-      </section>
+        <section class="rounded-card border border-border bg-surface p-4" :aria-label="copy.competitors.watchList">
+          <h3 class="mb-3 text-lg font-semibold">{{ copy.competitors.watchList }}</h3>
+          <p v-if="!watched.data.value?.items.length" class="text-text-3">{{ copy.competitors.noWatched }}</p>
+          <ul v-else class="flex flex-col divide-y divide-border" data-watch-list>
+            <li v-for="w in watched.data.value.items" :key="w.bizno" class="flex flex-wrap items-center gap-3 py-2 text-sm">
+              <RouterLink :to="`/competitors/${w.bizno}`" class="min-w-0 flex-1 truncate font-medium text-primary hover:underline">{{ w.name }}</RouterLink>
+              <span class="tabular text-text-2">{{ copy.awards.countUnit(w.award_count) }}</span>
+              <span v-if="w.last_award_at" class="tabular text-text-3">{{ copy.companies.lastAward(formatDate(w.last_award_at)) }}</span>
+              <WatchButton :bizno="w.bizno" :watched="true" />
+            </li>
+          </ul>
+        </section>
+      </div>
       <AwardsFootnote />
     </template>
   </div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// 앱 셸 (SPEC §10.3): 사이드바 + 상단 바 + 본문(최대 1200px, 여백 24).
+// 앱 셸 (SPEC §10.3): 사이드바 + 상단 바 + 본문. 목록 화면은 넓은 화면을 다 쓰고,
+// 읽는 화면(meta.narrow: 상세·설정·양식)만 최대 1200px로 가운데 둔다 (2026-11-18).
 import { computed } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { copy } from '@/copy'
@@ -32,7 +33,13 @@ async function logout() {
     <SidebarNav @logout="logout" />
     <div class="flex min-w-0 flex-1 flex-col">
       <TopBar :title="title" />
-      <main id="main" tabindex="-1" class="mx-auto w-full max-w-[1200px] flex-1 p-4 pb-24 md:px-8 md:py-6">
+      <main
+        id="main"
+        tabindex="-1"
+        class="w-full flex-1 p-4 pb-24 md:px-8 md:py-6"
+        :class="route.meta.narrow ? 'mx-auto max-w-[1200px]' : ''"
+        :data-width="route.meta.narrow ? 'narrow' : 'full'"
+      >
         <ForbiddenView v-if="forbidden" />
         <RouterView v-else />
       </main>

@@ -1,13 +1,15 @@
 <script setup lang="ts">
-// 맞춤 추천 (SPEC §7.4). 프로필 필수, status(score)의 progress로 진행 막대, 점수 내림차순 카드.
+// 맞춤 추천 (SPEC §7.4). 프로필 필수, status(score)의 progress로 진행 막대, 점수 내림차순 목록.
+// 2026-11-18: 두 줄 조건 카드 + 적합도 숫자를 왼쪽 칸에 크게(막대 없음) 두는 RecommendList.
 // 조건·진행·결과는 스토어에 있어 다른 화면에 다녀와도 그대로이고, 새로고침하면 마지막 추천 기록을 불러온다.
 import { useQuery } from '@tanstack/vue-query'
+import { Sparkles } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { profilesApi } from '@/api/profiles'
-import BidList from '@/components/bid/BidList.vue'
 import ProgressSteps from '@/components/bid/ProgressSteps.vue'
+import RecommendList from '@/components/bid/RecommendList.vue'
 import ChipInput from '@/components/ui/ChipInput.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import UiButton from '@/components/ui/UiButton.vue'
@@ -92,54 +94,78 @@ const toggleBookmark = useBookmarkToggle(cards)
     </EmptyState>
 
     <template v-else>
+      <!-- 조건 카드 (2026-11-18, 시안 D): 1줄 프로필·구분·기간·검토 수·추천 받기, 2줄 키워드·1억 미만 -->
       <form
-        class="grid gap-4 rounded-card border border-border bg-surface p-4 md:grid-cols-2"
+        class="flex flex-col gap-3 rounded-card border border-border bg-surface px-3.5 py-3"
         :aria-label="copy.recommend.formLabel"
         @submit.prevent="run"
       >
-        <UiSelect
-          v-model="profileId"
-          :label="copy.recommend.profile"
-          :options="profiles.data.value.items.map((p) => ({ value: p.id as number | null, label: p.name }))"
-        />
-        <UiSelect
-          v-model="source"
-          :label="copy.search.source"
-          :options="[
-            { value: 'all', label: copy.search.sourceAll },
-            { value: 'regular', label: copy.bid.regular },
-            { value: 'prespec', label: copy.bid.prespec },
-          ]"
-        />
-        <UiSegmented
-          v-model="days"
-          :label="copy.recommend.days"
-          :options="DAY_OPTIONS.map((d) => ({ value: d, label: copy.search.recentDays(d) }))"
-        />
-        <div class="flex flex-col gap-1">
-          <UiSegmented
-            v-model="candidates"
-            :label="copy.recommend.candidates"
-            :options="CANDIDATE_OPTIONS.map((n) => ({ value: n, label: copy.recommend.candidatesOption(n) }))"
-          />
-          <p class="text-sm text-text-3">{{ copy.recommend.candidatesHint }}</p>
+        <div class="flex flex-wrap items-center gap-x-5 gap-y-2.5">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold text-text-3" aria-hidden="true">{{ copy.recommend.profile }}</span>
+            <div class="w-56">
+              <UiSelect
+                v-model="profileId"
+                :label="copy.recommend.profile"
+                hide-label
+                :options="profiles.data.value.items.map((p) => ({ value: p.id as number | null, label: p.name }))"
+              />
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold text-text-3" aria-hidden="true">{{ copy.search.source }}</span>
+            <UiSegmented
+              v-model="source"
+              :label="copy.search.source"
+              hide-label
+              :options="[
+                { value: 'all', label: copy.search.sourceAll },
+                { value: 'regular', label: copy.bid.regular },
+                { value: 'prespec', label: copy.bid.prespec },
+              ]"
+            />
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold text-text-3" aria-hidden="true">{{ copy.recommend.days }}</span>
+            <UiSegmented
+              v-model="days"
+              :label="copy.recommend.days"
+              hide-label
+              :options="DAY_OPTIONS.map((d) => ({ value: d, label: copy.search.recentDays(d) }))"
+            />
+          </div>
+          <div class="flex items-center gap-2" :title="copy.recommend.candidatesHint">
+            <span class="text-xs font-semibold text-text-3" aria-hidden="true">{{ copy.recommend.candidates }}</span>
+            <UiSegmented
+              v-model="candidates"
+              :label="copy.recommend.candidates"
+              hide-label
+              :options="CANDIDATE_OPTIONS.map((n) => ({ value: n, label: copy.recommend.candidatesOption(n) }))"
+            />
+          </div>
+          <UiButton type="button" class="lg:ml-auto" :loading="streaming" @click="run">
+            <Sparkles class="size-4" aria-hidden="true" />{{ copy.recommend.submit }}
+          </UiButton>
         </div>
-        <div class="md:col-span-2">
-          <ChipInput
-            ref="chips"
-            v-model="keywords"
-            :label="copy.recommend.keywords"
-            :hint="copy.recommend.keywordsHint"
-          />
+        <div class="flex flex-wrap items-center gap-x-5 gap-y-2.5 border-t border-border pt-3">
+          <div class="min-w-0 flex-[1_1_420px]">
+            <ChipInput
+              ref="chips"
+              v-model="keywords"
+              :label="copy.recommend.keywords"
+              :hint="copy.recommend.keywordsHint"
+              :placeholder="copy.recommend.keywords"
+              hide-label
+            />
+          </div>
+          <label class="inline-flex items-center gap-2 text-sm text-text-2">
+            <input v-model="includeSmall" name="recommend-small" type="checkbox" class="size-4 accent-primary" />
+            {{ copy.recommend.includeSmall }}
+          </label>
         </div>
-        <label class="inline-flex items-center gap-2 text-sm text-text-2 md:col-span-2">
-          <input v-model="includeSmall" name="recommend-small" type="checkbox" class="size-4" />
-          {{ copy.recommend.includeSmall }}
-          <span v-if="!includeSmall" class="text-text-3">{{ copy.recommend.minBudgetNote }}</span>
-        </label>
-        <div class="md:col-span-2">
-          <UiButton type="button" :loading="streaming" @click="run">{{ copy.recommend.submit }}</UiButton>
-        </div>
+        <p class="text-xs text-text-3">
+          {{ copy.recommend.candidatesHint }}<template v-if="!includeSmall"> {{ copy.recommend.minBudgetNote }}</template>
+        </p>
       </form>
 
       <div v-if="streaming || progress" class="flex flex-col gap-2">
@@ -166,12 +192,22 @@ const toggleBookmark = useBookmarkToggle(cards)
         <p class="text-danger-fg">{{ errorText }}</p>
         <UiButton variant="secondary" size="sm" @click="run">{{ copy.common.retry }}</UiButton>
       </div>
-      <p v-if="cachedScore" class="text-sm text-text-3">{{ copy.recommend.cached }}</p>
-      <p v-if="restoredAt && !streaming" class="text-sm text-text-3">
-        {{ copy.recommend.restored(formatDateTime(restoredAt)) }}
-      </p>
       <EmptyState v-if="ran && !streaming && !errorText && !cards.length" :title="copy.recommend.empty" />
-      <BidList v-if="cards.length" :bids="cards" show-score @toggle-bookmark="toggleBookmark" />
+      <template v-if="cards.length">
+        <p class="flex flex-wrap items-baseline gap-x-2 text-sm text-text-2" aria-live="polite">
+          <strong class="text-md font-semibold text-text">{{ copy.recommend.resultCount(cards.length) }}</strong>
+          <span>· {{ copy.recommend.byScore }}</span>
+          <span v-if="restoredAt && !streaming" class="text-text-3">· {{ copy.recommend.restored(formatDateTime(restoredAt)) }}</span>
+          <span v-if="cachedScore" class="text-text-3">· {{ copy.recommend.cached }}</span>
+        </p>
+        <RecommendList :bids="cards" @toggle-bookmark="toggleBookmark" />
+      </template>
+      <template v-else>
+        <p v-if="cachedScore" class="text-sm text-text-3">{{ copy.recommend.cached }}</p>
+        <p v-if="restoredAt && !streaming" class="text-sm text-text-3">
+          {{ copy.recommend.restored(formatDateTime(restoredAt)) }}
+        </p>
+      </template>
     </template>
   </div>
 </template>

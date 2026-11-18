@@ -1,12 +1,20 @@
 <script setup lang="ts">
 // 칩 입력 (SPEC §10.4). Enter·쉼표로 추가, 빈 입력에서 Backspace는 마지막 칩 삭제, 공백·중복 제거.
+// 조건 막대 안에서는 hideLabel: 이름표·도움말은 낭독기에만 남기고 placeholder로 안내한다 (2026-11-18).
 import { X } from 'lucide-vue-next'
 import { ref, useId } from 'vue'
 import { copy } from '@/copy'
 
 const props = withDefaults(
-  defineProps<{ label: string; hint?: string; max?: number; maxLength?: number }>(),
-  { hint: '', max: 10, maxLength: 50 },
+  defineProps<{
+    label: string
+    hint?: string
+    max?: number
+    maxLength?: number
+    hideLabel?: boolean
+    placeholder?: string
+  }>(),
+  { hint: '', max: 10, maxLength: 50, hideLabel: false, placeholder: undefined },
 )
 const model = defineModel<string[]>({ default: () => [] })
 const draft = ref('')
@@ -39,7 +47,7 @@ defineExpose({ commit: add })
 
 <template>
   <div class="flex flex-col gap-1.5">
-    <label :for="id" class="text-base font-medium text-text">{{ label }}</label>
+    <label :for="id" class="text-base font-medium text-text" :class="hideLabel ? 'sr-only' : ''">{{ label }}</label>
     <div
       class="flex min-h-10 flex-wrap items-center gap-1.5 rounded-control border border-border-input bg-surface px-2 py-1.5 focus-within:outline-2 focus-within:outline-primary"
     >
@@ -63,12 +71,13 @@ defineExpose({ commit: add })
         v-model="draft"
         type="text"
         :maxlength="maxLength"
+        :placeholder="model.length ? undefined : placeholder"
         :aria-describedby="hint ? `${id}-hint` : undefined"
-        class="h-7 min-w-24 flex-1 bg-transparent px-1 text-base text-text outline-none"
+        class="h-7 min-w-24 flex-1 bg-transparent px-1 text-base text-text outline-none placeholder:text-text-3"
         @keydown="onKey"
         @blur="add"
       />
     </div>
-    <p v-if="hint" :id="`${id}-hint`" class="text-sm text-text-3">{{ hint }}</p>
+    <p v-if="hint" :id="`${id}-hint`" class="text-sm text-text-3" :class="hideLabel ? 'sr-only' : ''">{{ hint }}</p>
   </div>
 </template>

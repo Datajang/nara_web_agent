@@ -76,12 +76,12 @@ describe('관심 공고 홈 (/)', () => {
 
   describe('관심 공고 안에서 좁혀 보기 (2026-11-16)', () => {
     const KW = ['클라우드', 'AI 플랫폼', '데이터']
-    /** 요청 URL의 쿼리를 읽어 걸러 준다: source·kw·q */
+    /** 요청 URL의 쿼리를 읽어 걸러 준다: source·kw·q·due(마감 보드 칸) */
     function feedRoute() {
       const all = [
-        { ...card({ bid_id: 'b1', title: '클라우드 전환 컨설팅' }), source: 'regular', matched_keywords: ['클라우드'] },
-        { ...card({ bid_id: 'b2', title: 'AI 플랫폼 운영 사전규격' }), source: 'prespec', matched_keywords: ['AI 플랫폼'] },
-        { ...card({ bid_id: 'b3', title: '공공 데이터 품질 관리' }), source: 'regular', matched_keywords: ['데이터'] },
+        { ...card({ bid_id: 'b1', title: '클라우드 전환 컨설팅' }), source: 'regular', matched_keywords: ['클라우드'], due: 'today' },
+        { ...card({ bid_id: 'b2', title: 'AI 플랫폼 운영 사전규격' }), source: 'prespec', matched_keywords: ['AI 플랫폼'], due: 'd3' },
+        { ...card({ bid_id: 'b3', title: '공공 데이터 품질 관리' }), source: 'regular', matched_keywords: ['데이터'], due: 'later' },
       ]
       return (_: RequestInit, url: string) => {
         const p = new URL(url, 'http://x').searchParams
@@ -90,7 +90,8 @@ describe('관심 공고 홈 (/)', () => {
           (i) =>
             (!p.get('source') || i.source === p.get('source')) &&
             (!kw.length || i.matched_keywords.some((k) => kw.includes(k))) &&
-            (!p.get('q') || i.title.replace(/\s/g, '').includes(p.get('q')!.replace(/\s/g, ''))),
+            (!p.get('q') || i.title.replace(/\s/g, '').includes(p.get('q')!.replace(/\s/g, ''))) &&
+            (!p.get('due') || i.due === p.get('due')),
         )
         return json({ keywords: KW, needs_keywords: false, total: items.length, min_budget: 100_000_000, items })
       }
@@ -148,11 +149,86 @@ describe('관심 공고 홈 (/)', () => {
       expect(text(m.wrapper)).toContain('클라우드 전환 컨설팅')
     })
 
+    it('조건은 한 줄 조건 막대 하나에 모인다 (2026-11-18)', async () => {
+      mockApi({ 'GET /api/v1/feed': feedRoute() })
+      m = await mountAt('/')
+      const bar = m.wrapper.get(`section[aria-label="${copy.feed.filters}"]`)
+      expect(bar.find('input[name="feed-q"]').exists()).toBe(true)
+      expect(bar.findAll('button[data-kw]')).toHaveLength(KW.length)
+      expect(bar.get('[data-filter-end]').find('input[name="feed-small"]').exists()).toBe(true)
+      // 공고명 칸 이름표는 화면에서 숨기고(자리 절약) 낭독기에는 남긴다
+      expect(bar.findAll('label').find((l) => l.text() === copy.feed.search)!.classes()).toContain('sr-only')
+    })
+
+    it('기본은 마감 보드: 네 칸에 칸 건수, 공고는 제 칸에, 빈 칸은 안내 (2026-11-18)', async () => {
+      mockApi({ 'GET /api/v1/feed': feedRoute() })
+      m = await mountAt('/')
+      const col = (d: string) => m!.wrapper.get(`section[data-due="${d}"]`)
+      expect(['today', 'd3', 'd7', 'later'].map((d) => col(d).get('h2').text())).toEqual([
+        copy.feed.due.today,
+        copy.feed.due.d3,
+        copy.feed.due.d7,
+        copy.feed.due.later,
+      ])
+      expect(col('today').text()).toContain('클라우드 전환 컨설팅')
+      expect(col('today').text()).toContain(copy.feed.total(1))
+      expect(col('d3').text()).toContain('AI 플랫폼 운영 사전규격')
+      expect(col('d7').text()).toContain(copy.feed.columnEmpty)
+      expect(col('later').text()).toContain('공공 데이터 품질 관리')
+      expect(text(m.wrapper)).toContain(copy.feed.total(3)) // 전체 = 칸 건수 합
+      expect(m.wrapper.find('[data-more]').exists()).toBe(false)
+    })
+
+    it('칸의 [N건 더 보기]는 그 칸만 이어서 불러 붙인다', async () => {
+      const many = Array.from({ length: 8 }, (_, i) => ({
+        ...card({ bid_id: `b${200 + i}`, title: `사흘 안 공고 ${i}` }),
+        matched_keywords: ['데이터'],
+      }))
+      const api = mockApi({
+        'GET /api/v1/feed': (_: RequestInit, url: string) => {
+          const p = new URL(url, 'http://x').searchParams
+          const off = Number(p.get('offset'))
+          const items = p.get('due') === 'd3' ? many.slice(off, off + Number(p.get('limit'))) : []
+          return json({ keywords: KW, needs_keywords: false, total: p.get('due') === 'd3' ? 8 : 0, items })
+        },
+      })
+      m = await mountAt('/')
+      const d3 = () => m!.wrapper.get('section[data-due="d3"]')
+      expect(d3().findAll('li')).toHaveLength(6)
+      const more = d3().get('[data-more]')
+      expect(more.text()).toBe(copy.feed.columnMore(2))
+      await more.trigger('click')
+      await settle()
+      const last = new URL(api.calls[api.calls.length - 1]!.url, 'http://x').searchParams
+      expect([last.get('due'), last.get('offset')]).toEqual(['d3', '6'])
+      expect(d3().findAll('li')).toHaveLength(8)
+      expect(d3().find('[data-more]').exists()).toBe(false)
+    })
+
+    it('[목록]으로 바꾸면 한 번에 부르는 예전 목록, 주소(view=list)에 남는다', async () => {
+      const api = mockApi({ 'GET /api/v1/feed': feedRoute() })
+      m = await mountAt('/')
+      await m.wrapper.findAll('label').find((l) => l.text() === copy.feed.viewList)!.find('input').setValue(true)
+      await settle()
+      expect(m.router.currentRoute.value.query.view).toBe('list')
+      expect(lastFeedUrl(api.calls).get('due')).toBeNull()
+      expect(m.wrapper.find('section[data-due]').exists()).toBe(false)
+      expect(titles(m.wrapper)).toContain('공공 데이터 품질 관리')
+
+      m.wrapper.unmount()
+      const again = mockApi({ 'GET /api/v1/feed': feedRoute() })
+      m = await mountAt('/?view=list')
+      expect(again.calls.filter((c) => c.url.startsWith('/api/v1/feed'))).toHaveLength(1)
+      expect(m.wrapper.find('section[data-due]').exists()).toBe(false)
+    })
+
     it('주소에 조건이 있으면 처음부터 그 조건으로 (상세에서 돌아왔을 때)', async () => {
       const api = mockApi({ 'GET /api/v1/feed': feedRoute() })
       m = await mountAt('/?source=regular&kw=클라우드&kw=모르는키워드&q=전환')
       const p = lastFeedUrl(api.calls)
-      expect(api.calls.filter((c) => c.url.startsWith('/api/v1/feed'))).toHaveLength(1)
+      // 보드는 칸마다 한 번씩: 네 번 모두 같은 조건 + 칸(due)
+      const feedCalls = api.calls.filter((c) => c.url.startsWith('/api/v1/feed'))
+      expect(feedCalls.map((c) => new URL(c.url, 'http://x').searchParams.get('due'))).toEqual(['today', 'd3', 'd7', 'later'])
       expect([p.get('source'), p.getAll('kw').includes('클라우드'), p.get('q')]).toEqual(['regular', true, '전환'])
       // 내 키워드에 없는 값은 서버가 무시하고, 화면은 주소에서 지운다
       expect(m.router.currentRoute.value.query.kw).toBe('클라우드')

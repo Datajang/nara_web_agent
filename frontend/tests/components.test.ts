@@ -191,6 +191,39 @@ describe('로고 → 홈', () => {
   })
 })
 
+describe('사이드바 묶음 (2026-11-18)', () => {
+  it('공고 / 낙찰·경쟁 / 도구 순서로 묶고, 묶음마다 이름표로 목록을 가리킨다', async () => {
+    setActivePinia(createPinia())
+    const { default: SidebarNav } = await import('@/components/layout/SidebarNav.vue')
+    const w = mount(SidebarNav, { global: { plugins: [router] } })
+    const groups = w.findAll('[data-nav-group]')
+    expect(groups.map((g) => g.get('p').text())).toEqual([copy.nav.groupBids, copy.nav.groupAwards, copy.nav.groupTools])
+    expect(groups[0]!.findAll('a').map((a) => a.text())).toEqual([copy.nav.home, copy.nav.search, copy.nav.recommend])
+    expect(groups[1]!.findAll('a').map((a) => a.text())).toEqual([
+      copy.nav.myAwards,
+      copy.nav.companies,
+      copy.nav.competitors,
+    ])
+    // 회원에게는 관리자 메뉴가 없다
+    expect(groups[2]!.text()).not.toContain(copy.nav.admin)
+    const ul = groups[1]!.get('ul')
+    expect(w.get(`#${ul.attributes('aria-labelledby')}`).text()).toBe(copy.nav.groupAwards)
+  })
+})
+
+describe('UiFilterBar (한 줄 조건 막대)', () => {
+  it('이름표를 달고, #end는 따로 묶어 넓을 때 오른쪽 끝으로 민다', async () => {
+    const { default: UiFilterBar } = await import('@/components/ui/UiFilterBar.vue')
+    const w = mount(UiFilterBar, {
+      props: { label: 'filters' },
+      slots: { default: '<input name="q" />', end: '<label>end</label>' },
+    })
+    expect(w.get('section').attributes('aria-label')).toBe('filters')
+    expect(w.get('[data-filter-end]').classes()).toContain('lg:ml-auto')
+    expect(w.get('[data-filter-end]').text()).toBe('end')
+  })
+})
+
 describe('DeadlineStamp (공고 대장 왼쪽 칸)', () => {
   const at = (days: number) => new Date(NOW.getTime() + days * 86_400_000).toISOString()
 

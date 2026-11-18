@@ -860,6 +860,23 @@
               ],
               "title": "Kw"
             }
+          },
+          {
+            "name": "due",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "all",
+                "today",
+                "d3",
+                "d7",
+                "later"
+              ],
+              "type": "string",
+              "default": "all",
+              "title": "Due"
+            }
           }
         ],
         "responses": {

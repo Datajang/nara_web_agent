@@ -69,14 +69,25 @@ function pick(b: string) {
 
 <template>
   <div class="flex flex-col gap-4">
-    <form class="flex flex-wrap items-start gap-3 rounded-card border border-border bg-surface p-4" role="search" @submit.prevent="submit">
-      <div class="min-w-64 flex-1">
-        <UiInput v-model="input" :label="copy.companies.searchLabel" :hint="copy.companies.searchHint" :error="inputError" :max-length="100" />
+    <form
+      class="flex flex-wrap items-start gap-3 rounded-card border border-border bg-surface px-3.5 py-3"
+      role="search"
+      @submit.prevent="submit"
+    >
+      <div class="min-w-64 flex-[0_1_520px]">
+        <UiInput
+          v-model="input"
+          :label="copy.companies.searchLabel"
+          :placeholder="copy.companies.searchHint"
+          :error="inputError"
+          hide-label
+          :max-length="100"
+        />
       </div>
-      <UiButton type="submit" class="mt-7">{{ copy.companies.submit }}</UiButton>
+      <UiButton type="submit">{{ copy.companies.submit }}</UiButton>
     </form>
 
-    <div class="grid gap-4 lg:grid-cols-[18rem_1fr]">
+    <div class="grid gap-4 lg:grid-cols-[18rem_1fr] 2xl:grid-cols-[22rem_1fr]">
       <section v-if="q" class="self-start rounded-card border border-border bg-surface p-2" :aria-label="copy.companies.results">
         <h3 class="px-2 py-1 text-base font-semibold">{{ copy.companies.results }}</h3>
         <UiSkeleton v-if="results.isPending.value && results.fetchStatus.value !== 'idle'" :lines="2" />

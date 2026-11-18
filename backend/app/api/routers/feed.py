@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from app.api.common import model_id
 from app.api.deps import ActiveUser, Ctx, DbSession
 from app.bids.cards import BidCard, build_cards
-from app.feed.service import FeedFilter, load_feed
+from app.feed.service import Due, FeedFilter, load_feed
 
 router = APIRouter(tags=["feed"])
 
@@ -37,9 +37,10 @@ async def get_feed(
     q: Annotated[str | None, Query(max_length=200)] = None,  # 공고명 일부, 띄어쓰기 무시
     source: Literal["all", "regular", "prespec"] = "all",
     kw: Annotated[list[str] | None, Query()] = None,  # 내 키워드 중 고른 것, 비우면 전부
+    due: Due = "all",  # 마감 구간 하나만: today·d3·d7·later (2026-11-18 마감 보드)
 ) -> FeedOut:
     deps = ctx.deps
-    flt = FeedFilter(q=q, source=source, keywords=tuple(kw or ()))
+    flt = FeedFilter(q=q, source=source, keywords=tuple(kw or ()), due=due)
     f = await load_feed(s, user, deps.clock(), offset, limit, flt)
     cards = await build_cards(s, user.id, f.bids, deps.clock(), model_id(deps))
     by_id = {b.id: b for b in f.bids}

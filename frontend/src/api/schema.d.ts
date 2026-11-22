@@ -618,6 +618,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/bids/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Export
+         * @description 입찰공고 목록 엑셀 (2026-11-22). 화면 순서 그대로, 없는 ID는 뺀다. LLM·G2B 호출 없음.
+         */
+        post: operations["export_api_v1_bids_export_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/bids/lookup": {
         parameters: {
             query?: never;
@@ -1918,6 +1938,14 @@ export interface components {
              * @default []
              */
             items: components["schemas"]["EvalItem"][];
+        };
+        /**
+         * ExportQuery
+         * @description 입찰공고 목록 엑셀: 화면에 보이는 공고 ID를 화면 순서대로 (2026-11-22).
+         */
+        ExportQuery: {
+            /** Bid Ids */
+            bid_ids: string[];
         };
         /** FeedItem */
         FeedItem: {
@@ -4369,6 +4397,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SearchResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_api_v1_bids_export_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExportQuery"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

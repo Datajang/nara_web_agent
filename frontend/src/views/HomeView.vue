@@ -15,6 +15,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiFilterBar from '@/components/ui/UiFilterBar.vue'
+import ExportButton from '@/components/bid/ExportButton.vue'
 import UiSegmented from '@/components/ui/UiSegmented.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { useBookmarkToggle } from '@/composables/useBookmarkToggle'
@@ -52,6 +53,10 @@ const viewOptions: Array<{ value: View; label: string }> = [
 const boardItems = ref<Array<FeedItem & { due: Due }>>([])
 const dueTotals = ref<Record<Due, number>>({ today: 0, d3: 0, d7: 0, later: 0 })
 const loadingDue = ref<Due | null>(null)
+/** 다운로드 대상: 지금 보이는 공고 (보드면 네 열 전부, 목록이면 목록) */
+const visibleIds = computed(() =>
+  (view.value === 'board' ? columns.value.flatMap((c) => c.items) : items.value).map((b) => b.bid_id),
+)
 const columns = computed<BoardColumn[]>(() =>
   DUE_WINDOWS.map((d) => ({
     due: d,
@@ -298,7 +303,8 @@ const toggleBoardBookmark = useBookmarkToggle(boardItems)
         >
           {{ copy.feed.clearFilters }}
         </button>
-        <div class="ml-auto">
+        <div class="ml-auto flex items-center gap-2">
+          <ExportButton :bid-ids="visibleIds" />
           <UiSegmented
             :model-value="view"
             :label="copy.feed.view"

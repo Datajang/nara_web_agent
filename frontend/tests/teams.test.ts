@@ -179,6 +179,22 @@ describe('관심 공고 홈 (/)', () => {
       expect(m.wrapper.find('[data-more]').exists()).toBe(false)
     })
 
+    it('목록 다운로드는 보드에 보이는 네 칸의 공고를 모두 보낸다 (2026-11-22)', async () => {
+      const api = mockApi({
+        'GET /api/v1/feed': feedRoute(),
+        'POST /api/v1/bids/export': () => new Response('x', { status: 200 }),
+      })
+      vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} }))
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+      m = await mountAt('/')
+      const shown = [...new Set(m.wrapper.findAll('section[data-due] a[href^="/bids/b"]').map((a) => a.attributes('href')!.slice(6)))]
+      expect(shown.length).toBe(3)
+      await m.wrapper.get('[data-export]').trigger('click')
+      await settle()
+      const call = api.calls.find((c) => c.url === '/api/v1/bids/export')!
+      expect(call.body).toEqual({ bid_ids: shown })
+    })
+
     it('칸의 [N건 더 보기]는 그 칸만 이어서 불러 붙인다', async () => {
       const many = Array.from({ length: 8 }, (_, i) => ({
         ...card({ bid_id: `b${200 + i}`, title: `사흘 안 공고 ${i}` }),

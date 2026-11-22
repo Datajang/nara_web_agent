@@ -1869,6 +1869,46 @@
         }
       }
     },
+    "/api/v1/bids/export": {
+      "post": {
+        "tags": [
+          "bids"
+        ],
+        "summary": "Export",
+        "description": "입찰공고 목록 엑셀 (2026-11-22). 화면 순서 그대로, 없는 ID는 뺀다. LLM·G2B 호출 없음.",
+        "operationId": "export_api_v1_bids_export_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/bids/lookup": {
       "get": {
         "tags": [
@@ -5836,6 +5876,26 @@
         },
         "title": "Evaluation",
         "type": "object"
+      },
+      "ExportQuery": {
+        "properties": {
+          "bid_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 20
+            },
+            "type": "array",
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Bid Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bid_ids"
+        ],
+        "title": "ExportQuery",
+        "description": "입찰공고 목록 엑셀: 화면에 보이는 공고 ID를 화면 순서대로 (2026-11-22)."
       },
       "FeedItem": {
         "properties": {

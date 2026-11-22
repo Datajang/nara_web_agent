@@ -479,6 +479,7 @@ LLM과 G2B는 호출 횟수를 세는 가짜 객체로 바꿔 검증합니다.
 | `GET·PATCH·DELETE /profiles/{id}` | 회원 |  | 프로필. 수정 시 `profile_hash` 재계산 |
 | POST /profiles/suggest-keywords | 회원 | description | keywords 배열(LLM 제안, 저장하지 않음). 8.5의 suggest\_keywords. 분당 10회 |
 | `POST /bids/search` | 회원 | SearchQuery(6.3) | SearchResult, 스냅샷 저장 |
+| `POST /bids/export` | 회원 | `bid_ids`(1~500, 화면 순서) | 입찰공고 목록 엑셀(13열) attachment `YYYY-MM-DD_입찰공고 목록.xlsx`. 없는 ID는 뺌, 20회/분 \[결정: 2026-11-22, `docs/decisions/2026-11-22-bid-export.md`\] |
 | `GET /bids/{bid_id}` | 회원 |  | 메타 + 첨부 목록 + 요약(캐시에 있을 때) + official(G2B 공고 정보 그대로: 입찰·의견 마감, 개찰, 배정예산, 추정가격, 입찰 방식, 낙찰 방법) + doc\_budgets(첨부 문서에 '사업금액: …원'처럼 적힌 금액 중 G2B 값과 다른 것) \[결정: 2026-11-13\]. LLM·G2B 호출 없음 |
 | GET /bids/lookup | 회원 | bid\_no | 공고 번호 또는 사전규격 등록번호로 DB에서 찾아 bid\_id 반환, 없으면 404 \[결정: P3a\]. DB에 없으면 G2B 단건 조회(일반 조회 `inqryDiv=2`, 공고 → 사전규격 순, 최대 2회)로 가져와 저장한 뒤 반환하고, G2B 실패는 503 `g2b_unavailable` \[확인됨·결정: 2026-11-12\]. 라우트는 /bids/{bid\_id}보다 먼저 선언. |
 | `GET /bids/{bid_id}/files/{file_id}/text` | 회원 | `max_chars`(기본 20000) | 추출된 본문 일부. 원본은 `GET /bids/{bid_id}/files/{file_id}/download`(회원, 30회/분): 원본을 저장하지 않으므로 허용 호스트·크기 제한을 거쳐 다시 받아 `application/octet-stream` + attachment로 넘김(첫부 URL 비노출), 실패는 502 `file_unavailable` \[결정: 2026-11-12\] |

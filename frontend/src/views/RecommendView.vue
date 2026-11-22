@@ -13,6 +13,7 @@ import RecommendList from '@/components/bid/RecommendList.vue'
 import ChipInput from '@/components/ui/ChipInput.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import ExportButton from '@/components/bid/ExportButton.vue'
 import UiSegmented from '@/components/ui/UiSegmented.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
@@ -194,12 +195,15 @@ const toggleBookmark = useBookmarkToggle(cards)
       </div>
       <EmptyState v-if="ran && !streaming && !errorText && !cards.length" :title="copy.recommend.empty" />
       <template v-if="cards.length">
-        <p class="flex flex-wrap items-baseline gap-x-2 text-sm text-text-2" aria-live="polite">
-          <strong class="text-md font-semibold text-text">{{ copy.recommend.resultCount(cards.length) }}</strong>
-          <span>· {{ copy.recommend.byScore }}</span>
-          <span v-if="restoredAt && !streaming" class="text-text-3">· {{ copy.recommend.restored(formatDateTime(restoredAt)) }}</span>
-          <span v-if="cachedScore" class="text-text-3">· {{ copy.recommend.cached }}</span>
-        </p>
+        <div class="flex flex-wrap items-center gap-3">
+          <p class="flex flex-wrap items-baseline gap-x-2 text-sm text-text-2" aria-live="polite">
+            <strong class="text-md font-semibold text-text">{{ copy.recommend.resultCount(cards.length) }}</strong>
+            <span>· {{ copy.recommend.byScore }}</span>
+            <span v-if="restoredAt && !streaming" class="text-text-3">· {{ copy.recommend.restored(formatDateTime(restoredAt)) }}</span>
+            <span v-if="cachedScore" class="text-text-3">· {{ copy.recommend.cached }}</span>
+          </p>
+          <ExportButton v-if="!streaming" class="ml-auto" :bid-ids="cards.map((b) => b.bid_id)" />
+        </div>
         <RecommendList :bids="cards" @toggle-bookmark="toggleBookmark" />
       </template>
       <template v-else>

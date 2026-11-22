@@ -16,6 +16,7 @@ from app.api.common import bid_not_found, load_bid, model_id
 from app.api.deps import ActiveUser, Ctx, DbSession
 from app.api.schemas.bids import (
     BidDetail,
+    ExportQuery,
     FileOut,
     FileTextOut,
     LookupOut,
@@ -23,6 +24,7 @@ from app.api.schemas.bids import (
     SearchResultOut,
 )
 from app.bids.cards import build_cards
+from app.bids.export import export_filename, export_row, to_xlsx
 from app.bids.facts import doc_budgets, official_facts
 from app.bids.lookup import fetch_from_g2b, find_in_db
 from app.db.models import Bid, BidFile, BidSummary, FileText
@@ -31,7 +33,7 @@ from app.files.download import DownloadRejected
 from app.g2b.client import G2BError
 from app.history import repo as history
 from app.llm.schemas import BidSummary as BidSummaryOut
-from app.llm.versions import SUMMARY_PROMPT, bid_ref, prompt_version
+from app.llm.versions import SUMMARY_PROMPT, bid_ref, parse_bid_ref, prompt_version
 from app.pipeline.summarize import source_inputs
 from app.search.service import search_bids
 
@@ -54,6 +56,25 @@ async def search(body: SearchQuery, user: ActiveUser, s: DbSession, ctx: Ctx) ->
         total=res.total,
         truncated=res.truncated,
         items=cards,
+    )
+
+
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+@router.post("/export")
+async def export(body: ExportQuery, user: ActiveUser, s: DbSession, ctx: Ctx) -> Response:
+    """입찰공고 목록 엑셀 (2026-11-22). 화면 순서 그대로, 없는 ID는 뺀다. LLM·G2B 호출 없음."""
+    ctx.limiter.hit(f"export:{user.id}", 20, 60)
+    order = [i for i in (parse_bid_ref(r) for r in body.bid_ids) if i is not None]
+    found = {b.id: b for b in (await s.scalars(select(Bid).where(Bid.id.in_(order)))).all()}
+    now = ctx.deps.clock()
+    rows = [export_row(found[i], now) for i in dict.fromkeys(order) if i in found]
+    name = export_filename(now)
+    return Response(
+        to_xlsx(rows),
+        media_type=XLSX,
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(name)}"},
     )
 
 

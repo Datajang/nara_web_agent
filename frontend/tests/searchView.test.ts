@@ -216,3 +216,20 @@ describe('SearchView', () => {
     expect(text(m.wrapper)).toContain('AI')
   })
 })
+
+describe('입찰공고 목록 다운로드 (2026-11-22)', () => {
+  it('결과 머리의 목록 다운로드는 화면의 공고 ID를 순서대로 보낸다', async () => {
+    const api = mockApi({
+      ...routes(),
+      'POST /api/v1/bids/export': () => new Response('x', { status: 200 }),
+    })
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} }))
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    m = await mountAt('/search?q=AI')
+    await settle()
+    await m.wrapper.get('[data-export]').trigger('click')
+    await settle()
+    const call = api.calls.find((c) => c.url === '/api/v1/bids/export')!
+    expect(call.body).toEqual({ bid_ids: ['b101', 'b102'] })
+  })
+})

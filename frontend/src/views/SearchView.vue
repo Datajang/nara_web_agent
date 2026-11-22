@@ -14,6 +14,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiInput from '@/components/ui/UiInput.vue'
+import ExportButton from '@/components/bid/ExportButton.vue'
 import UiSegmented from '@/components/ui/UiSegmented.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import {
@@ -278,6 +279,7 @@ const toggleBookmark = useBookmarkToggle(items)
         <DataAsOfBadge :as-of="result.data_as_of" :incomplete="result.incomplete" />
         <UiBadge v-if="result.collecting" tone="warning">{{ copy.data.collecting }}</UiBadge>
         <div class="ml-auto flex flex-wrap items-center gap-2">
+          <ExportButton :bid-ids="items.map((b) => b.bid_id)" />
           <UiSegmented
             :model-value="form.sort"
             :label="copy.search.sort"

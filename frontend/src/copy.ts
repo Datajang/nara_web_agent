@@ -8,6 +8,12 @@ export const copy = {
     seal: '입찰',
     skipToContent: '본문으로 건너뛰기',
   },
+  exportList: {
+    button: '목록 다운로드',
+    label: '입찰공고 목록 엑셀 다운로드',
+    done: '엑셀 파일을 받았어요.',
+    filename: (date: string) => `${date}_입찰공고 목록.xlsx`,
+  },
   nav: {
     label: '주 메뉴',
     groupBids: '공고',

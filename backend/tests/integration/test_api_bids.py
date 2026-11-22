@@ -248,3 +248,45 @@ async def test_detail_lists_doc_budget_that_differs_from_g2b(full_api, fake_llm)
     assert body["doc_budgets"] == [
         {"file": "제안요청서.docx", "label": "사업금액", "amount": 665_000_000}
     ]
+
+
+# ---------- 입찰공고 목록 엑셀 (2026-11-22) ----------
+EXPORT = "/api/v1/bids/export"
+
+
+async def test_export_keeps_screen_order_and_names_file_by_kst_date(full_api):
+    from io import BytesIO
+    from urllib.parse import unquote
+
+    from openpyxl import load_workbook
+
+    ids = await seed(
+        full_api.ctx.deps,
+        "regular",
+        regular_item("R26BK71000001", NOW - timedelta(days=1), title="첫째 공고"),
+        regular_item("R26BK71000002", NOW - timedelta(days=2), title="둘째 공고"),
+    )
+    c = await member(full_api, "a@corp.example")
+    r = await c.post(EXPORT, json={"bid_ids": [f"b{ids[1]}", "b999999", f"b{ids[0]}"]})
+    await c.aclose()
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith(
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    disp = unquote(r.headers["content-disposition"])
+    assert "attachment" in disp and "_입찰공고 목록.xlsx" in disp
+    ws = load_workbook(BytesIO(r.content)).active
+    assert ws is not None
+    titles = [ws.cell(row=i, column=5).value for i in range(2, ws.max_row + 1)]
+    assert titles == ["둘째 공고", "첫째 공고"]  # 없는 ID는 빼고 화면 순서 그대로
+
+
+async def test_export_requires_login_and_limits_size(full_api):
+    anon = full_api.client()
+    assert (await anon.post(EXPORT, json={"bid_ids": ["b1"]})).status_code == 401
+    await anon.aclose()
+    c = await member(full_api, "a@corp.example")
+    assert (await c.post(EXPORT, json={"bid_ids": []})).status_code == 422
+    too_many = [f"b{i}" for i in range(1, 502)]
+    assert (await c.post(EXPORT, json={"bid_ids": too_many})).status_code == 422
+    await c.aclose()

@@ -7,6 +7,8 @@ export const bidsApi = {
   detail: (bidId: string) => api.get<BidDetail>(`/bids/${encodeURIComponent(bidId)}`),
   lookup: (bidNo: string) =>
     api.get<{ bid_id: string }>(`/bids/lookup?${new URLSearchParams({ bid_no: bidNo })}`),
+  /** 입찰공고 목록 엑셀: 화면에 보이는 공고 ID를 순서대로 (2026-11-22) */
+  exportList: (bidIds: string[]) => requestBlob('/bids/export', {}, { bid_ids: bidIds }),
   download: (bidId: string, fileId: number) =>
     requestBlob(`/bids/${encodeURIComponent(bidId)}/files/${fileId}/download`),
   fileText: (bidId: string, fileId: number, maxChars = 20000) =>

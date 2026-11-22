@@ -110,11 +110,12 @@ export async function request<T>(
   return (text ? JSON.parse(text) : undefined) as T
 }
 
-/** 파일 내려받기: JSON 대신 Blob. 401 refresh·오류 변환은 request와 같다. */
-export async function requestBlob(path: string, opts: RequestOptions = {}): Promise<Blob> {
-  let res = await send('GET', path, undefined, opts)
+/** 파일 내려받기: JSON 대신 Blob. 401 refresh·오류 변환은 request와 같다. body가 있으면 POST. */
+export async function requestBlob(path: string, opts: RequestOptions = {}, body?: unknown): Promise<Blob> {
+  const method = body === undefined ? 'GET' : 'POST'
+  let res = await send(method, path, body, opts)
   if (needsRefresh(res, path)) {
-    if (await refreshOnce()) res = await send('GET', path, undefined, opts)
+    if (await refreshOnce()) res = await send(method, path, body, opts)
     if (res.status === 401 && !opts.silent) clientHooks.onUnauthorized()
   }
   if (!res.ok) {

@@ -80,3 +80,11 @@ class RecommendIn(BaseModel):
     # true면 1억원 미만(예산 미상 포함) 사업도 후보에 넣는다. 기본은 뺀다 (§7.4)
     include_small: bool = False
     keywords: Annotated[list[Keyword], Field(max_length=10)] | None = None
+
+
+class ExportQuery(BaseModel):
+    """입찰공고 목록 엑셀: 화면에 보이는 공고 ID를 화면 순서대로 (2026-11-22)."""
+
+    bid_ids: Annotated[
+        list[Annotated[str, Field(max_length=20)]], Field(min_length=1, max_length=500)
+    ]

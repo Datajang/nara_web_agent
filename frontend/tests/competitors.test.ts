@@ -77,6 +77,53 @@ describe('경쟁사 레이더 (/competitors)', () => {
   })
 })
 
+describe('관심 경쟁사 버튼 반응 (2026-11-22)', () => {
+  function radarRoutes(put: () => Response | Promise<Response>) {
+    let saved = false
+    const listItem = { ...THEM, added_at: '2026-11-22T00:00:00Z', award_count: 12, last_award_at: null }
+    return {
+      'GET /api/v1/awards/summary': json(summary()),
+      'GET /api/v1/competitors/candidates': json({
+        period: PERIOD,
+        us: US,
+        our_count: 7,
+        items: [{ ...THEM, overlap: 66.7, org_overlap: 0.6667, field_overlap: 0.6667, award_count: 12, last_award_at: null, watched: false }],
+      }),
+      'GET /api/v1/competitors/watch': () => json({ items: saved ? [listItem] : [] }),
+      'PUT /api/v1/competitors/watch/2345678901': async () => {
+        const r = await put()
+        saved = r.ok
+        return r
+      },
+    }
+  }
+
+  it('누르자마자 별이 바뀌고, 무거운 레이더(후보 목록)는 다시 부르지 않는다', async () => {
+    let release: (r: Response) => void = () => {}
+    const api = mockApi(radarRoutes(() => new Promise<Response>((r) => (release = r))))
+    m = await mountAt('/competitors')
+    const btn = () => m!.wrapper.get('[data-candidates] [data-watch]')
+    await btn().trigger('click')
+    expect(btn().attributes('aria-pressed')).toBe('true') // 서버 응답 전
+    release(json({ items: [{ ...THEM, added_at: '2026-11-22T00:00:00Z', award_count: 12, last_award_at: null }] }))
+    await settle()
+    expect(btn().attributes('aria-pressed')).toBe('true')
+    const radarCalls = api.calls.filter((c) => c.url.startsWith('/api/v1/competitors/candidates'))
+    expect(radarCalls).toHaveLength(1)
+    expect(m.wrapper.get('[data-watch-list]').text()).toContain(THEM.name)
+  })
+
+  it('저장에 실패하면 별을 되돌리고 알린다', async () => {
+    mockApi(radarRoutes(() => json({ error: { code: 'internal', message: 'x' } }, 500)))
+    m = await mountAt('/competitors')
+    const btn = () => m!.wrapper.get('[data-candidates] [data-watch]')
+    await btn().trigger('click')
+    expect(btn().attributes('aria-pressed')).toBe('true')
+    await settle()
+    expect(btn().attributes('aria-pressed')).toBe('false')
+  })
+})
+
 describe('우리 회사와 경쟁사 비교 (/competitors/:bizno)', () => {
   it('강점·약점 카드와 판정 표, 배지는 글자와 함께', async () => {
     mockApi({

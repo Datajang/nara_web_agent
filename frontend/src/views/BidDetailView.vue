@@ -1,8 +1,9 @@
 <script setup lang="ts">
 // 공고 상세·분석 (SPEC §7.5). 헤더 → 탭('공고 정보': 첨부 → 요약 → 분석 패널 → 분석 결과 → 보조 기능,
 // '경쟁 구도': §15.7, 탭을 열 때만 불러옴). 탭은 URL ?tab=competition과 맞춘다.
+import BookmarkIcon from '@/components/bid/BookmarkIcon.vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
-import { Bookmark, BookmarkCheck, Copy, ExternalLink } from 'lucide-vue-next'
+import { Copy, ExternalLink } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { bidsApi } from '@/api/bids'
@@ -273,8 +274,7 @@ async function toggleBookmark() {
             :aria-pressed="bid.bookmarked"
             @click="toggleBookmark"
           >
-            <BookmarkCheck v-if="bid.bookmarked" class="size-5 text-primary" aria-hidden="true" />
-            <Bookmark v-else class="size-5" aria-hidden="true" />
+            <BookmarkIcon :on="bid.bookmarked" class="size-5" />
           </button>
           <a
             v-if="bid.detail_url"

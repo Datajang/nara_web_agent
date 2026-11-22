@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 사이드바 하단 사용자 메뉴. 태블릿(64px)에서는 아바타만 보인다.
+// 사이드바 하단 사용자 메뉴. 태블릿(64px)과 사이드바를 접었을 때는 아바타만 보인다.
 import {
   DropdownMenuContent,
   DropdownMenuItem,
@@ -12,6 +12,7 @@ import { copy } from '@/copy'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
+withDefaults(defineProps<{ collapsed?: boolean }>(), { collapsed: false })
 const emit = defineEmits<{ logout: [] }>()
 </script>
 
@@ -20,9 +21,10 @@ const emit = defineEmits<{ logout: [] }>()
     <DropdownMenuTrigger
       class="flex h-12 w-full items-center gap-3 rounded-control px-3 text-left text-base text-text-2 hover:bg-surface-2 hover:text-text"
       :aria-label="copy.nav.userMenu"
+      :title="collapsed ? copy.nav.userMenu : undefined"
     >
       <CircleUser class="size-5 shrink-0" aria-hidden="true" />
-      <span class="hidden min-w-0 flex-1 lg:block">
+      <span class="hidden min-w-0 flex-1" :class="collapsed ? '' : 'lg:block'">
         <span class="block truncate font-medium text-text">{{ auth.me?.display_name || auth.me?.email }}</span>
         <span class="block text-xs text-text-3">
           {{ auth.isAdmin ? copy.nav.roleAdmin : copy.nav.roleMember }}

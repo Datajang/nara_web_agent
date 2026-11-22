@@ -75,10 +75,9 @@
 
 - **한 일**: 시안 D 선택, 공통 껍데기(본문 폭 해제·`meta.narrow`, 묶음 사이드바, `UiFilterBar`, 관심 공고 조건 한 줄) (`docs/decisions/2026-11-18-wide-layout.md`). 관심 공고 마감 보드(`/feed?due=`, 보드/목록 전환), 검색·추천·낙찰 3탭·어시스턴트·내 기록 적용. 남은 것: 사용자 화면 확인.
 
-## 운영 준비 지원 (2026-11-13)
+## 운영 준비·배포
 
-- **한 일**: 운영자 안내 `docs/ops/OWNER_GUIDE.md`·`PILOT.md`, 메일 시험 `app.cli send-test-mail`, 주간 피드백 보고 `app.ops.feedback_report`, 서버 사전 점검(디스크 69GB 남음 → 모델 19GB만 복사로 INSTALL 수정, v1 유닛 이름 바꾸기를 첫 배포 앞으로), 개발 DB 백업·복원 사전 리허설(행 수 일치, 암호화는 대역).
-- **남은 문제(운영자)**: OWNER_GUIDE 0~9단계. 서버 맞춤 명령은 `docs/ops/THIS_SERVER.local.md`(git 제외).
+운영 서버 설치·배포·운영 중 변경 기록은 `docs/PROGRESS_ops.md`.
 
 ## 경쟁사 분석 (P8~P11)
 

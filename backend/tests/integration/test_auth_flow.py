@@ -110,6 +110,25 @@ async def test_auto_approve_domain_active_others_need_approval(db, clock):
         assert r.status_code == 403 and r.json()["error"]["code"] == "pending_approval"
 
 
+async def test_pending_approval_notifies_active_admins_only(db, clock):
+    """승인 대기가 생기면 활성 관리자에게만 메일. 자동 승인·관리자 없음은 메일 없음."""
+    settings = make_auth_settings(auto_approve_email_domains="corp.example")
+    api = build_api(db, settings, clock)
+    await create_user(api.db, "boss@corp.example", role="admin")
+    await create_user(api.db, "old@corp.example", role="admin", status="disabled")
+    await create_user(api.db, "member@corp.example")
+    async with api.client() as c:
+        await register(c, "bob@corp.example")
+        await verify(c, last_token(api.mailer, "bob@corp.example"))
+        await register(c, "eve@other.example")
+        await verify(c, last_token(api.mailer, "eve@other.example"))
+    notices = [m for m in api.mailer.outbox if "승인 요청" in m.subject]
+    assert [m.to for m in notices] == ["boss@corp.example"]
+    assert "eve@other.example" in notices[0].body
+    assert f"{settings.app_origin}/admin/users?tab=pending_approval" in notices[0].body
+    assert notices[0].html and "eve@other.example" in notices[0].html
+
+
 async def test_auto_approve_domain_allowed_even_if_not_in_allowed_list(db, clock):
     settings = make_auth_settings(
         allowed_email_domains="partner.example", auto_approve_email_domains="corp.example"

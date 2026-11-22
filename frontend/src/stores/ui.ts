@@ -1,4 +1,5 @@
 // 토스트 (SPEC §10.4 UiToast). 5초 뒤 사라지고 오류는 수동으로 닫는다.
+// 사이드바 접기(2026-11-22): 넓은 화면에서 아이콘만 남기기. 브라우저마다 기억하고, 저장소가 막혀도 동작한다.
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
@@ -10,8 +11,28 @@ export interface Toast {
   message: string
 }
 
+const SIDEBAR_KEY = 'nara.sidebar.collapsed'
+
+function readSidebarCollapsed(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 export const useUiStore = defineStore('ui', () => {
   const toasts = ref<Toast[]>([])
+  const sidebarCollapsed = ref(readSidebarCollapsed())
+
+  function toggleSidebar(): void {
+    sidebarCollapsed.value = !sidebarCollapsed.value
+    try {
+      localStorage.setItem(SIDEBAR_KEY, sidebarCollapsed.value ? '1' : '0')
+    } catch {
+      // 사생활 보호 창 등: 이번 화면에서만 유지
+    }
+  }
   let seq = 0
 
   function toast(message: string, tone: Tone = 'neutral'): void {
@@ -24,5 +45,5 @@ export const useUiStore = defineStore('ui', () => {
     toasts.value = toasts.value.filter((t) => t.id !== id)
   }
 
-  return { toasts, toast, dismiss }
+  return { toasts, toast, dismiss, sidebarCollapsed, toggleSidebar }
 })

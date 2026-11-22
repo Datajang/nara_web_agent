@@ -15,7 +15,14 @@ from sqlalchemy import ColumnElement, case, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.mail import Mail, Mailer, already_registered_mail, reset_mail, verify_mail
+from app.auth.mail import (
+    Mail,
+    Mailer,
+    already_registered_mail,
+    approval_request_mail,
+    reset_mail,
+    verify_mail,
+)
 from app.auth.passwords import (
     PasswordPolicyError,
     hash_password,
@@ -109,9 +116,23 @@ class AuthService:
             user.email_verified_at = self.now
             pending = self.settings.approval_required_for(user.email)
             user.status = "pending_approval" if pending else "active"
+            notify = pending
+        else:
+            notify = False
         await self.s.commit()
         log.info("auth.verify user_id=%s status=%s", uid, user.status)
+        if notify:
+            await self._notify_admins(user)
         return user.status
+
+    async def _notify_admins(self, applicant: User) -> None:
+        """승인 대기 알림: 활성 관리자 각각에게 메일 (2026-11-22)."""
+        admins = await self.s.scalars(
+            select(User.email).where(User.role == "admin", User.status == "active")
+        )
+        name = applicant.display_name or applicant.email.split("@")[0]
+        for to in admins:
+            await self._send(approval_request_mail(self.settings, to, applicant.email, name))
 
     async def resend_verification(self, email: str) -> None:
         user = await self._user_by_email(normalize_email(email))

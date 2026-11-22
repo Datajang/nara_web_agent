@@ -25,6 +25,8 @@ export const copy = {
     admin: '관리자',
     more: '더보기',
     userMenu: '사용자 메뉴',
+    collapse: '메뉴 접기',
+    expand: '메뉴 펼치기',
     logout: '로그아웃',
     roleAdmin: '관리자',
     roleMember: '회원',

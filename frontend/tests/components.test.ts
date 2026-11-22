@@ -211,6 +211,45 @@ describe('사이드바 묶음 (2026-11-18)', () => {
   })
 })
 
+describe('사이드바 접기 (2026-11-22)', () => {
+  afterEach(() => localStorage.clear())
+
+  it('< 버튼으로 아이콘만 남기고, > 버튼으로 다시 펼친다. 선택은 브라우저에 남는다', async () => {
+    setActivePinia(createPinia())
+    const { default: SidebarNav } = await import('@/components/layout/SidebarNav.vue')
+    const w = mount(SidebarNav, { global: { plugins: [router] } })
+    const toggle = () => w.get('[data-sidebar-toggle]')
+    expect(toggle().attributes('aria-label')).toBe(copy.nav.collapse)
+    expect(toggle().attributes('aria-expanded')).toBe('true')
+    expect(w.get('aside').classes()).toContain('lg:w-58')
+    expect(w.get('[data-nav-group] p').classes()).toContain('lg:block')
+
+    await toggle().trigger('click')
+    expect(toggle().attributes('aria-label')).toBe(copy.nav.expand)
+    expect(toggle().attributes('aria-expanded')).toBe('false')
+    expect(w.get('aside').classes()).not.toContain('lg:w-58')
+    expect(w.get('[data-nav-group] p').classes()).not.toContain('lg:block')
+    const link = w.get(`a[href="/search"]`)
+    expect(link.attributes('title')).toBe(copy.nav.search)
+    expect(link.get('span').classes()).not.toContain('lg:not-sr-only')
+    expect(localStorage.getItem('nara.sidebar.collapsed')).toBe('1')
+
+    setActivePinia(createPinia())
+    const again = mount(SidebarNav, { global: { plugins: [router] } })
+    expect(again.get('[data-sidebar-toggle]').attributes('aria-expanded')).toBe('false')
+  })
+})
+
+describe('북마크 표시 (2026-11-22)', () => {
+  it('북마크하면 주홍으로 꽉 채우고, 안 했으면 테두리만', () => {
+    const on = mount(BidCard, { props: { bid: card({ bookmarked: true }) }, global: { plugins: [router] } })
+    const off = mount(BidCard, { props: { bid: card({ bookmarked: false }) }, global: { plugins: [router] } })
+    const icon = (w: typeof on) => w.get('button[aria-pressed] svg')
+    expect(icon(on).classes()).toEqual(expect.arrayContaining(['fill-danger-fg', 'text-danger-fg']))
+    expect(icon(off).classes()).not.toContain('fill-danger-fg')
+  })
+})
+
 describe('UiFilterBar (한 줄 조건 막대)', () => {
   it('이름표를 달고, #end는 따로 묶어 넓을 때 오른쪽 끝으로 민다', async () => {
     const { default: UiFilterBar } = await import('@/components/ui/UiFilterBar.vue')

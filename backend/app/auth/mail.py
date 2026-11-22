@@ -136,6 +136,16 @@ def already_registered_mail(settings: Settings, to: str) -> Mail:
     return Mail(to, _subject(settings, "이미 가입된 계정입니다"), body, html)
 
 
+def approval_request_mail(settings: Settings, to: str, applicant: str, name: str) -> Mail:
+    """승인 대기가 생겼을 때 관리자에게. 신청자 값은 _html_body가 이스케이프한다."""
+    link = f"{settings.app_origin}/admin/users?tab=pending_approval"
+    before = f"{name}({applicant}) 님이 메일 인증을 마치고 가입 승인을 기다리고 있어요."
+    after = "회사 도메인이 아닌 주소라 관리자 승인이 필요해요."
+    body = f"{before}\n\n{link}\n\n{after}"
+    html = _html_body(settings, before, link, "승인 대기 목록 열기", after)
+    return Mail(to, _subject(settings, "가입 승인 요청"), body, html)
+
+
 def build_mailer(settings: Settings) -> Mailer:
     if settings.mail_backend == "memory":
         return MemoryMailer()

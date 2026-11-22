@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // 마감 보드의 공고 카드 (2026-11-18, 시안 D). 위: D-n·마감 시각 | 예산, 제목 링크, 기관, 꼬리표,
 // 아래: 맞은 키워드 | 북마크·원문·분석. 어시스턴트 옆 칸에서도 쓴다(맞은 키워드 없음, 북마크 숨김 가능). 칸 폭이 좁아 제목은 세 줄까지. 텍스트는 바인딩으로만 렌더(XSS 방어).
-import { Bookmark, BookmarkCheck, ExternalLink } from 'lucide-vue-next'
+import BookmarkIcon from '@/components/bid/BookmarkIcon.vue'
+import { ExternalLink } from 'lucide-vue-next'
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { BidCard } from '@/api/types'
@@ -70,8 +71,7 @@ const toneClass = computed(
           :aria-pressed="bid.bookmarked"
           @click="emit('toggle-bookmark', bid)"
         >
-          <BookmarkCheck v-if="bid.bookmarked" class="size-4 text-primary" aria-hidden="true" />
-          <Bookmark v-else class="size-4" aria-hidden="true" />
+          <BookmarkIcon :on="bid.bookmarked" class="size-4" />
         </button>
         <a
           v-if="bid.detail_url"

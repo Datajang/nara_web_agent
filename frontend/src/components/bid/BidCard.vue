@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // 공고 카드 (SPEC §7.3, §10.4, P7 공고 대장 형식). 클릭 영역은 제목 링크 하나. 텍스트는 바인딩으로만 렌더(XSS 방어).
-import { Bookmark, BookmarkCheck, ExternalLink } from 'lucide-vue-next'
+import BookmarkIcon from '@/components/bid/BookmarkIcon.vue'
+import { ExternalLink } from 'lucide-vue-next'
 import { RouterLink } from 'vue-router'
 import type { BidCard } from '@/api/types'
 import UiBadge from '@/components/ui/UiBadge.vue'
@@ -58,8 +59,7 @@ const emit = defineEmits<{ 'toggle-bookmark': [BidCard] }>()
           :aria-pressed="bid.bookmarked"
           @click="emit('toggle-bookmark', bid)"
         >
-          <BookmarkCheck v-if="bid.bookmarked" class="size-5 text-primary" aria-hidden="true" />
-          <Bookmark v-else class="size-5" aria-hidden="true" />
+          <BookmarkIcon :on="bid.bookmarked" class="size-5" />
         </button>
         <a
           v-if="bid.detail_url"

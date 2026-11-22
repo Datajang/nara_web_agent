@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // 맞춤 추천 결과 목록 (2026-11-18, 시안 D 적용). 왼쪽 칸에 적합도 숫자를 크게(막대 없이, 사용자 요청),
 // 가운데 공고와 추천 이유 상자, 오른쪽에 마감·예산·동작. 좁으면 점수|본문 두 칸으로 접힌다.
-import { Bookmark, BookmarkCheck } from 'lucide-vue-next'
+
+import BookmarkIcon from '@/components/bid/BookmarkIcon.vue'
 import { RouterLink } from 'vue-router'
 import type { BidCard } from '@/api/types'
 import UiBadge from '@/components/ui/UiBadge.vue'
@@ -66,8 +67,7 @@ const grid =
               :aria-pressed="b.bookmarked"
               @click="emit('toggle-bookmark', b)"
             >
-              <BookmarkCheck v-if="b.bookmarked" class="size-5 text-primary" aria-hidden="true" />
-              <Bookmark v-else class="size-5" aria-hidden="true" />
+              <BookmarkIcon :on="b.bookmarked" class="size-5" />
             </button>
             <RouterLink
               :to="`/bids/${b.bid_id}`"

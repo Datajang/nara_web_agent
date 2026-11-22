@@ -76,6 +76,8 @@ class Settings(BaseSettings):
     access_token_minutes: int = 15
     refresh_token_days: int = 14
     allowed_email_domains: str = ""  # 쉼표 구분
+    # 쉼표 구분. 이 도메인은 메일 인증만으로 active, 나머지는 위 정책대로(§9.1)
+    auto_approve_email_domains: str = ""
     require_admin_approval: bool | None = None  # None이면 도메인 정책으로 결정
     password_min_length: int = 10
     login_max_failures: int = 5
@@ -108,11 +110,11 @@ class Settings(BaseSettings):
 
     @property
     def email_domains(self) -> frozenset[str]:
-        return frozenset(
-            d.strip().lower().lstrip("@")
-            for d in self.allowed_email_domains.split(",")
-            if d.strip()
-        )
+        return _domains(self.allowed_email_domains)
+
+    @property
+    def auto_approve_domains(self) -> frozenset[str]:
+        return _domains(self.auto_approve_email_domains)
 
     @property
     def approval_required(self) -> bool:
@@ -121,13 +123,34 @@ class Settings(BaseSettings):
             return True
         return bool(self.require_admin_approval)
 
+    def signup_allowed(self, email: str) -> bool:
+        """허용 도메인 목록이 비었거나, 허용·자동 승인 도메인 중 하나면 가입할 수 있다."""
+        domain = _domain_of(email)
+        allowed = self.email_domains
+        return not allowed or domain in allowed or domain in self.auto_approve_domains
+
+    def approval_required_for(self, email: str) -> bool:
+        """자동 승인 도메인은 메일 인증만으로 active, 그 밖은 기존 정책(approval_required)."""
+        if _domain_of(email) in self.auto_approve_domains:
+            return False
+        return self.approval_required
+
+
+def _domains(raw: str) -> frozenset[str]:
+    return frozenset(d.strip().lower().lstrip("@") for d in raw.split(",") if d.strip())
+
+
+def _domain_of(email: str) -> str:
+    return email.rsplit("@", 1)[-1].strip().lower()
+
 
 def check_startup(settings: Settings) -> list[str]:
     """시작 검사. 운영에서 위험한 설정이면 ConfigError, 경고는 문자열 목록으로 돌려준다."""
     warnings: list[str] = []
     if not settings.email_domains:
         warnings.append(
-            "ALLOWED_EMAIL_DOMAINS가 비어 있어 누구나 가입할 수 있다: 관리자 승인을 강제한다"
+            "ALLOWED_EMAIL_DOMAINS가 비어 있어 누구나 가입할 수 있다: "
+            "AUTO_APPROVE_EMAIL_DOMAINS 외에는 관리자 승인을 강제한다"
         )
     if settings.env != "production":
         return warnings

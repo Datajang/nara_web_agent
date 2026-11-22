@@ -93,6 +93,33 @@ async def test_allowed_domain_policy_skips_approval(db, clock):
         assert (await login(c, "bob@corp.example")).status_code == 200
 
 
+async def test_auto_approve_domain_active_others_need_approval(db, clock):
+    """회사 도메인은 인증만으로 active, 다른 도메인도 가입은 되지만 관리자 승인 대기."""
+    settings = make_auth_settings(auto_approve_email_domains="corp.example")
+    api = build_api(db, settings, clock)
+    async with api.client() as c:
+        assert (await register(c, "bob@corp.example")).status_code == 201
+        r = await verify(c, last_token(api.mailer, "bob@corp.example"))
+        assert r.json()["status"] == "active"
+        assert (await login(c, "bob@corp.example")).status_code == 200
+
+        assert (await register(c, "eve@other.example")).status_code == 201
+        r = await verify(c, last_token(api.mailer, "eve@other.example"))
+        assert r.json()["status"] == "pending_approval"
+        r = await login(c, "eve@other.example")
+        assert r.status_code == 403 and r.json()["error"]["code"] == "pending_approval"
+
+
+async def test_auto_approve_domain_allowed_even_if_not_in_allowed_list(db, clock):
+    settings = make_auth_settings(
+        allowed_email_domains="partner.example", auto_approve_email_domains="corp.example"
+    )
+    api = build_api(db, settings, clock)
+    async with api.client() as c:
+        assert (await register(c, "bob@corp.example")).status_code == 201
+        assert (await register(c, "eve@other.example")).status_code == 422
+
+
 async def test_weak_password_rejected_with_field_detail(client):
     r = await register(client, password="1234567890")
     assert r.status_code == 422

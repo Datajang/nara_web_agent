@@ -19,8 +19,8 @@
   쓴다면 **서비스 전용 Gmail을 새로 만들어** 쓰고, 운영 전환 때 회사 SMTP로 바꾼다(값만 교체).
 - 배포 뒤 `python -m app.cli send-test-mail --to <내 메일>`로 설정을 먼저 확인한다(THIS_SERVER 7).
 - GCP는 25번 포트를 막지만 587은 된다. 정해지면 `/etc/nara/nara.env`의 `SMTP_*`, `MAIL_FROM`에 넣는다(3단계).
-- 가입 정책도 같이 정한다: `ALLOWED_EMAIL_DOMAINS`(예: `corp.co.kr`)에 맞는 주소는 바로 가입,
-  아니면 `REQUIRE_ADMIN_APPROVAL=true`로 관리자 승인.
+- 가입 정책: `AUTO_APPROVE_EMAIL_DOMAINS=cslee.co.kr`(인증만으로 사용) + `ALLOWED_EMAIL_DOMAINS` 비움
+  (다른 도메인도 가입, 인증 뒤 관리자 승인). 도메인 밖 가입을 막으려면 `ALLOWED_EMAIL_DOMAINS`에 넣는다.
 
 ## 2. 서버 준비 — `docs/ops/INSTALL.md` §1~§5 (약 1시간, sudo)
 1. §1 사용자·디렉터리 → §2 PostgreSQL 16(5434) → §4 vLLM 설치 → §5 백업 키(개인키는 내 PC에만).

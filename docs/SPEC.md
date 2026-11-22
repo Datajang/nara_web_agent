@@ -1148,6 +1148,7 @@ R1(회원가입)과 내부 서비스에 필요한 보안 수준을 정합니다.
 
 - `ALLOWED_EMAIL_DOMAINS`(쉼표 구분)가 설정되어 있으면 그 도메인의 이메일만 가입할 수 있습니다. 이 경우 `REQUIRE_ADMIN_APPROVAL`의 기본값은 false라서 이메일 인증만 끝나면 `active`가 됩니다.
 - `ALLOWED_EMAIL_DOMAINS`가 비어 있으면 어떤 이메일로든 가입할 수 있지만 `REQUIRE_ADMIN_APPROVAL`을 true로 강제합니다. 서버가 시작할 때 경고 로그를 남깁니다.
+- `AUTO_APPROVE_EMAIL_DOMAINS`(쉼표 구분)의 이메일은 위 정책과 관계없이 가입할 수 있고, 이메일 인증만 끝나면 `active`가 됩니다. 운영: 회사 도메인만 자동 승인, 다른 도메인은 인증 후 관리자 승인 (`docs/decisions/2026-11-22-auto-approve-domains.md`).
 - 회사 도메인과 SMTP 서비스는 아직 정해지지 않았습니다. §14의 열린 질문으로 둡니다.
 
 ### 9.2 가입 · 인증 · 로그인 흐름
@@ -1241,6 +1242,7 @@ R1(회원가입)과 내부 서비스에 필요한 보안 수준을 정합니다.
 | `REFRESH_TOKEN_DAYS` | `14` |  |
 | `ALLOWED_EMAIL_DOMAINS` | (비움) | 쉼표 구분 허용 도메인 |
 | `REQUIRE_ADMIN_APPROVAL` | 도메인 설정 시 `false`, 아니면 `true` |  |
+| `AUTO_APPROVE_EMAIL_DOMAINS` | (비움) | 쉼표 구분. 인증만으로 `active`가 되는 도메인 |
 | `PASSWORD_MIN_LENGTH` | `10` |  |
 | `LOGIN_MAX_FAILURES` / `LOGIN_LOCK_MINUTES` | `5` / `15` |  |
 | `MAIL_BACKEND` | `console` | `smtp`, `console`, `memory`(테스트·개발). 운영은 smtp만 허용 |

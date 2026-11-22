@@ -54,6 +54,22 @@ def test_domain_policy_defaults_to_no_approval():
     assert s.approval_required is False and check_startup(s) == []
 
 
+def test_auto_approve_domains_skip_approval_only_for_them():
+    s = prod(allowed_email_domains="", auto_approve_email_domains="@Corp.example, sub.example")
+    assert s.auto_approve_domains == frozenset({"corp.example", "sub.example"})
+    assert s.approval_required_for("kim@corp.example") is False
+    assert s.approval_required_for("kim@CORP.EXAMPLE") is False
+    assert s.approval_required_for("kim@other.example") is True
+    assert s.signup_allowed("kim@other.example") is True
+
+
+def test_allowed_list_still_limits_signup_but_auto_domains_pass():
+    s = prod(allowed_email_domains="corp.example", auto_approve_email_domains="sub.example")
+    assert s.signup_allowed("kim@sub.example") is True
+    assert s.signup_allowed("kim@other.example") is False
+    assert s.approval_required_for("kim@corp.example") is False  # 기존 정책 그대로
+
+
 def test_development_allows_default_secret():
     assert isinstance(check_startup(Settings(env="development")), list)
 

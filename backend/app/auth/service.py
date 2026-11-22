@@ -75,8 +75,7 @@ class AuthService:
 
     async def register(self, email: str, password: str, display_name: str) -> None:
         email = normalize_email(email)
-        domain = email.rsplit("@", 1)[-1]
-        if self.settings.email_domains and domain not in self.settings.email_domains:
+        if not self.settings.signup_allowed(email):
             raise ApiError(
                 422,
                 "validation_error",
@@ -108,7 +107,8 @@ class AuthService:
         user = await self.s.get_one(User, uid)
         if user.status == "pending_verification":
             user.email_verified_at = self.now
-            user.status = "pending_approval" if self.settings.approval_required else "active"
+            pending = self.settings.approval_required_for(user.email)
+            user.status = "pending_approval" if pending else "active"
         await self.s.commit()
         log.info("auth.verify user_id=%s status=%s", uid, user.status)
         return user.status

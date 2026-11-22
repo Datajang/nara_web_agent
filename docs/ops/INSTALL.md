@@ -6,10 +6,11 @@
 ## 1. 사용자·디렉터리 (§11.2)
 ```bash
 sudo useradd --system --home /var/lib/nara --shell /usr/sbin/nologin nara
-sudo install -d -o nara -g nara -m 0750 /opt/nara /var/lib/nara /var/lib/nara/tmp /var/lib/hf-cache
+sudo install -d -o nara -g nara -m 0751 /opt/nara        # o+x: nginx(www-data)가 frontend/dist에 들어가야 한다
+sudo install -d -o nara -g nara -m 0750 /var/lib/nara /var/lib/nara/tmp /var/lib/hf-cache
 sudo install -d -o nara -g nara -m 0700 /var/backups/nara /var/backups/nara/weekly
 sudo install -d -o root -g nara -m 0750 /etc/nara
-sudo -u nara git clone https://github.com/<조직>/AX_Team_Nara_bot.git /opt/nara/app
+sudo -u nara git clone https://github.com/Datajang/nara_web_agent.git /opt/nara/app   # 기본 브랜치는 main, 태그로 체크아웃
 sudo install -m 0755 ~/.local/bin/uv /usr/local/bin/uv        # nara가 쓸 uv
 printf '[Journal]\nSystemMaxUse=2G\n' | sudo tee /etc/systemd/journald.conf.d/nara.conf
 ```
@@ -18,7 +19,8 @@ printf '[Journal]\nSystemMaxUse=2G\n' | sudo tee /etc/systemd/journald.conf.d/na
 5432는 시스템 PG13(모든 주소에 열려 있음 — 별도 점검 권장), 5433은 개발 Docker가 쓴다.
 ```bash
 sudo apt install -y postgresql-common && sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
-sudo apt install -y postgresql-16
+# Debian 11은 지원 종료: pgdg.list를 https://apt-archive.postgresql.org/pub/repos/apt/ 로 바꾼다(2026-11-22)
+sudo apt install -y postgresql-16 && sudo pg_createcluster 16 main --port 5434 --start   # 자동 생성 안 될 때
 pg_lsclusters                                   # 16 main의 포트 확인
 sudo sed -i 's/^port = .*/port = 5434/' /etc/postgresql/16/main/postgresql.conf
 sudo systemctl restart postgresql@16-main
@@ -60,7 +62,8 @@ gcloud compute instances add-tags <인스턴스> --zone=<존> --tags=nara-web
 gcloud compute firewall-rules create nara-web-https --allow=tcp:80,tcp:443 \
   --target-tags=nara-web --source-ranges=0.0.0.0/0     # 사내만이면 사내 IP 대역으로
 # (서버에서)
-sudo apt install -y nginx certbot && sudo rm -f /etc/nginx/sites-enabled/default
+sudo apt install -y nginx certbot && sudo rm -f /etc/nginx/sites-enabled/default   # 404면 보안 저장소를 archive.debian.org로
+sudo ufw allow 80/tcp && sudo ufw allow 443/tcp     # 이 VM은 ufw가 켜져 있다(GCP 방화벽과 별개)
 sudo CERTBOT_EMAIL=<운영 메일> /opt/nara/app/deploy/set-host.sh <IP를 -로>.sslip.io
 ```
 도메인이 정해지면 DNS A 레코드를 같은 IP로 두고 `set-host.sh <도메인>`만 다시 실행한다(전원 재로그인).

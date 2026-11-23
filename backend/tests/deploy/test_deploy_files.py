@@ -237,7 +237,18 @@ def test_env_example_passes_startup_check_once_filled():
 # ---------- 스크립트 문법 ----------
 
 
-@pytest.mark.parametrize("name", ["deploy.sh", "backup.sh", "restore.sh", "set-host.sh"])
+@pytest.mark.parametrize(
+    "name",
+    [
+        "deploy.sh",
+        "backup.sh",
+        "restore.sh",
+        "set-host.sh",
+        "migrate/export.sh",
+        "migrate/import.sh",
+        "migrate/bootstrap.sh",
+    ],
+)
 def test_scripts_are_strict_bash(name):
     path = DEPLOY / name
     text = path.read_text()

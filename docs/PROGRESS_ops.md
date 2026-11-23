@@ -30,6 +30,12 @@
 - 디스크: EXAONE·Qwen2.5-VL 캐시 삭제, nara uv 캐시 정리 → 81%. 탈락 결과 부족은 API 한계(개찰 조회 몫) — 대안 A·B·C 제안 중.
 - **남은 문제**: 없음. 개발 vLLM은 운영과 GPU를 같이 못 쓴다(개발은 `LLM_BACKEND=fake`로).
 
+## 서버 이전 준비 (2026-11-23)
+
+- 사용자: searching-doc-rag 인스턴스를 지우고 새 VM으로 옮길 예정. `deploy/migrate/`(export·bootstrap·import)와
+  `docs/ops/MIGRATE.md`. export→import 왕복 시험 통과(운영 건수·nara.env 동일, 한글 파일 이름, 개발 파일만 풀기).
+  bootstrap은 빈 VM에서 아직 실제로 돌려 보지 못했다(이 VM에서는 시험 불가)
+
 ## 할 일 (사용자 결정 대기, 2026-11-23)
 
 1. **'우리 수주 현황' 탈락 결과**: 탈락은 공고마다 개찰 결과를 열어야 알 수 있는데(API 한계), 하루 몫 300회를

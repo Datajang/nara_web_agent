@@ -102,7 +102,16 @@ class WatchedOut(BaseModel):
     added_at: datetime
     award_count: int  # 비교 기간 안
     last_award_at: datetime | None
+    added_by: list[str] = []  # 팀 목록에서만: 담은 팀원 이름
+
+
+class TeamWatchedOut(BaseModel):
+    name: str  # 팀 이름
+    items: list[WatchedOut]
 
 
 class WatchedListOut(BaseModel):
+    """내 관심 경쟁사(items)와, 팀이 있으면 팀원 관심을 모은 목록(team) (2026-11-23)."""
+
     items: list[WatchedOut]
+    team: TeamWatchedOut | None = None

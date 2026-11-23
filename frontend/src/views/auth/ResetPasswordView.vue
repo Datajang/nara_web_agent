@@ -12,14 +12,21 @@ import { generalMessage, passwordMessage } from '@/utils/authErrors'
 const route = useRoute()
 const token = computed(() => (typeof route.query.token === 'string' ? route.query.token : ''))
 const password = ref('')
+const passwordConfirm = ref('')
 const done = ref(false)
 const fieldError = ref('')
+const confirmError = ref('')
 const error = ref('')
 const busy = ref(false)
 
 async function onSubmit() {
   fieldError.value = ''
+  confirmError.value = ''
   error.value = ''
+  if (password.value !== passwordConfirm.value) {
+    confirmError.value = copy.auth.passwordMismatch
+    return
+  }
   busy.value = true
   try {
     await authApi.resetPassword(token.value, password.value)
@@ -50,6 +57,15 @@ async function onSubmit() {
         required
         :hint="copy.auth.passwordHint"
         :error="fieldError"
+      />
+      <UiInput
+        v-model="passwordConfirm"
+        :label="copy.auth.passwordConfirm"
+        type="password"
+        autocomplete="new-password"
+        size="lg"
+        required
+        :error="confirmError"
       />
       <p v-if="error" role="alert" class="rounded-control bg-danger-bg px-3 py-2 text-base text-danger-fg">
         {{ error }}

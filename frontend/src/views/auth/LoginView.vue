@@ -73,15 +73,16 @@ async function onSubmit() {
         class="rounded-control bg-danger-bg px-3 py-2 text-base text-danger-fg"
       >{{ error }}</p>
       <UiButton class="mt-2" type="submit" size="lg" :loading="busy" block>{{ copy.auth.submitLogin }}</UiButton>
+      <p class="text-center text-sm text-text-2">
+        {{ copy.auth.forgotPrompt }}
+        <RouterLink class="ml-1 font-semibold text-primary hover:underline" to="/forgot-password">{{ copy.auth.toForgot }}</RouterLink>
+      </p>
     </form>
     <template #footer>
       <p>
         {{ copy.auth.noAccount }}
         <RouterLink class="font-semibold text-primary hover:underline" to="/register">{{ copy.auth.registerLink }}</RouterLink>
       </p>
-      <RouterLink class="self-start text-text-2 hover:text-text hover:underline" to="/forgot-password">
-        {{ copy.auth.toForgot }}
-      </RouterLink>
     </template>
   </AuthCard>
 </template>

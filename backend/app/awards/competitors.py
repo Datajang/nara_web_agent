@@ -24,7 +24,14 @@ from app.analysis.competitors import (
     AwardKey,
 )
 from app.awards.service import Period, period_conds
-from app.db.models import BidAward, BidJointMember, BidParticipant, Company, WatchedCompany
+from app.db.models import (
+    BidAward,
+    BidJointMember,
+    BidParticipant,
+    Company,
+    User,
+    WatchedCompany,
+)
 
 
 async def load_facts(s: AsyncSession, bizno: str, p: Period) -> list[AwardFact]:
@@ -166,7 +173,7 @@ scored AS (
 SELECT s.bizno, c.name, s.n, s.last_at, s.org_overlap, s.field_overlap,
        (w.bizno IS NOT NULL) AS watched
 FROM scored s JOIN companies c ON c.bizno = s.bizno
-LEFT JOIN watched_companies w ON w.bizno = s.bizno
+LEFT JOIN watched_companies w ON w.bizno = s.bizno AND w.user_id = :uid
 ORDER BY (:ow * s.org_overlap + :fw * s.field_overlap) DESC, s.n DESC, s.bizno
 LIMIT :limit
 """
@@ -177,6 +184,7 @@ async def candidates(
     us: str,
     p: Period,
     *,
+    user_id: int | None = None,  # 관심 여부를 볼 계정(없으면 모두 False)
     field_tag: str | None = None,
     org: str | None = None,
     limit: int = 20,
@@ -201,6 +209,7 @@ async def candidates(
             "ow": ORG_WEIGHT,
             "fw": FIELD_WEIGHT,
             "limit": limit,
+            "uid": user_id,
             **params,
         },
     )
@@ -222,12 +231,18 @@ async def candidates(
 class Watched:
     bizno: str
     name: str
-    added_at: datetime
+    added_at: datetime  # 팀 목록이면 가장 최근에 담은 시각
     award_count: int
     last_award_at: datetime | None
+    added_by: list[str]  # 담은 사람 이름(팀 목록에서만 채운다)
 
 
-async def list_watched(s: AsyncSession, p: Period) -> list[Watched]:
+async def list_watched(
+    s: AsyncSession, p: Period, user_ids: list[int], *, with_names: bool = False
+) -> list[Watched]:
+    """user_ids가 담은 관심 경쟁사. 여러 명이면 회사별로 묶고 담은 사람을 모은다 (2026-11-23)."""
+    if not user_ids:
+        return []
     counts: Any = (
         select(
             BidAward.bizno.label("bizno"),
@@ -244,35 +259,44 @@ async def list_watched(s: AsyncSession, p: Period) -> list[Watched]:
         .group_by(BidAward.bizno)
         .subquery()
     )
+    who = func.coalesce(func.nullif(User.display_name, ""), func.split_part(User.email, "@", 1))
+    added_at = func.max(WatchedCompany.added_at)
     rows = await s.execute(
         select(
             WatchedCompany.bizno,
             Company.name,
-            WatchedCompany.added_at,
-            counts.c.n,
-            counts.c.last_at,
+            added_at,
+            func.max(counts.c.n),
+            func.max(counts.c.last_at),
+            func.array_agg(who),
         )
         .join(Company, Company.bizno == WatchedCompany.bizno)
+        .join(User, User.id == WatchedCompany.user_id)
         .outerjoin(counts, counts.c.bizno == WatchedCompany.bizno)
-        .order_by(WatchedCompany.added_at.desc(), WatchedCompany.bizno)
+        .where(WatchedCompany.user_id.in_(user_ids))
+        .group_by(WatchedCompany.bizno, Company.name)
+        .order_by(added_at.desc(), WatchedCompany.bizno)
     )
-    return [Watched(b, n, at, int(c or 0), last) for b, n, at, c, last in rows.all()]
+    return [
+        Watched(b, n, at, int(c or 0), last, sorted(names) if with_names else [])
+        for b, n, at, c, last, names in rows.all()
+    ]
 
 
-async def is_watched(s: AsyncSession, bizno: str) -> bool:
-    return await s.get(WatchedCompany, bizno) is not None
+async def is_watched(s: AsyncSession, bizno: str, user_id: int) -> bool:
+    return await s.get(WatchedCompany, (user_id, bizno)) is not None
 
 
 async def watch(s: AsyncSession, bizno: str, user_id: int) -> None:
     await s.execute(
         insert(WatchedCompany)
-        .values(bizno=bizno, added_by=user_id)
-        .on_conflict_do_nothing(index_elements=[WatchedCompany.bizno])
+        .values(bizno=bizno, user_id=user_id)
+        .on_conflict_do_nothing(index_elements=[WatchedCompany.user_id, WatchedCompany.bizno])
     )
 
 
-async def unwatch(s: AsyncSession, bizno: str) -> None:
-    row = await s.get(WatchedCompany, bizno)
+async def unwatch(s: AsyncSession, bizno: str, user_id: int) -> None:
+    row = await s.get(WatchedCompany, (user_id, bizno))
     if row is not None:
         await s.delete(row)
 

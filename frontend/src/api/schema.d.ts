@@ -539,7 +539,7 @@ export interface paths {
         get?: never;
         /**
          * Put Watched
-         * @description 관심 경쟁사 등록(서비스 전체 공유, 이미 있으면 그대로).
+         * @description 내 관심 경쟁사에 추가(이미 있으면 그대로). 계정별 (2026-11-23).
          */
         put: operations["put_watched_api_v1_competitors_watch__bizno__put"];
         post?: never;
@@ -2883,6 +2883,13 @@ export interface components {
             /** Invite Code */
             invite_code: string;
         };
+        /** TeamWatchedOut */
+        TeamWatchedOut: {
+            /** Name */
+            name: string;
+            /** Items */
+            items: components["schemas"]["WatchedOut"][];
+        };
         /** TokenIn */
         TokenIn: {
             /** Token */
@@ -2981,10 +2988,14 @@ export interface components {
              */
             status: "pending_verification" | "pending_approval" | "active" | "disabled";
         };
-        /** WatchedListOut */
+        /**
+         * WatchedListOut
+         * @description 내 관심 경쟁사(items)와, 팀이 있으면 팀원 관심을 모은 목록(team) (2026-11-23).
+         */
         WatchedListOut: {
             /** Items */
             items: components["schemas"]["WatchedOut"][];
+            team?: components["schemas"]["TeamWatchedOut"] | null;
         };
         /** WatchedOut */
         WatchedOut: {
@@ -3001,6 +3012,11 @@ export interface components {
             award_count: number;
             /** Last Award At */
             last_award_at: string | null;
+            /**
+             * Added By
+             * @default []
+             */
+            added_by: string[];
         };
         /** YearProgressOut */
         YearProgressOut: {

@@ -13,11 +13,17 @@ const router = useRouter()
 const email = ref('')
 const displayName = ref('')
 const password = ref('')
-const errors = ref<{ email?: string; password?: string; form?: string }>({})
+const passwordConfirm = ref('')
+const errors = ref<{ email?: string; password?: string; confirm?: string; form?: string }>({})
 const busy = ref(false)
 
 async function onSubmit() {
   errors.value = {}
+  // 비밀번호 확인(2026-11-23): 서버에 보내기 전에 화면에서 맞춘다
+  if (password.value !== passwordConfirm.value) {
+    errors.value = { confirm: copy.auth.passwordMismatch }
+    return
+  }
   busy.value = true
   try {
     await authApi.register({
@@ -77,6 +83,15 @@ async function onSubmit() {
         required
         :hint="copy.auth.passwordHint"
         :error="errors.password"
+      />
+      <UiInput
+        v-model="passwordConfirm"
+        :label="copy.auth.passwordConfirm"
+        type="password"
+        autocomplete="new-password"
+        size="lg"
+        required
+        :error="errors.confirm"
       />
       <p
         v-if="errors.form"

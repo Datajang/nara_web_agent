@@ -221,7 +221,10 @@ def _partners(rows: list[comp.JointPartner]) -> list[JointPartnerOut]:
     return [JointPartnerOut(bizno=r.bizno, name=r.name, count=r.count) for r in rows]
 
 
-async def compare_out(s: AsyncSession, deps: Deps, bizno: str) -> CompareOut:
+async def compare_out(
+    s: AsyncSession, deps: Deps, bizno: str, user_id: int | None = None
+) -> CompareOut:
+    """user_id가 있으면 그 계정의 관심 여부를 채운다(관심 경쟁사는 계정별, 2026-11-23)."""
     org, us, us_name = await us_config(s, deps)
     if bizno == us:
         raise ApiError(400, "bad_request", "우리 회사와 같은 업체예요. 다른 업체를 골라 주세요.")
@@ -275,5 +278,5 @@ async def compare_out(s: AsyncSession, deps: Deps, bizno: str) -> CompareOut:
             us=_partners(await comp.joint_partners(s, us, period)),
             them=_partners(await comp.joint_partners(s, bizno, period)),
         ),
-        watched=await comp.is_watched(s, bizno),
+        watched=user_id is not None and await comp.is_watched(s, bizno, user_id),
     )

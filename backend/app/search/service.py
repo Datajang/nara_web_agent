@@ -17,10 +17,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from sqlalchemy import delete
+
 from app.collector import coverage, runner
 from app.db.models import Bid, SearchRun, SearchRunItem, UsageLog
 from app.deps import Deps
 from app.g2b.client import CallCounter, count_calls
+from app.history.repo import browse_run, is_browse
 from app.pipeline.singleflight import LockTimeout, single_flight
 from app.search.query import SearchQuery, build_query
 
@@ -129,10 +132,14 @@ async def search_bids(deps: Deps, user_id: int | None, q: SearchQuery) -> Search
     async with deps.db.transaction() as s:
         run_id = None
         if user_id is not None:
+            query = q.model_dump(mode="json", by_alias=True)
+            if is_browse(query):
+                # 둘러보기는 더 보기용 스냅샷만 필요하다: 이전 둘러보기를 지우고 최근 1건만 둔다
+                await s.execute(delete(SearchRun).where(SearchRun.user_id == user_id, browse_run()))
             run = SearchRun(
                 user_id=user_id,
                 kind="search",
-                query=q.model_dump(mode="json", by_alias=True),
+                query=query,
                 result_count=len(kept),
                 data_as_of=found.data_as_of,
                 cache_hit=found.cache_hit,

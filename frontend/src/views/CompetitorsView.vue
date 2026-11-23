@@ -36,6 +36,8 @@ const cands = useQuery({
   enabled: computed(() => !!summary.data.value),
 })
 const watched = useQuery({ queryKey: ['competitors', 'watch'], queryFn: competitorsApi.watched })
+/** 내 목록에 있는 곳: 팀 목록의 별 버튼이 내 관심 여부를 보여 준다 */
+const watchedSet = computed(() => new Set((watched.data.value?.items ?? []).map((w) => w.bizno)))
 const notConfigured = computed(
   () => summary.error.value instanceof ApiError && summary.error.value.code === 'not_configured',
 )
@@ -125,8 +127,8 @@ const orgOptions = computed(() => [
           </div>
         </section>
 
-        <section class="rounded-card border border-border bg-surface p-4" :aria-label="copy.competitors.watchList">
-          <h3 class="mb-3 text-lg font-semibold">{{ copy.competitors.watchList }}</h3>
+        <section class="rounded-card border border-border bg-surface p-4" :aria-label="copy.competitors.myWatchList">
+          <h3 class="mb-3 text-lg font-semibold">{{ copy.competitors.myWatchList }}</h3>
           <p v-if="!watched.data.value?.items.length" class="text-text-3">{{ copy.competitors.noWatched }}</p>
           <ul v-else class="flex flex-col divide-y divide-border" data-watch-list>
             <li v-for="w in watched.data.value.items" :key="w.bizno" class="flex flex-wrap items-center gap-3 py-2 text-sm">
@@ -134,6 +136,25 @@ const orgOptions = computed(() => [
               <span class="tabular text-text-2">{{ copy.awards.countUnit(w.award_count) }}</span>
               <span v-if="w.last_award_at" class="tabular text-text-3">{{ copy.companies.lastAward(formatDate(w.last_award_at)) }}</span>
               <WatchButton :bizno="w.bizno" :watched="true" />
+            </li>
+          </ul>
+        </section>
+
+        <!-- 팀 목록: 팀원(나 포함)이 담은 곳을 담은 사람과 함께 모아 보여 준다 (2026-11-23) -->
+        <section
+          v-if="watched.data.value?.team"
+          class="rounded-card border border-border bg-surface p-4"
+          :aria-label="copy.competitors.teamWatchList(watched.data.value.team.name)"
+        >
+          <h3 class="mb-3 text-lg font-semibold">{{ copy.competitors.teamWatchList(watched.data.value.team.name) }}</h3>
+          <p v-if="!watched.data.value.team.items.length" class="text-text-3">{{ copy.competitors.noTeamWatched }}</p>
+          <ul v-else class="flex flex-col divide-y divide-border" data-team-watch-list>
+            <li v-for="w in watched.data.value.team.items" :key="w.bizno" class="flex flex-wrap items-center gap-3 py-2 text-sm">
+              <RouterLink :to="`/competitors/${w.bizno}`" class="min-w-0 flex-1 truncate font-medium text-primary hover:underline">{{ w.name }}</RouterLink>
+              <span class="tabular text-text-2">{{ copy.awards.countUnit(w.award_count) }}</span>
+              <span v-if="w.last_award_at" class="tabular text-text-3">{{ copy.companies.lastAward(formatDate(w.last_award_at)) }}</span>
+              <span class="text-text-3">{{ copy.competitors.addedBy(w.added_by ?? []) }}</span>
+              <WatchButton :bizno="w.bizno" :watched="watchedSet.has(w.bizno)" />
             </li>
           </ul>
         </section>

@@ -150,23 +150,58 @@ async def test_candidates_by_overlap(full_api):
     assert by_org["items"] == []  # 우리가 그 기관 낙찰이 없음
 
 
-async def test_watch_list(full_api):
+async def test_watch_list_is_per_account(full_api):
+    """관심 경쟁사는 계정마다 따로 (2026-11-23). 추가·빼기는 내 목록만 바꾼다."""
     a = await _setup(full_api)
     m = await member(full_api, "m@corp.example")
     put = await m.put(f"/api/v1/competitors/watch/{THEM}")
-    again = await a.put(f"/api/v1/competitors/watch/{THEM}")  # 서비스 전체 공유, 멱등
+    again = await m.put(f"/api/v1/competitors/watch/{THEM}")  # 멱등
     missing = await m.put("/api/v1/competitors/watch/9999999999")
-    listed = (await a.get("/api/v1/competitors/watch")).json()["items"]
-    cand = (await a.get("/api/v1/competitors/candidates")).json()["items"]
-    cmp_watched = (await a.get(f"/api/v1/compare/{THEM}")).json()["watched"]
+    mine = (await m.get("/api/v1/competitors/watch")).json()
+    admins = (await a.get("/api/v1/competitors/watch")).json()
+    cand_m = (await m.get("/api/v1/competitors/candidates")).json()["items"]
+    cand_a = (await a.get("/api/v1/competitors/candidates")).json()["items"]
+    cmp_m = (await m.get(f"/api/v1/compare/{THEM}")).json()["watched"]
+    cmp_a = (await a.get(f"/api/v1/compare/{THEM}")).json()["watched"]
+    await a.put(f"/api/v1/competitors/watch/{THEM}")
     deleted = await m.delete(f"/api/v1/competitors/watch/{THEM}")
-    after = (await a.get("/api/v1/competitors/watch")).json()["items"]
+    after_m = (await m.get("/api/v1/competitors/watch")).json()["items"]
+    after_a = (await a.get("/api/v1/competitors/watch")).json()["items"]
     await a.aclose()
     await m.aclose()
     assert put.status_code == again.status_code == 200 and missing.status_code == 404
-    assert [(w["bizno"], w["name"], w["award_count"]) for w in listed] == [(THEM, "가온", 5)]
-    assert cand[0]["watched"] is True and cmp_watched is True
-    assert deleted.status_code == 204 and after == []
+    assert [(w["bizno"], w["name"], w["award_count"]) for w in mine["items"]] == [(THEM, "가온", 5)]
+    assert mine["team"] is None
+    assert admins["items"] == []
+    assert cand_m[0]["watched"] is True and cand_a[0]["watched"] is False
+    assert cmp_m is True and cmp_a is False
+    assert deleted.status_code == 204 and after_m == [] and [w["bizno"] for w in after_a] == [THEM]
+
+
+async def test_team_watch_list_collects_members(full_api):
+    """팀이 있으면 팀원들의 관심 경쟁사를 누가 추가했는지와 함께 모아 보여 준다."""
+    a = await _setup(full_api)
+    m = await member(full_api, "m@corp.example")
+    out = await member(full_api, "out@corp.example")
+    team = (await m.post("/api/v1/teams", json={"name": "AI팀"})).json()["team"]
+    assert (
+        await a.post("/api/v1/teams/join", json={"code": team["invite_code"]})
+    ).status_code == 200
+    await m.put(f"/api/v1/competitors/watch/{THEM}")
+    full_api.clock.advance(minutes=1)
+    await a.put(f"/api/v1/competitors/watch/{THEM}")
+    await a.put(f"/api/v1/competitors/watch/{OTHER}")
+    await out.put(f"/api/v1/competitors/watch/{OTHER}")
+    seen_by_m = (await m.get("/api/v1/competitors/watch")).json()
+    seen_by_out = (await out.get("/api/v1/competitors/watch")).json()
+    for c in (a, m, out):
+        await c.aclose()
+    assert [w["bizno"] for w in seen_by_m["items"]] == [THEM]
+    t = seen_by_m["team"]
+    assert t["name"] == "AI팀"
+    got = {w["bizno"]: sorted(w["added_by"]) for w in t["items"]}
+    assert got == {THEM: sorted(["m", "admin"]), OTHER: ["admin"]}  # 팀 밖(out)은 안 섞인다
+    assert seen_by_out["team"] is None
 
 
 async def test_changing_our_company_recomputes(full_api):

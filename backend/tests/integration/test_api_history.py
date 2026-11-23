@@ -138,7 +138,8 @@ async def test_old_analysis_still_opens(full_api):
 
 async def test_search_runs_list_and_delete(full_api):
     c = await member(full_api, "a@corp.example")
-    run_id = (await c.post("/api/v1/bids/search", json={"days": 3})).json()["run_id"]
+    body = {"keywords": ["AI"], "days": 3}  # 조건 없는 둘러보기는 기록에 안 남는다(2026-11-23)
+    run_id = (await c.post("/api/v1/bids/search", json=body)).json()["run_id"]
     listed = (await c.get("/api/v1/search-runs", params={"kind": "search"})).json()
     deleted = await c.delete(f"/api/v1/search-runs/{run_id}")
     after = (await c.get("/api/v1/search-runs")).json()
@@ -304,3 +305,27 @@ async def test_admin_usage_includes_feedback_by_reason(full_api, fake_g2b):
         ("analysis", -1, "too_long"): 1,
         ("search_run", 1, None): 1,
     }
+
+
+async def test_browse_searches_without_conditions_stay_out_of_history(full_api, fake_g2b):
+    """키워드·공고명·기관 없이 연 검색(탭 기본 화면)은 내 기록·최근 검색에 남기지 않는다.
+    (2026-11-23)
+    더 보기용 스냅샷은 필요하니 가장 최근 한 건만 둔다."""
+    from app.db.models import SearchRun
+
+    fake_g2b.add("regular", regular_item("R26BK96000001", NOW - timedelta(hours=1), title="AI"))
+    a = await member(full_api, "browse@corp.example")
+    first = (await a.post("/api/v1/bids/search", json={"keywords": [], "days": 14})).json()
+    second = (await a.post("/api/v1/bids/search", json={"keywords": [], "days": 14})).json()
+    kw = (await a.post("/api/v1/bids/search", json={"keywords": ["AI"], "days": 14})).json()
+    titled = (await a.post("/api/v1/bids/search", json={"keywords": [], "title": "AI"})).json()
+    listed = (await a.get("/api/v1/search-runs?kind=search")).json()
+    page = await a.get(f"/api/v1/search-runs/{second['run_id']}")
+    gone = await a.get(f"/api/v1/search-runs/{first['run_id']}")
+    await a.aclose()
+    assert {r["id"] for r in listed["items"]} == {kw["run_id"], titled["run_id"]}
+    assert listed["total"] == 2
+    assert page.status_code == 200 and gone.status_code == 404
+    async with full_api.db.session() as s:
+        n = await s.scalar(select(func.count()).select_from(SearchRun))
+    assert n == 3  # 둘러보기는 최근 1건만

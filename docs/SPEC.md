@@ -2142,7 +2142,7 @@ v1에 이어서 쓸 사용자·검색 기록이 실제로 있을 때만 합니�
 | `bid_participants` | 공유 | `bid_ntce_no`, `bid_ntce_ord`, `bizno`, `name`, `rank`, `bid_amount`, `tech_score`, `price_score`, `total_score` | 공고 상세 '경쟁 구도'를 열 때 채우는 온디맨드 캐시 |
 | `bid_joint_members` | 공유 | `bid_ntce_no`, `bid_ntce_ord`, `bizno`, `member_bizno`, `member_name` | 계약정보 수집 후. 선택 기능(P11) |
 | `org_settings` | 설정 | `our_bizno`, `our_name`, `field_keywords`(jsonb), `backfill_years`, `updated_by`, `updated_at` | 한 행. 관리자만 수정 |
-| `watched_companies` | 설정 | `bizno`, `added_by`, `added_at` | 관심 경쟁사. 서비스 전체가 공유 |
+| `watched_companies` | 개인 | `user_id`, `bizno`, `added_at` (PK user_id+bizno) | 관심 경쟁사. 계정별, 팀 목록은 팀원 것을 모아 보여 줌 \[결정: 2026-11-23, 0012\] |
 
 `estimated_price`는 같은 공고가 `bids`에 있을 때 거기서 가져오고, 없으면 `null`입니다. `award_ratio`는 둘 다 있을 때만 `award_amount / estimated_price`로 계산하고, G2B가 준 낙찰률은 `g2b_award_rate`에 그대로 저장합니다. 과거 5년치 공고를 모두 `bids`에 채우는 것은 호출 예산상 이번 범위가 아니므로 과거 낙찰의 `award_ratio`는 대부분 비어 있을 것이고, 화면은 이때 '추정가격 대비' 대신 낙찰률(G2B)을 보여 주거나 '정보 없음'으로 표시합니다. `fields`는 `org_settings.field_keywords` 사전으로 공고명을 분류한 태그 목록('데이터 정비', 'AI 분석' 등)이며, 사전이 바뀌면 `scripts/reclassify_awards.py`로 다시 계산합니다.
 
@@ -2196,7 +2196,7 @@ v1에 이어서 쓸 사용자·검색 기록이 실제로 있을 때만 합니�
 | `GET /companies/search?q=` | 회원 | 업체명 일부 또는 사업자번호. 결과는 `bizno`, `name`, 낙찰 건수 |
 | `GET /companies/{bizno}` | 회원 | 업체 요약(판정 없는 지표) |
 | `GET /competitors/candidates` | 회원 | 겹침도 순 후보. `limit`, `field`, `org` |
-| `GET·PUT·DELETE /competitors/watch/{bizno}` | 회원 | 관심 경쟁사 목록·등록·해제 |
+| `GET·PUT·DELETE /competitors/watch/{bizno}` | 회원 | 관심 경쟁사 목록·등록·해제 — 계정별. GET은 `items`(내 목록) + 팀이 있으면 `team{name, items(+added_by)}` \[결정: 2026-11-23\] |
 | `GET /compare/{bizno}` | 회원 | 지표 쌍, 항목별 판정, 강점·약점, 비교에 쓴 기간과 수집 완료 범위 |
 | `POST /compare/{bizno}/explain` | 회원 | SSE. AI 해설. 입력은 위 `compare` 응답뿐 |
 | `GET /bids/{bidId}/competition` | 회원 | 같은 수요기관의 비슷한 과거 사업 낙찰, 낙찰률 분포, 참가 업체 점수(온디맨드) |

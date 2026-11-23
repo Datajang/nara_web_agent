@@ -1552,7 +1552,7 @@
           "competitors"
         ],
         "summary": "Put Watched",
-        "description": "관심 경쟁사 등록(서비스 전체 공유, 이미 있으면 그대로).",
+        "description": "내 관심 경쟁사에 추가(이미 있으면 그대로). 계정별 (2026-11-23).",
         "operationId": "put_watched_api_v1_competitors_watch__bizno__put",
         "parameters": [
           {
@@ -8671,6 +8671,27 @@
         ],
         "title": "TeamOut"
       },
+      "TeamWatchedOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WatchedOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "items"
+        ],
+        "title": "TeamWatchedOut"
+      },
       "TokenIn": {
         "properties": {
           "token": {
@@ -8934,13 +8955,24 @@
             },
             "type": "array",
             "title": "Items"
+          },
+          "team": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TeamWatchedOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
         "required": [
           "items"
         ],
-        "title": "WatchedListOut"
+        "title": "WatchedListOut",
+        "description": "내 관심 경쟁사(items)와, 팀이 있으면 팀원 관심을 모은 목록(team) (2026-11-23)."
       },
       "WatchedOut": {
         "properties": {
@@ -8972,6 +9004,14 @@
               }
             ],
             "title": "Last Award At"
+          },
+          "added_by": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Added By",
+            "default": []
           }
         },
         "type": "object",

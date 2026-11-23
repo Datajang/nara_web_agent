@@ -195,3 +195,32 @@ describe('업체 검색의 비교·관심 버튼', () => {
     expect(m.wrapper.find('[data-compare-link]').exists()).toBe(false)
   })
 })
+
+describe('관심 경쟁사: 내 목록과 팀 목록 (2026-11-23)', () => {
+  const base = { ...THEM, added_at: '2026-11-22T00:00:00Z', award_count: 12, last_award_at: null, added_by: [] }
+  function routes(team: unknown) {
+    return {
+      'GET /api/v1/awards/summary': json(summary()),
+      'GET /api/v1/competitors/candidates': json({ period: PERIOD, us: US, our_count: 7, items: [] }),
+      'GET /api/v1/competitors/watch': json({ items: [base], team }),
+    }
+  }
+
+  it('팀이 있으면 [팀] 관심 경쟁사에 담은 팀원과 함께 보인다', async () => {
+    mockApi(routes({ name: 'AI팀', items: [{ ...base, added_by: ['김대리', '나'] }] }))
+    m = await mountAt('/competitors')
+    expect(m.wrapper.get('[data-watch-list] ').text()).toContain(THEM.name)
+    expect(text(m.wrapper)).toContain(copy.competitors.myWatchList)
+    const team = m.wrapper.get('[data-team-watch-list]')
+    expect(text(m.wrapper)).toContain(copy.competitors.teamWatchList('AI팀'))
+    expect(team.text()).toContain(THEM.name)
+    expect(team.text()).toContain(copy.competitors.addedBy(['김대리', '나']))
+  })
+
+  it('팀이 없으면 팀 목록은 없다', async () => {
+    mockApi(routes(null))
+    m = await mountAt('/competitors')
+    expect(m.wrapper.find('[data-team-watch-list]').exists()).toBe(false)
+    expect(copy.competitors.teamWatchList('AI팀')).toBe('[AI팀] 관심 경쟁사')
+  })
+})

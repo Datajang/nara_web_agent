@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from sqlalchemy import ColumnElement, delete, func, select
+from sqlalchemy import ColumnElement, and_, delete, func, not_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,10 +32,26 @@ def not_found(what: str = "자원") -> ApiError:
 # ---------- 검색 기록 ----------
 
 
+def is_browse(query: dict[str, object]) -> bool:
+    """키워드·공고명·기관 없이 연 검색(검색 탭 기본 화면). 기록에 남기지 않는다 (2026-11-23)."""
+    return not query.get("keywords") and not query.get("title") and not query.get("org")
+
+
+def browse_run() -> ColumnElement[bool]:
+    """is_browse와 같은 조건을 SQL로: kind='search'이고 조건이 하나도 없는 실행."""
+    q = SearchRun.query
+    return and_(
+        SearchRun.kind == "search",
+        func.coalesce(func.jsonb_array_length(q["keywords"]), 0) == 0,
+        func.coalesce(q["title"].astext, "") == "",
+        func.coalesce(q["org"].astext, "") == "",
+    )
+
+
 async def list_runs(
     s: AsyncSession, user_id: int, kind: str | None, limit: int, offset: int
 ) -> tuple[list[SearchRun], int]:
-    where = [SearchRun.user_id == user_id]
+    where = [SearchRun.user_id == user_id, not_(browse_run())]
     if kind:
         where.append(SearchRun.kind == kind)
     total = await s.scalar(select(func.count()).select_from(SearchRun).where(*where)) or 0

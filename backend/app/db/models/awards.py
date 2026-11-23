@@ -1,7 +1,7 @@
 """낙찰·경쟁사 분석 테이블 (SPEC §15.3, docs/decisions/2026-11-16-awards-probe.md).
 
 공유 계층: companies, bid_awards, bid_participants, bid_joint_members (공고·업체 단위, user_id 없음)
-설정 계층: org_settings(한 행), watched_companies(서비스 전체 공유)
+설정 계층: org_settings(한 행), watched_companies(계정별, 2026-11-23)
 
 개인정보(대표자명·주소·전화·담당자)와 raw 컬럼은 두지 않는다 (§15.9).
 """
@@ -180,12 +180,14 @@ class OrgSettings(Base):
 
 
 class WatchedCompany(Base):
-    """관심 경쟁사. 서비스 전체가 공유한다 (§15.3)."""
+    """관심 경쟁사. 계정마다 따로, 팀 목록은 팀원 목록을 모아 보여 준다 (2026-11-23, 0012)."""
 
     __tablename__ = "watched_companies"
 
-    bizno: Mapped[str] = mapped_column(
-        ForeignKey("companies.bizno", ondelete="CASCADE"), primary_key=True
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
-    added_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    bizno: Mapped[str] = mapped_column(
+        ForeignKey("companies.bizno", ondelete="CASCADE"), primary_key=True, index=True
+    )
     added_at: Mapped[datetime] = ts_now()

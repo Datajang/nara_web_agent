@@ -1,6 +1,7 @@
 # 운영 진행 기록
 
-운영 서버: 이 GCP VM(`searching-doc-rag`), 접속 `https://34-135-176-205.sslip.io`. 서버 맞춤 값은 `docs/ops/THIS_SERVER.local.md`(git 제외).
+운영 서버: 이 GCP VM(`ai-project-server`, 2026-11-24 이전), 접속 `https://34-124-126-84.sslip.io`. 옛 VM은 `searching-doc-rag`(`34-135-176-205`).
+서버 맞춤 값은 `docs/ops/THIS_SERVER.local.md`(git 제외).
 
 ## 운영 준비 지원 (2026-11-13)
 
@@ -47,3 +48,13 @@
    (`gcloud compute addresses list --filter="address=34.135.176.205"` → STATUS가 IN_USE/RESERVED면 고정).
    고정이 아니면 중지 때 IP가 바뀌어 접속 주소·인증서를 다시 설정해야 한다(`set-host.sh <새IP>.sslip.io`)
 
+
+## 새 VM 이전 (2026-11-24)
+
+- **한 일**: 새 VM `ai-project-server`(L4, 디스크 394GB → 사용 11%)로 이전. 새 IP라 주소가 `34-124-126-84.sslip.io`로 바뀜.
+  이전 뒤 점검에서 `/etc/nara/nara.env` 두 가지를 고침(백업 `nara.env.before-fix-20261124T044801Z`, API 재시작 없음):
+  `APP_ORIGIN`이 옛 주소로 되돌아가 있었음(import가 set-host 뒤에 덮어씀 — 실행 중 API는 새 값이라 재시작 때 로그인 403이 될 뻔함),
+  값이 든 `ALERT_EMAIL` 뒤의 빈 `ALERT_EMAIL=`이 덮어써 **옛 서버에서도 경보 메일이 나가지 않았음** → 빈 줄 삭제.
+- **확인**: 첫 수집 05:04 성공(일반 1,230건·사전규격 508건 새로, G2B 5회) → `/readyz` 전부 ok, 경보 해소.
+  `send-test-mail`로 `ALERT_EMAIL` 수신 확인, 새 주소 로그인 확인.
+- **남은 문제**: 백업(18:31)·낙찰 수집(04:34) 첫 실행 확인 뒤 옛 VM 삭제. 개발 환경(MIGRATE §6: `.env`·로컬 문서·개발 DB)은 아직 안 풀림.

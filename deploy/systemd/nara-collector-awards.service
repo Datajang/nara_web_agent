@@ -2,8 +2,11 @@
 # 1) 최근 14일 재수집(실패해도 계속) 2) 과거로 백필 — 하루 낙찰 예산(G2B_AWARDS_DAILY_BUDGET)에서 멈추고
 # 다음 날 이어간다. 5년 백필은 약 522회라 300회/일이면 이틀 (docs/decisions/2026-11-16-awards-probe.md)
 # 3) 계약정보(공동수급 구성, P11)도 같은 예산으로 증분·백필. 낙찰 백필이 끝난 뒤에 과거로 간다
-# 4) 개찰 결과(우리 투찰 결과, P12): 따로 몫(G2B_OPENINGS_DAILY_BUDGET 300). 최근 14일 낙찰 공고 먼저,
-#    남는 호출로 오래된 공고(우리 낙찰 → 우리 분야·기관 → 나머지). 호출이 많아 시간 상한을 1시간으로
+# 4) 개찰 결과(우리 투찰 결과, P12): 따로 몫(G2B_OPENINGS_DAILY_BUDGET). 최근 14일 낙찰 공고 먼저,
+#    남는 호출로 오래된 공고(우리 낙찰 → 우리 분야·기관 → 나머지).
+# 시간 상한 20시간: 운영계정(하루 10만, 2026-11-24)에서는 계약 백필 3,000회(약 7.5시간)와 개찰 8만 회
+# (약 6시간)가 한 번에 돈다. 다음 날 timer와 겹치지 않게 24시간보다 짧게
+# (docs/decisions/2026-11-24-g2b-operating-quota.md)
 [Unit]
 Description=nara collector (awards + contracts + openings: incremental + backfill)
 After=network-online.target postgresql.service
@@ -21,7 +24,7 @@ ExecStart=-/opt/nara/venv/bin/python -m app.collector incremental --source openi
 ExecStart=-/opt/nara/venv/bin/python -m app.collector backfill --source awards
 ExecStart=-/opt/nara/venv/bin/python -m app.collector backfill --source contracts
 ExecStart=/opt/nara/venv/bin/python -m app.collector backfill --source openings
-TimeoutStartSec=3600
+TimeoutStartSec=72000
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true

@@ -33,7 +33,9 @@ class Settings(BaseSettings):
     nara_prespec_api_key: SecretStr = SecretStr("")
     # 낙찰·계약 서비스(§15.2). 비우면 NARA_API_KEY를 쓴다(2026-11-16 probe: 기존 키로 호출됨)
     nara_award_api_key: SecretStr = SecretStr("")
-    g2b_daily_call_budget: int = 1000  # 포털 한도 1000회(사용자 확인), 모든 소스 합산
+    # 기본값은 개발계정(하루 1000회) 기준. 운영은 운영계정 값을 nara.env에 둔다
+    # (docs/decisions/2026-11-24-g2b-operating-quota.md)
+    g2b_daily_call_budget: int = 1000  # 모든 소스 합산
     g2b_awards_daily_budget: int = 300  # 그중 낙찰·계약 몫 (§15.4)
     # 계약정보(공동수급) 백필의 한 번 실행 호출 상한. 계약은 하루치가 약 5회라 5년이면 약 8,700회
     # → 낙찰 몫을 다 쓰지 않게 나눠 받는다(경쟁 구도 온디맨드 몫을 남김, P11 결정)

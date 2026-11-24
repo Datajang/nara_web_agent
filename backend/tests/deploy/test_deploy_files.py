@@ -43,6 +43,9 @@ def test_awards_collector_runs_incremental_then_backfill():
         "-/opt/nara/venv/bin/python -m app.collector backfill --source contracts",
         "/opt/nara/venv/bin/python -m app.collector backfill --source openings",
     ]
+    # 운영계정 하루치(계약 백필 + 개찰 8만 회)를 다 돌 만큼 길고, 다음 날 timer와는 겹치지 않게
+    timeout = int(one(u, "Service", "TimeoutStartSec"))
+    assert 12 * 3600 <= timeout < 24 * 3600
     assert one(u, "Service", "WorkingDirectory") == "/opt/nara/app/backend"
 
 

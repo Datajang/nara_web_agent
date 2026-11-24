@@ -26,3 +26,7 @@
 - 배포 rc14(2026-11-24, 사용자 서버 실행): 위 경쟁사 레이더 속도 개선. 마이그레이션·vLLM 변경 없음.
 - LLM 사용량 쿼리 `deploy/sql/llm_usage.sql`(14일: 하루 최대 21회·동시 최대 1, 분석 p50 264초). 운영 `LLM_MAX_CONCURRENCY` 4 → 8(사용자 적용),
   분석 시간 대부분은 reduce·분석 단일 요청 속도(23.5토큰/초) (`docs/decisions/2026-11-24-llm-concurrency.md`).
+- 따라잡기 첫날: 공고 5년 백필은 입찰공고 API 한도(실제 약 1,000회/일)로 2024-04-30에서 멈춤, 개찰 백필은 참가 업체 수천 곳인
+  공고에서 INSERT 인자 상한(32,767) 초과로 종료 → 500행씩 나눠 저장으로 수정 (`docs/decisions/2026-11-24-catchup-results.md`).
+- 입찰공고 API를 v1.3 `BidPublicInfoService02`·`...02` 오퍼레이션으로 전환(운영계정 10만은 02에만 승인, 옛 주소는 약 1,000/일),
+  공고 조회 창 15일 → KST 날짜 7개. probe 4회로 확인 (`docs/decisions/2026-11-24-bid-service-02.md`).

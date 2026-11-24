@@ -16,7 +16,7 @@ v2의 호출 구조(DB-first, 일일 예산, 단일 실행)는 `docs/SPEC.md` §
 
 | 구분 | 오퍼레이션 | 기본 URL |
 |---|---|---|
-| 입찰공고 | `getBidPblancListInfoServcPPSSrch` | `http://apis.data.go.kr/1230000/ad/BidPublicInfoService` |
+| 입찰공고 | `getBidPblancListInfoServcPPSSrch02` (번호 조회 `getBidPblancListInfoServc02`) | `http://apis.data.go.kr/1230000/ad/BidPublicInfoService02` (v1.3, 2026-11-24부터. 옛 주소는 개발계정 한도) |
 | 사전규격 | `getPublicPrcureThngInfoServcPPSSrch` | `http://apis.data.go.kr/1230000/ao/HrcspSsstndrdInfoService` |
 | e발주 첨부 | `getBidPblancListInfoEorderAtchFileInfo` | 입찰공고와 같은 URL. v1이 첨부 없는 공고 보충에 사용 |
 
@@ -31,7 +31,8 @@ MCP 서버는 용역(Service) 유형만 조회한다. v2의 조회 범위는 SPE
 
 ## 알려진 함정
 
-- **조회 기간 제한**: 약 15일을 넘으면 HTTP 200에 `nkoneps.com.response.ResponseError`(resultCode 07)가 온다. 15일 단위로 나눠 호출한다.
+- **조회 기간 제한**: 넘으면 HTTP 200에 `nkoneps.com.response.ResponseError`(resultCode 07)가 온다. 사전규격은 약 15일,
+  입찰공고(v1.3)는 KST 날짜 7개까지(8개면 07) → 그 단위로 나눠 호출한다 (`docs/decisions/2026-11-24-bid-service-02.md`).
 - **오류 응답 2종**: 위의 07과, 잘못된 키의 HTTP 403 + `OpenAPI_ServiceResponse.cmmMsgHeader`. 정상은 `response.header.resultCode=00`.
 - **페이지**: `numOfRows` 999 허용(2026-11 확인). 하루 일반공고 약 850건, 사전규격 약 420건.
 - **정정 차수**: 같은 `bidNtceNo`가 `bidNtceOrd`(000~)별로 여러 줄 온다. 차수가 가장 큰 행이 최신.

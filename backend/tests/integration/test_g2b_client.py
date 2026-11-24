@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import httpx
 import pytest
@@ -86,8 +86,20 @@ async def test_service_key_never_appears_in_errors_or_logs(caplog):
 
 async def test_window_longer_than_15_days_is_split():
     fake = FakeG2B()
-    await _client(fake).fetch("regular", NOW - timedelta(days=40), NOW)
+    await _client(fake).fetch("prespec", NOW - timedelta(days=40), NOW)
     assert fake.calls == 3
+
+
+async def test_regular_v13_uses_02_service_and_seven_kst_dates():
+    # 입찰공고 v1.3: BidPublicInfoService02 + 오퍼레이션 02, KST 날짜 8개면 07 (2026-11-24 probe)
+    fake = FakeG2B()
+    await _client(fake).fetch("regular", NOW - timedelta(days=40), NOW)
+    assert fake.calls == 6  # KST 날짜 41개 → 7개씩
+    for r in fake.requests:
+        assert r.url.path.endswith("/BidPublicInfoService02/getBidPblancListInfoServcPPSSrch02")
+        bgn, end = r.url.params["inqryBgnDt"][:8], r.url.params["inqryEndDt"][:8]
+        days = (datetime.strptime(end, "%Y%m%d") - datetime.strptime(bgn, "%Y%m%d")).days
+        assert days <= 6
 
 
 async def test_budget_exceeded_stops_before_calling(db):

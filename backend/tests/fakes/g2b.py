@@ -18,17 +18,19 @@ import httpx
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "g2b"
 KST = timezone(timedelta(hours=9))
 OPS = {
-    "getBidPblancListInfoServcPPSSrch": "regular",
+    "getBidPblancListInfoServcPPSSrch02": "regular",
     "getPublicPrcureThngInfoServcPPSSrch": "prespec",
     "getScsbidListSttusServc": "awards",
     "getCntrctInfoListServc": "contracts",
 }
-# 기간 제한: 공고는 약 15일, 낙찰은 시작일~종료일 KST 날짜 7개까지(날짜 차 6일 이하)
-# (docs/decisions/2026-11-16-awards-probe.md)
-MAX_SPAN = {"regular": timedelta(days=16), "prespec": timedelta(days=16)}
-MAX_DATE_DIFF = {"awards": 6, "contracts": 6}
+# 기간 제한: 사전규격은 약 15일, 공고(v1.3)·낙찰·계약은 KST 날짜 7개까지(날짜 차 6일 이하)
+# (docs/decisions/2026-11-16-awards-probe.md, 2026-11-24-bid-service-02.md)
+MAX_SPAN = {"prespec": timedelta(days=16)}
+MAX_DATE_DIFF = {"regular": 6, "awards": 6, "contracts": 6}
+# 입찰공고 v1.3은 서비스 경로도 02로 바뀌었다(운영계정 트래픽은 02에만 승인)
+BID_SERVICE_PATH = "/1230000/ad/BidPublicInfoService02/"
 # 단건 조회용 일반 조회 (docs/decisions/2026-11-12-g2b-single-lookup.md): inqryDiv=2 + 번호
-LOOKUP_OPS = {"getBidPblancListInfoServc": "regular", "getPublicPrcureThngInfoServc": "prespec"}
+LOOKUP_OPS = {"getBidPblancListInfoServc02": "regular", "getPublicPrcureThngInfoServc": "prespec"}
 NO_FIELD = {"regular": "bidNtceNo", "prespec": "bfSpecRgstNo"}
 DATE_FIELD = {
     "regular": "bidNtceDt",
@@ -245,6 +247,8 @@ class FakeG2B:
             return self.fail_queue.pop(0)
         op = request.url.path.rsplit("/", 1)[-1]
         p = request.url.params
+        if op.startswith("getBidPblanc") and not request.url.path.startswith(BID_SERVICE_PATH):
+            return httpx.Response(404, text="unknown service")
         if op in LOOKUP_OPS:
             return self._lookup(LOOKUP_OPS[op], p)
         if op == OPENING_OP:

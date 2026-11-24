@@ -27,13 +27,15 @@ from app.collector.windows import split_dates, split_windows
 
 log = logging.getLogger(__name__)
 KST = timezone(timedelta(hours=9))
-BID_BASE = "http://apis.data.go.kr/1230000/ad/BidPublicInfoService"
+# 입찰공고 v1.3: 서비스·오퍼레이션 모두 02. 운영계정 트래픽은 02에만 승인된다
+# (docs/decisions/2026-11-24-bid-service-02.md)
+BID_BASE = "http://apis.data.go.kr/1230000/ad/BidPublicInfoService02"
 PRESPEC_BASE = "http://apis.data.go.kr/1230000/ao/HrcspSsstndrdInfoService"
 AWARD_BASE = "http://apis.data.go.kr/1230000/as/ScsbidInfoService"
 CONTRACT_BASE = "http://apis.data.go.kr/1230000/ao/CntrctInfoService"
 # (기본 URL, 오퍼레이션, 키워드 파라미터). 낙찰·계약은 키워드 검색을 쓰지 않는다 (§15.2)
 ENDPOINTS: dict[str, tuple[str, str, str | None]] = {
-    "regular": (BID_BASE, "getBidPblancListInfoServcPPSSrch", "bidNtceNm"),
+    "regular": (BID_BASE, "getBidPblancListInfoServcPPSSrch02", "bidNtceNm"),
     "prespec": (PRESPEC_BASE, "getPublicPrcureThngInfoServcPPSSrch", "prdctClsfcNoNm"),
     "awards": (AWARD_BASE, "getScsbidListSttusServc", None),
     "opening_compt": (AWARD_BASE, "getOpengResultListInfoOpengCompt", None),
@@ -47,12 +49,12 @@ OPENINGS_SOURCE = "openings"  # 낙찰정보 서비스 키를 쓰지만 낙찰 �
 # 번호 단건 조회: 일반 조회 + inqryDiv=2. 검색용 PPSSrch는 번호 필터를 무시한다
 # (docs/decisions/2026-11-12-g2b-single-lookup.md)
 LOOKUP_ENDPOINTS = {
-    "regular": (BID_BASE, "getBidPblancListInfoServc", "bidNtceNo"),
+    "regular": (BID_BASE, "getBidPblancListInfoServc02", "bidNtceNo"),
     "prespec": (PRESPEC_BASE, "getPublicPrcureThngInfoServc", "bfSpecRgstNo"),
 }
 MAX_SPAN = timedelta(days=15)
-# 낙찰·계약: 조회 시작일~종료일이 KST 날짜 7개를 넘으면 resultCode 07 (분 길이와 무관)
-SOURCE_MAX_DATES = {"awards": 7, "contracts": 7}
+# 공고(v1.3)·낙찰·계약: 조회 시작일~종료일이 KST 날짜 7개를 넘으면 resultCode 07 (분 길이와 무관)
+SOURCE_MAX_DATES = {"regular": 7, "awards": 7, "contracts": 7}
 # 모든 페이지를 받아야 성공으로 친다(창 완결성, §15.4). 중간에 빈 페이지면 G2BIncomplete
 STRICT_PAGING = frozenset({"awards", "contracts"})
 # numOfRows=1000은 오류 없이 10행만 온다 (2026-11-16 probe)

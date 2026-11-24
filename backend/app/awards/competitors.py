@@ -134,6 +134,7 @@ class Candidate:
     watched: bool
 
 
+# 분야·기관 필터가 있을 때: 걸리는 낙찰이 적어(수천~수만 건) 한 번에 계산한다.
 _CANDIDATES_SQL = """
 WITH p AS (
   SELECT id, bizno, dminstt_cd, fields, registered_at FROM bid_awards
@@ -178,6 +179,72 @@ ORDER BY (:ow * s.org_overlap + :fw * s.field_overlap) DESC, s.n DESC, s.bizno
 LIMIT :limit
 """
 
+# 필터가 없을 때(성능, 2026-11-24): 위 쿼리는 6년 낙찰 63만 건 전체로 업체×기관·업체×분야를
+# 만들어 3.6초가 걸렸다. 점수에 쓰이는 건 우리 기관·우리 분야에 걸린 낙찰뿐이라 그것만 색인으로
+# 고르고(hit), 낙찰 건수(최소 건수·동점 순서)는 점수 순으로 화면에 필요한 만큼만 센다. 결과는 같다.
+_OVERLAP_SQL = """
+WITH us AS (
+  SELECT id, dminstt_cd, fields FROM bid_awards
+  WHERE bizno = :us AND registered_at >= :f AND registered_at < :t
+),
+us_total AS (SELECT count(*) AS n FROM us),
+us_org AS (
+  SELECT dminstt_cd, count(*) AS n FROM us WHERE dminstt_cd IS NOT NULL GROUP BY dminstt_cd
+),
+us_tag AS (SELECT us.id, t.tag FROM us, unnest(us.fields) AS t(tag)),
+hit AS (
+  SELECT bizno, dminstt_cd, fields FROM bid_awards
+  WHERE bizno IS NOT NULL AND bizno <> :us AND registered_at >= :f AND registered_at < :t
+    AND (dminstt_cd = ANY(ARRAY(SELECT dminstt_cd FROM us_org))
+         OR fields && ARRAY(SELECT DISTINCT tag FROM us_tag))
+),
+org_ov AS (
+  SELECT h.bizno, sum(o.n) AS n
+  FROM (SELECT DISTINCT bizno, dminstt_cd FROM hit) h JOIN us_org o USING (dminstt_cd)
+  GROUP BY h.bizno
+),
+c_tag AS (SELECT DISTINCT h.bizno, t.tag FROM hit h, unnest(h.fields) AS t(tag)),
+field_ov AS (
+  SELECT c.bizno, count(DISTINCT ut.id) AS n FROM us_tag ut JOIN c_tag c ON c.tag = ut.tag
+  GROUP BY c.bizno
+),
+scored AS (
+  SELECT coalesce(o.bizno, fo.bizno) AS bizno,
+         coalesce(o.n, 0)::float / ut.n AS org_overlap,
+         coalesce(fo.n, 0)::float / ut.n AS field_overlap
+  FROM org_ov o FULL JOIN field_ov fo ON fo.bizno = o.bizno CROSS JOIN us_total ut
+  WHERE ut.n > 0
+)
+SELECT bizno, org_overlap, field_overlap, :ow * org_overlap + :fw * field_overlap AS score
+FROM scored ORDER BY score DESC, bizno
+"""
+
+_COUNTS_SQL = """
+SELECT a.bizno, c.name, count(*) AS n, max(a.registered_at) AS last_at,
+       (w.bizno IS NOT NULL) AS watched
+FROM bid_awards a
+JOIN companies c ON c.bizno = a.bizno
+LEFT JOIN watched_companies w ON w.bizno = a.bizno AND w.user_id = :uid
+WHERE a.bizno = ANY(:b) AND a.registered_at >= :f AND a.registered_at < :t
+GROUP BY a.bizno, c.name, w.bizno
+HAVING count(*) >= :min_n
+"""
+
+
+def _candidate(
+    bizno: str,
+    name: str,
+    n: int,
+    last_at: datetime | None,
+    org_ov: float,
+    field_ov: float,
+    watched: bool,
+) -> Candidate:
+    score = round(100 * (ORG_WEIGHT * org_ov + FIELD_WEIGHT * field_ov), 1)
+    return Candidate(
+        bizno, name, int(n), last_at, round(org_ov, 4), round(field_ov, 4), score, bool(watched)
+    )
+
 
 async def candidates(
     s: AsyncSession,
@@ -188,10 +255,16 @@ async def candidates(
     field_tag: str | None = None,
     org: str | None = None,
     limit: int = 20,
+    first_chunk: int = 100,
 ) -> list[Candidate]:
-    """우리와 겹침도가 높은 업체 (§15.5). 낙찰 2건 미만은 뺀다. 필터는 두 회사 모두에 건다."""
+    """우리와 겹침도가 높은 업체 (§15.5). 낙찰 2건 미만은 뺀다. 필터는 두 회사 모두에 건다.
+
+    순서: 겹침도 높은 순 → 낙찰 많은 순 → 사업자번호 순.
+    """
     if p.eff_from is None:
         return []
+    if not field_tag and not org:
+        return await _candidates_unfiltered(s, us, p, user_id, limit, first_chunk)
     extra, params = "", {}
     if field_tag:
         extra += " AND fields @> ARRAY[CAST(:field AS text)]"
@@ -213,15 +286,36 @@ async def candidates(
             **params,
         },
     )
-    out = []
-    for bizno, name, n, last_at, org_ov, field_ov, watched in rows.all():
-        score = round(100 * (ORG_WEIGHT * org_ov + FIELD_WEIGHT * field_ov), 1)
-        out.append(
-            Candidate(
-                bizno, name, int(n), last_at, round(org_ov, 4), round(field_ov, 4), score, watched
-            )
+    return [_candidate(*r) for r in rows.all()]
+
+
+async def _candidates_unfiltered(
+    s: AsyncSession, us: str, p: Period, user_id: int | None, limit: int, first_chunk: int
+) -> list[Candidate]:
+    period = {"f": p.eff_from, "t": p.eff_to}
+    ranked = (
+        await s.execute(
+            text(_OVERLAP_SQL), {"us": us, "ow": ORG_WEIGHT, "fw": FIELD_WEIGHT, **period}
         )
-    return out
+    ).all()
+    out: list[Candidate] = []
+    i, chunk = 0, max(first_chunk, 1)
+    while i < len(ranked) and len(out) < limit:
+        # 동점 묶음은 끊지 않는다 → 묶음 안에서 낙찰 수로 다시 줄 세워도 전체 순서와 같다
+        j = min(i + chunk, len(ranked))
+        while j < len(ranked) and ranked[j].score == ranked[j - 1].score:
+            j += 1
+        part = ranked[i:j]
+        args = {"b": [r.bizno for r in part], "uid": user_id, "min_n": MIN_CANDIDATE_AWARDS}
+        got = {c.bizno: c for c in await s.execute(text(_COUNTS_SQL), {**args, **period})}
+        batch = [(r, got[r.bizno]) for r in part if r.bizno in got]
+        batch.sort(key=lambda rc: (-rc[0].score, -rc[1].n, rc[0].bizno))
+        out += [
+            _candidate(r.bizno, c.name, c.n, c.last_at, r.org_overlap, r.field_overlap, c.watched)
+            for r, c in batch
+        ]
+        i, chunk = j, chunk * 2
+    return out[:limit]
 
 
 # ---------- 관심 경쟁사 ----------

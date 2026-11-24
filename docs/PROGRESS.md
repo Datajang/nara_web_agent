@@ -77,7 +77,7 @@
 
 ## 운영 준비·배포
 
-운영 서버 설치·배포·운영 중 변경 기록은 `docs/PROGRESS_ops.md`.
+운영 서버 설치·배포 기록은 `docs/PROGRESS_ops.md`, 운영 피드백(3차~)은 `docs/PROGRESS_ops_feedback.md`.
 
 ## 경쟁사 분석 (P8~P11)
 

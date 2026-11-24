@@ -39,7 +39,7 @@ cd frontend && npm ci && npm run lint && npm run typecheck && npm run test && np
 | 하는 일 | 읽을 파일 |
 |---|---|
 | 지금 할 단계·완료 조건 | `docs/SPEC.md` §13 |
-| 어디까지 했는지 이어받기 | `docs/PROGRESS.md` (운영 배포·운영 중 변경은 `docs/PROGRESS_ops.md`) |
+| 어디까지 했는지 이어받기 | `docs/PROGRESS.md` (운영 배포는 `docs/PROGRESS_ops.md`, 운영 피드백 3차~는 `docs/PROGRESS_ops_feedback.md`) |
 | 테이블·마이그레이션 | `docs/SPEC.md` §4 |
 | 수집기·캐시·G2B 호출 코드 | `docs/SPEC.md` §5 + `docs/g2b/API.md` |
 | 첨부파일 다운로드·텍스트 추출 | `docs/SPEC.md` §5.6 + `docs/g2b/FILES.md` |

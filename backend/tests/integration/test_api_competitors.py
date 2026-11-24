@@ -150,6 +150,34 @@ async def test_candidates_by_overlap(full_api):
     assert by_org["items"] == []  # 우리가 그 기관 낙찰이 없음
 
 
+async def test_candidates_order_survives_paged_counts(full_api):
+    """레이더는 점수 순으로 낙찰 수를 나눠 센다(2026-11-24). 묶음을 1곳씩 잘라도
+    동점은 낙찰 많은 순 → 사업자번호 순, 낙찰 1건은 빠진다(한 번에 센 것과 같다)."""
+    from app.awards import competitors as comp
+    from app.awards import service as svc
+
+    extra = [
+        # 모두 우리 기관 1111111·데이터 정비 → 가온과 같은 점수
+        *(_aw(f"R26BK0000040{i}", 20 + i, "5000000001", "다온", amount="1") for i in range(7)),
+        *(_aw(f"R26BK0000050{i}", 20 + i, "5000000002", "라온", amount="1") for i in range(5)),
+        _aw("R26BK00000601", 20, "5000000003", "마온"),  # 1건 → 제외
+    ]
+    a = await _setup(full_api)
+    await a.aclose()
+    async with full_api.db.transaction() as s:
+        await upsert_awards(s, [to_award(it) for it in extra], KEYWORDS)
+    async with full_api.db.session() as s:
+        p, _ = await svc.award_period(s, 5, NOW)
+        whole = await comp.candidates(s, US, p, limit=10, first_chunk=1000)
+        paged = await comp.candidates(s, US, p, limit=10, first_chunk=1)
+        top2 = await comp.candidates(s, US, p, limit=2, first_chunk=1)
+    order = [(c.bizno, c.award_count) for c in whole]
+    # 다온·가온·라온은 점수가 같다 → 낙찰 7·5·5건 순, 5건끼리는 사업자번호 순. 나래가 아래
+    assert order == [("5000000001", 7), (THEM, 5), ("5000000002", 5), (OTHER, 2)]
+    assert [(c.bizno, c.award_count) for c in paged] == order
+    assert [c.bizno for c in top2] == ["5000000001", THEM]
+
+
 async def test_watch_list_is_per_account(full_api):
     """관심 경쟁사는 계정마다 따로 (2026-11-23). 추가·빼기는 내 목록만 바꾼다."""
     a = await _setup(full_api)

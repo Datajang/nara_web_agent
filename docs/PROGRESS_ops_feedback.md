@@ -30,3 +30,5 @@
   공고에서 INSERT 인자 상한(32,767) 초과로 종료 → 500행씩 나눠 저장으로 수정 (`docs/decisions/2026-11-24-catchup-results.md`).
 - 입찰공고 API를 v1.3 `BidPublicInfoService02`·`...02` 오퍼레이션으로 전환(운영계정 10만은 02에만 승인, 옛 주소는 약 1,000/일),
   공고 조회 창 15일 → KST 날짜 7개. probe 4회로 확인 (`docs/decisions/2026-11-24-bid-service-02.md`).
+- 배포 rc15(2026-11-24, 사용자 서버 실행): 입찰공고 v1.3(02) 전환, 개찰 INSERT 분할, vLLM MTP 유닛(drop-in 삭제, 재시작 없음).
+  배포 직후 공고 증분 ok, 따라잡기 재시작: 개찰 `backfill --source openings`, 공고 `--days 2192` → `reclassify_awards`.

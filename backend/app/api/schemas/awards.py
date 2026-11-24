@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints, field_validator
 
@@ -123,6 +123,9 @@ class AwardSummaryOut(BaseModel):
     ratio_median: float | None  # 낙찰금액/추정가격 중앙값 (계산 가능한 건만)
     ratio_known: int
     joint_count: int
+    # 우리 회사 화면만: 공동수급 구성원(대표는 타사)으로 낙찰한 건수.
+    # 금액은 지분만큼 더했다(2026-11-24)
+    member_count: int = 0
     first_at: datetime | None
     last_at: datetime | None
     by_year: list[YearRowOut]
@@ -150,6 +153,10 @@ class AwardOut(BaseModel):
     fields: list[str]
     is_joint: bool
     bid_id: str | None  # 'b123' — 같은 공고가 공고 DB에 있을 때만
+    # 우리 회사 화면만: 공동수급에서 우리 역할(대표·구성원)과 지분(%).
+    # 단독 낙찰·다른 업체 화면은 None
+    our_role: Literal["lead", "member"] | None = None
+    our_share: float | None = None
 
 
 class AwardListOut(BaseModel):

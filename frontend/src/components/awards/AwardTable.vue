@@ -68,6 +68,11 @@ function rateText(a: Award): string {
 }
 
 const dateOf = (a: Award) => a.awarded_on ?? formatDate(a.registered_at)
+
+// 공동수급 우리 지분(우리 회사 화면만 값이 온다)
+const shareText = (a: Award) => (a.our_share != null ? formatPct(a.our_share) : null)
+const shareAmount = (a: Award) =>
+  a.our_role && a.our_share != null && a.award_amount ? Math.round((a.award_amount * a.our_share) / 100) : null
 </script>
 
 <template>
@@ -111,12 +116,20 @@ const dateOf = (a: Award) => a.awarded_on ?? formatDate(a.registered_at)
               <span v-else>{{ a.title }}</span>
               <span class="mt-1 flex flex-wrap gap-1">
                 <UiBadge v-for="f in a.fields" :key="f">{{ f }}</UiBadge>
-                <UiBadge v-if="a.is_joint" tone="primary">{{ copy.awards.joint }}</UiBadge>
+                <UiBadge v-if="a.our_role === 'member'" tone="primary">{{ copy.awards.roleMember(shareText(a)) }}</UiBadge>
+                <UiBadge v-else-if="a.our_role === 'lead'" tone="primary">{{ copy.awards.roleLead(shareText(a) ?? '') }}</UiBadge>
+                <UiBadge v-else-if="a.is_joint" tone="primary">{{ copy.awards.joint }}</UiBadge>
               </span>
+              <span v-if="a.our_role === 'member'" class="mt-0.5 block text-xs text-text-3">{{ copy.awards.leadBy(a.winner_name ?? a.bizno ?? '') }}</span>
             </td>
             <td class="px-3 py-2 text-text-2">{{ a.dminstt_name }}</td>
             <td v-if="showWinner" class="px-3 py-2">{{ a.winner_name }}</td>
-            <td class="whitespace-nowrap px-3 py-2 text-right"><MoneyText :value="a.award_amount" /></td>
+            <td class="whitespace-nowrap px-3 py-2 text-right">
+              <MoneyText :value="a.award_amount" />
+              <span v-if="shareAmount(a) != null" class="block text-xs text-text-3" data-our-share-amount>
+                {{ copy.awards.ourShare }} <MoneyText :value="shareAmount(a)" />
+              </span>
+            </td>
             <td class="whitespace-nowrap px-3 py-2 text-text-2 tabular" data-rate>{{ rateText(a) }}</td>
             <td class="whitespace-nowrap px-3 py-2 text-right tabular">
               {{ a.participant_count != null ? copy.awards.participants(a.participant_count) : '' }}

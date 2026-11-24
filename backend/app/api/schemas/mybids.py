@@ -33,6 +33,9 @@ class MyBidOut(BaseModel):
     award_amount: int | None
     fetched: bool  # 개찰 결과를 불러온 공고인가
     bid_id: str | None  # bids에 있으면 b123
+    # 공동수급에서 우리 역할(대표·구성원)과 지분(%). 구성원 낙찰도 result='won' (2026-11-24)
+    our_role: Literal["lead", "member"] | None = None
+    our_share: float | None = None
 
 
 class MyBidCountsOut(BaseModel):

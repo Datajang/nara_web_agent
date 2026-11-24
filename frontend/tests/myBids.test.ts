@@ -3,6 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { rankText, type MyBid } from '@/api/mybids'
 import { copy } from '@/copy'
+import { formatMoney, formatPct } from '@/utils/format'
 import { json, mockApi, mountAt, settle, text, type Mounted } from './helpers'
 
 let m: Mounted | null = null
@@ -111,6 +112,36 @@ describe("우리 수주 현황 '투찰 결과' 탭", () => {
     expect(m.router.currentRoute.value.query.result).toBe('lost')
     expect(api.calls.some((c) => c.url.includes('/my-bids?result=lost'))).toBe(true)
     expect(m.wrapper.findAll('[data-my-bids] tbody tr')).toHaveLength(2)
+  })
+
+  it('공동수급 구성원 낙찰은 낙찰로 보이고 역할·지분·대표사를 함께 보인다', async () => {
+    mockApi({
+      'GET /api/v1/awards/summary': json(SUMMARY),
+      'GET /api/v1/my-bids': json({
+        ...LIST,
+        items: [
+          bid('R26BK00000009', {
+            result: 'won',
+            our_rank: null,
+            fetched: false,
+            our_role: 'member',
+            our_share: 18.9,
+            winner_name: '(주)라임솔루션',
+          }),
+        ],
+        counts: { all: 1, won: 1, lost: 0 },
+      }),
+    })
+    m = await mountAt('/my-awards?tab=bids')
+    await settle()
+    const row = m.wrapper.get('[data-my-bids] tbody tr')
+    expect(row.text()).toContain(copy.myBids.won)
+    expect(row.text()).toContain(copy.awards.roleMember(formatPct(18.9)))
+    expect(row.text()).toContain(copy.awards.leadBy('(주)라임솔루션'))
+    expect(row.findAll('td')[4]!.text()).not.toBe(copy.myBids.us)
+    expect(row.text()).not.toContain('89.9%') // 우리 투찰률도 없다
+    // 직접 투찰하지 않았으므로 투찰금액 대신 우리 지분 금액(8,000만 × 18.9%)
+    expect(row.get('[data-our-share-amount]').text()).toContain(formatMoney(Math.round(80_000_000 * 0.189)))
   })
 
   it('낙찰 현황 탭이 기본이고 투찰 결과는 탭을 열 때만 부른다', async () => {

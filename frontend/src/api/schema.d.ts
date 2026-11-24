@@ -1253,6 +1253,10 @@ export interface components {
             is_joint: boolean;
             /** Bid Id */
             bid_id: string | null;
+            /** Our Role */
+            our_role?: ("lead" | "member") | null;
+            /** Our Share */
+            our_share?: number | null;
         };
         /** AwardSummaryOut */
         AwardSummaryOut: {
@@ -1279,6 +1283,11 @@ export interface components {
             ratio_known: number;
             /** Joint Count */
             joint_count: number;
+            /**
+             * Member Count
+             * @default 0
+             */
+            member_count: number;
             /** First At */
             first_at: string | null;
             /** Last At */
@@ -2366,6 +2375,10 @@ export interface components {
             fetched: boolean;
             /** Bid Id */
             bid_id: string | null;
+            /** Our Role */
+            our_role?: ("lead" | "member") | null;
+            /** Our Share */
+            our_share?: number | null;
         };
         /** MyBidParticipantOut */
         MyBidParticipantOut: {

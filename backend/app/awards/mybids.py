@@ -13,13 +13,14 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 from typing import Any, Literal
 
 from sqlalchemy import and_, func, literal, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from app.awards.service import kst_start
+from app.awards.service import is_member_win, kst_start, our_share
 from app.db.models import Bid, BidAward, BidParticipant, BidParticipantFetch
 from app.search.query import title_contains
 
@@ -36,9 +37,11 @@ class MyBid:
     valid_count: int | None = None  # 순위 있는 업체 수(개찰 결과가 있을 때)
     rows: int | None = None  # 개찰 결과 참가 행 수
     fetched: bool = False  # 개찰 결과를 불러온 공고인가
+    member: bool = False  # 공동수급 구성원(대표는 타사)으로 낙찰 — 낙찰로 센다(2026-11-24)
+    share: Decimal | None = None  # 공동수급 우리 지분(%)
 
     def result(self, us_bizno: str) -> Result:
-        if self.award.bizno == us_bizno:
+        if self.award.bizno == us_bizno or self.member:
             return "won"
         return "lost" if self.us is not None and self.us.rank is not None else "disqualified"
 
@@ -60,12 +63,13 @@ def _us_join(us: str) -> tuple[Any, Any]:
 
 
 def _result_cond(p: Any, us: str, flt: Filter) -> Any:
-    won = BidAward.bizno == us
+    # 낙찰 = 우리가 대표이거나 공동수급 구성원(대표는 타사)인 낙찰
+    won = or_(BidAward.bizno == us, is_member_win(us))
     took_part = p.bizno.is_not(None)
     if flt == "won":
         return won
     if flt == "lost":
-        return and_(took_part, BidAward.bizno.is_distinct_from(us))
+        return and_(took_part, ~won)
     return or_(won, took_part)
 
 
@@ -161,7 +165,7 @@ async def page(
         )
     rows = (
         await s.execute(
-            select(BidAward, p, Bid.id)
+            select(BidAward, p, Bid.id, is_member_win(us), our_share(us))
             .outerjoin(p, on)
             .outerjoin(Bid, Bid.bid_key == literal("regular:") + BidAward.bid_ntce_no)
             .where(*conds)
@@ -169,7 +173,7 @@ async def page(
             .limit(limit + 1)
         )
     ).all()
-    items = [MyBid(a, u, bid_id) for a, u, bid_id in rows[:limit]]
+    items = [MyBid(a, u, bid_id, member=bool(m), share=sh) for a, u, bid_id, m, sh in rows[:limit]]
     nxt = (items[-1].award.registered_at, items[-1].award.id) if len(rows) > limit else None
     return await _enrich(s, items), nxt
 
@@ -178,7 +182,7 @@ async def one(s: AsyncSession, us: str, key: AwardKey) -> MyBid | None:
     p, on = _us_join(us)
     row = (
         await s.execute(
-            select(BidAward, p, Bid.id)
+            select(BidAward, p, Bid.id, is_member_win(us), our_share(us))
             .outerjoin(p, on)
             .outerjoin(Bid, Bid.bid_key == literal("regular:") + BidAward.bid_ntce_no)
             .where(
@@ -191,7 +195,7 @@ async def one(s: AsyncSession, us: str, key: AwardKey) -> MyBid | None:
     ).first()
     if row is None:
         return None
-    (item,) = await _enrich(s, [MyBid(row[0], row[1], row[2])])
+    (item,) = await _enrich(s, [MyBid(row[0], row[1], row[2], member=bool(row[3]), share=row[4])])
     return item
 
 

@@ -69,6 +69,11 @@ async function load(reset: boolean) {
 watch([filter, narrow], () => load(true), { immediate: true })
 
 const keyOf = (b: MyBid) => keyPath(b)
+// 공동수급 역할·지분(2026-11-24): 구성원 낙찰도 '낙찰'로 센다
+const roleText = (b: MyBid) => {
+  const share = b.our_share != null ? formatPct(b.our_share) : null
+  return b.our_role === 'member' ? copy.awards.roleMember(share) : copy.awards.roleLead(share ?? '')
+}
 </script>
 
 <template>
@@ -109,13 +114,26 @@ const keyOf = (b: MyBid) => keyPath(b)
             <td class="px-3 py-2">
               <UiBadge :tone="resultBadge(b).tone">{{ resultBadge(b).label }}</UiBadge>
               <span class="mt-0.5 block text-xs text-text-2 tabular" data-rank>{{ rankText(b) }}</span>
+              <span v-if="b.our_role" class="mt-0.5 block text-xs text-primary-hover">{{ roleText(b) }}</span>
             </td>
             <td class="whitespace-nowrap px-3 py-2 text-right">
-              <MoneyText :value="b.our_bid_amount" />
-              <span v-if="b.our_bid_rate != null" class="block text-xs text-text-3 tabular">{{ formatPct(b.our_bid_rate) }}%</span>
+              <!-- 구성원은 직접 투찰하지 않았다: 투찰금액 대신 우리 지분 금액 -->
+              <span v-if="b.our_role === 'member'" class="text-text-2" data-our-share-amount>
+                {{ copy.awards.ourShare }}
+                <MoneyText :value="b.our_share != null && b.award_amount ? Math.round((b.award_amount * b.our_share) / 100) : null" />
+              </span>
+              <MoneyText v-else :value="b.our_bid_amount" />
+              <span v-if="b.our_bid_rate != null && b.our_role !== 'member'" class="block text-xs text-text-3 tabular">{{ formatPct(b.our_bid_rate) }}%</span>
             </td>
             <td class="px-3 py-2">
-              <span v-if="b.result === 'won'" class="text-text-3">{{ copy.myBids.us }}</span>
+              <template v-if="b.our_role === 'member'">
+                <RouterLink v-if="b.winner_bizno" :to="`/competitors/${b.winner_bizno}`" class="text-primary hover:underline">
+                  {{ copy.awards.leadBy(b.winner_name ?? b.winner_bizno) }}
+                </RouterLink>
+                <span v-else>{{ copy.awards.leadBy(b.winner_name ?? '') }}</span>
+                <span class="block text-xs"><MoneyText :value="b.award_amount" /></span>
+              </template>
+              <span v-else-if="b.result === 'won'" class="text-text-3">{{ copy.myBids.us }}</span>
               <template v-else>
                 <RouterLink v-if="b.winner_bizno" :to="`/competitors/${b.winner_bizno}`" class="text-primary hover:underline">
                   {{ b.winner_name ?? b.winner_bizno }}

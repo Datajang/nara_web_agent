@@ -682,6 +682,13 @@ export const copy = {
     noRate: '정보 없음',
     rateHelp: '추정가격 대비는 같은 공고가 공고 DB에 있을 때만 계산해요. 낙찰률(G2B)은 예정가격 대비 값이에요.',
     joint: '공동수급',
+    // 우리 수주 현황 공동수급(2026-11-24): 구성원 낙찰도 넣고 금액은 지분만큼
+    roleLead: (share: string) => `공동수급 대표 · 지분 ${share}%`,
+    roleMember: (share: string | null) => (share ? `공동수급 구성원 · 지분 ${share}%` : '공동수급 구성원'),
+    leadBy: (name: string) => `대표 ${name}`,
+    ourShare: '우리 지분',
+    memberIncluded: (n: number) =>
+      `공동수급 구성원으로 낙찰한 ${n.toLocaleString('ko-KR')}건이 들어 있어요. 이 낙찰은 금액을 우리 지분만큼만 더했어요.`,
     openBid: '공고 보기',
     loadMore: '더 보기',
     emptyList: '조건에 맞는 낙찰이 없어요. 분야나 수요기관 조건을 풀어 보세요.',

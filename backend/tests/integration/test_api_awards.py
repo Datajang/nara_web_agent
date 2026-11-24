@@ -2,19 +2,21 @@
 
 import asyncio
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 from sqlalchemy import select
 
 from app.api.routers import awards as awards_router
 from app.awards.mapper import to_award
 from app.awards.store import upsert_awards
-from app.db.models import BidAward, CollectorCoverage, UsageLog
+from app.db.models import BidAward, BidJointMember, CollectorCoverage, UsageLog
 from tests.conftest import NOW
 from tests.fakes.g2b import award_item, regular_item
 from tests.helpers import admin_client, member, seed
 
 US = "1234567890"
 THEM = "2345678901"
+OTHER = "3456789012"
 COVERED_FROM = datetime(2024, 3, 31, 15, 0, tzinfo=UTC)  # 2024-04-01 00:00 KST
 
 
@@ -26,6 +28,18 @@ async def _seed_awards(api, *items, cover_from=COVERED_FROM):
 
 def _aw(no, days_ago, bizno=US, name="(주)예시컴퍼니", **kw):
     return award_item(no, NOW - timedelta(days=days_ago), bizno=bizno, name=name, **kw)
+
+
+def _member(no, *, lead, member, share):
+    return BidJointMember(
+        bid_ntce_no=no,
+        bid_ntce_ord="",
+        bizno=lead,
+        member_bizno=member,
+        role="주계약업체" if lead == member else "도급업체",
+        joint_mode="공동",
+        share=Decimal(share),
+    )
 
 
 async def _configure(c, bizno=US, **kw):
@@ -195,6 +209,63 @@ async def test_list_filters_by_title_and_period(full_api):
     assert [i["title"] for i in both["items"]] == ["청사 청소 용역"] and both["total"] == 1
     assert literal["items"] == [] and literal["total"] == 0
     assert too_long.status_code == 422
+
+
+async def test_our_view_counts_joint_member_wins_by_share(full_api):
+    """우리가 구성원(대표는 타사)인 공동수급 낙찰(2026-11-24).
+
+    우리 수주 현황 건수에 넣고 금액은 지분만큼.
+
+    다른 업체 화면은 그대로. 같은 공고의 다른 분류(대표가 다른 업체)에는 잇지 않는다."""
+    await _seed_awards(
+        full_api,
+        _aw("R26BK00000011", 3, title="우리 대표 공동", amount="100000000"),
+        _aw(
+            "R26BK00000012",
+            4,
+            bizno=THEM,
+            name="(주)타사",
+            title="타사 대표 공동",
+            amount="200000000",
+        ),
+        _aw(
+            "R26BK00000012",
+            4,
+            bizno=OTHER,
+            name="(주)딴곳",
+            clsfc="1",
+            title="딴곳 분류",
+            amount="300000000",
+        ),
+    )
+    async with full_api.db.transaction() as s:
+        s.add_all(
+            [
+                _member("R26BK00000011", lead=US, member=US, share="70"),
+                _member("R26BK00000011", lead=US, member=THEM, share="30"),
+                _member("R26BK00000012", lead=THEM, member=THEM, share="75"),
+                _member("R26BK00000012", lead=THEM, member=US, share="25"),
+            ]
+        )
+    a = await admin_client(full_api)
+    await _configure(a)
+    ours = (await a.get("/api/v1/awards/summary")).json()
+    lst = (await a.get("/api/v1/awards")).json()
+    them = (await a.get(f"/api/v1/companies/{THEM}")).json()
+    them_list = (await a.get(f"/api/v1/awards?bizno={THEM}")).json()
+    await a.aclose()
+
+    assert (ours["count"], ours["member_count"]) == (2, 1)
+    assert ours["amount_sum"] == 100_000_000 + 50_000_000  # 대표 낙찰은 전액, 구성원은 25%
+    assert sum(y["count"] or 0 for y in ours["by_year"]) == 2
+    by = {i["title"]: i for i in lst["items"]}
+    assert set(by) == {"우리 대표 공동", "타사 대표 공동"} and lst["total"] == 2
+    assert (by["우리 대표 공동"]["our_role"], by["우리 대표 공동"]["our_share"]) == ("lead", 70.0)
+    assert (by["타사 대표 공동"]["our_role"], by["타사 대표 공동"]["our_share"]) == ("member", 25.0)
+    assert by["타사 대표 공동"]["winner_name"] == "(주)타사"
+    # 다른 업체 화면은 자기 대표 낙찰만, 전액
+    assert (them["count"], them["amount_sum"], them["member_count"]) == (1, 200_000_000, 0)
+    assert [i["our_role"] for i in them_list["items"]] == [None]
 
 
 async def test_put_starts_reclassify_only_when_keywords_change(full_api):

@@ -3,6 +3,7 @@ import type { VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { keywordsToText, parseKeywords } from '@/api/awards'
 import { copy } from '@/copy'
+import { formatMoney, formatPct } from '@/utils/format'
 import { ADMIN, json, mockApi, mountAt, settle, text, type Mounted } from './helpers'
 
 function byLabel(w: VueWrapper, label: string) {
@@ -259,5 +260,52 @@ describe('분야 키워드 글 ↔ 사전', () => {
     expect(parseKeywords('A: a\nB')).toEqual({ errorLine: 2 })
     expect(parseKeywords('A: ,')).toEqual({ errorLine: 1 })
     expect(parseKeywords('A: a\nA: b, a')).toEqual({ value: { A: ['a', 'b'] } })
+  })
+})
+
+// 공동수급 구성원 낙찰(2026-11-24): 우리 수주 현황에 넣고 금액은 지분만큼. 줄마다 역할·지분·대표사.
+describe('우리 수주 현황 공동수급', () => {
+  it('구성원 낙찰은 역할·지분·대표사와 우리 지분 금액을, 요약에는 포함 안내를 보인다', async () => {
+    mockApi({
+      'GET /api/v1/awards/summary': json(summary({ member_count: 1 })),
+      'GET /api/v1/awards': json({
+        period: PERIOD,
+        total: 2,
+        next_cursor: null,
+        items: [
+          award('R1', { is_joint: true, our_role: 'lead', our_share: 70 }),
+          award('R2', {
+            bizno: '2345678901',
+            winner_name: '(주)라임솔루션',
+            award_amount: 800_000_000,
+            is_joint: true,
+            our_role: 'member',
+            our_share: 25,
+          }),
+          award('R3'),
+        ],
+      }),
+    })
+    m = await mountAt('/my-awards')
+    await settle()
+    expect(text(m.wrapper)).toContain(copy.awards.memberIncluded(1))
+    const rows = m.wrapper.findAll('[data-award-table] tbody tr')
+    expect(rows[0]!.text()).toContain(copy.awards.roleLead(formatPct(70)))
+    expect(rows[1]!.text()).toContain(copy.awards.roleMember(formatPct(25)))
+    expect(rows[1]!.text()).toContain(copy.awards.leadBy('(주)라임솔루션'))
+    expect(rows[1]!.get('[data-our-share-amount]').text()).toContain(formatMoney(200_000_000))
+    // 단독 낙찰은 표시 없음
+    expect(rows[2]!.text()).not.toContain(copy.awards.ourShare)
+    expect(rows[2]!.find('[data-our-share-amount]').exists()).toBe(false)
+  })
+
+  it('구성원 낙찰이 없으면 포함 안내도 없다', async () => {
+    mockApi({
+      'GET /api/v1/awards/summary': json(summary({ member_count: 0 })),
+      'GET /api/v1/awards': json({ period: PERIOD, total: 0, next_cursor: null, items: [] }),
+    })
+    m = await mountAt('/my-awards')
+    await settle()
+    expect(text(m.wrapper)).not.toContain(copy.awards.memberIncluded(0))
   })
 })

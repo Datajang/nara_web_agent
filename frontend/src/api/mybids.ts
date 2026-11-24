@@ -44,6 +44,7 @@ export function resultBadge(b: MyBid): { label: string; tone: 'success' | 'neutr
 /** 순위 한 줄: 'N위 / 유효 k곳', 순위가 없으면 사유(비고), 개찰 결과 전이면 '순위는 상세에서'. */
 export function rankText(b: MyBid): string {
   if (b.our_rank != null) return copy.myBids.rank(b.our_rank, b.valid_count ?? null)
+  if (b.our_role === 'member') return '' // 구성원은 개찰 결과에 대표사 이름으로만 나온다
   if (!b.fetched) return copy.myBids.rankLater
   if (b.result === 'won') return '' // 공동수급 구성원 등 개찰 결과에 우리 행이 없는 낙찰
   return b.remark ? `${copy.myBids.noRank} · ${b.remark}` : copy.myBids.noRank

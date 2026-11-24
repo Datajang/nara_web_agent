@@ -102,11 +102,15 @@ async def summary_out(
 ) -> AwardSummaryOut:
     org = await org_config(s, deps)
     period, _cov = await svc.award_period(s, org.backfill_years, deps.clock(), date_from, date_to)
-    sm = await svc.summarize(s, bizno, period)
+    is_us = bizno == org.our_bizno
+    # 우리 회사 화면만 공동수급 구성원 낙찰을 넣는다(지분만큼).
+    # 비교·레이더는 대표 낙찰끼리(2026-11-24)
+    sm = await svc.summarize(s, bizno, period, member=is_us)
     return AwardSummaryOut(
         bizno=bizno,
         name=name,
-        is_us=bizno == org.our_bizno,
+        is_us=is_us,
+        member_count=sm.member_count,
         period=period_out(period),
         count=sm.count,
         amount_sum=sm.amount_sum,
@@ -146,6 +150,8 @@ def award_out(i: svc.AwardItem) -> AwardOut:
         fields=list(a.fields or []),
         is_joint=a.is_joint,
         bid_id=f"b{i.bid_id}" if i.bid_id is not None else None,
+        our_role=i.our_role,  # type: ignore[arg-type]
+        our_share=float(i.our_share) if i.our_share is not None else None,
     )
 
 
@@ -172,7 +178,15 @@ async def award_list(
             400, "bad_request", "목록 위치가 올바르지 않아요. 처음부터 다시 불러와 주세요."
         )
     page = await svc.list_awards(
-        s, bizno, period, field_tag=field_tag, org=org, q=q, cursor=cur, limit=limit
+        s,
+        bizno,
+        period,
+        field_tag=field_tag,
+        org=org,
+        q=q,
+        cursor=cur,
+        limit=limit,
+        member=bizno == org_cfg.our_bizno,
     )
     return AwardListOut(
         period=period_out(period),

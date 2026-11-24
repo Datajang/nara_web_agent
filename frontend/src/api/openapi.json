@@ -3905,6 +3905,32 @@
               }
             ],
             "title": "Bid Id"
+          },
+          "our_role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "lead",
+                  "member"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Our Role"
+          },
+          "our_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Our Share"
           }
         },
         "type": "object",
@@ -3999,6 +4025,11 @@
           "joint_count": {
             "type": "integer",
             "title": "Joint Count"
+          },
+          "member_count": {
+            "type": "integer",
+            "title": "Member Count",
+            "default": 0
           },
           "first_at": {
             "anyOf": [
@@ -7255,6 +7286,32 @@
               }
             ],
             "title": "Bid Id"
+          },
+          "our_role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "lead",
+                  "member"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Our Role"
+          },
+          "our_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Our Share"
           }
         },
         "type": "object",

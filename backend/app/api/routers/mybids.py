@@ -61,6 +61,8 @@ def item_out(i: mb.MyBid, us: str) -> MyBidOut:
         award_amount=a.award_amount,
         fetched=i.fetched,
         bid_id=f"b{i.bid_id}" if i.bid_id is not None else None,
+        our_role="member" if i.member else ("lead" if i.share is not None else None),
+        our_share=_f(i.share),
     )
 
 

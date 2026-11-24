@@ -36,6 +36,9 @@ const years = computed(() => [...props.summary.by_year].reverse()) // 최근 해
         <dd class="mt-1 text-2xl font-semibold tabular">{{ copy.awards.orgUnit(summary.org_count) }}</dd>
       </div>
     </dl>
+    <p v-if="summary.member_count" class="-mt-2 text-sm text-text-2" data-member-note>
+      {{ copy.awards.memberIncluded(summary.member_count) }}
+    </p>
 
     <div class="grid gap-4 lg:grid-cols-2">
       <section class="rounded-card border border-border bg-surface p-4" :aria-label="copy.awards.byYear">

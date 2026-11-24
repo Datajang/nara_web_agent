@@ -6,10 +6,12 @@
 """
 
 from datetime import timedelta
+from decimal import Decimal
 
 from app.awards import openings
 from app.awards.mapper import to_award
 from app.awards.store import upsert_awards
+from app.db.models import BidJointMember
 from tests.conftest import NOW
 from tests.fakes.g2b import award_item, opening_item
 from tests.helpers import admin_client
@@ -117,6 +119,41 @@ async def test_list_filters_by_period_and_title(full_api, fake_g2b):
     assert titled["counts"] == {"all": 1, "won": 0, "lost": 1}
     assert [i["bid_ntce_no"] for i in won_in["items"]] == [WON_LATER]  # WON은 11-09
     assert reversed_.status_code == 422
+
+
+async def test_joint_member_win_counts_as_won(full_api, fake_g2b):
+    """공동수급 구성원(대표는 타사)으로 낙찰한 공고도 '낙찰'. 역할·지분을 함께 준다(2026-11-24)."""
+    a = await _setup(full_api, fake_g2b)
+    joint = "R26BK00000059"
+    async with full_api.db.transaction() as s:
+        await upsert_awards(s, [to_award(_aw(joint, 6, THEM, "가온"))], {})
+        s.add(
+            BidJointMember(
+                bid_ntce_no=joint,
+                bid_ntce_ord="",
+                bizno=THEM,
+                member_bizno=US,
+                role="도급업체",
+                joint_mode="공동",
+                share=Decimal("25"),
+            )
+        )
+    body = (await a.get("/api/v1/my-bids")).json()
+    won = (await a.get("/api/v1/my-bids?result=won")).json()
+    lost = (await a.get("/api/v1/my-bids?result=lost")).json()
+    await a.aclose()
+
+    by = {i["bid_ntce_no"]: i for i in body["items"]}
+    assert (by[joint]["result"], by[joint]["our_role"], by[joint]["our_share"]) == (
+        "won",
+        "member",
+        25.0,
+    )
+    assert by[joint]["winner_name"] == "가온"
+    assert by[WON]["our_role"] is None  # 단독 낙찰
+    assert body["counts"] == {"all": 5, "won": 3, "lost": 2}
+    assert joint in [i["bid_ntce_no"] for i in won["items"]]
+    assert joint not in [i["bid_ntce_no"] for i in lost["items"]]
 
 
 async def test_detail_lists_all_participants_and_loads_missing_once(full_api, fake_g2b):

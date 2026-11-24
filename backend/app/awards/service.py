@@ -13,15 +13,16 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, timezone
+from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import ColumnElement, and_, func, literal, or_, select
+from sqlalchemy import ColumnElement, ScalarSelect, and_, case, exists, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.awards.fields import clean_keywords
 from app.awards.mapper import normalize_bizno, normalize_name
 from app.collector import coverage
-from app.db.models import Bid, BidAward, Company, OrgSettings, UsageLog
+from app.db.models import Bid, BidAward, BidJointMember, Company, OrgSettings, UsageLog
 from app.g2b.client import AWARD_SOURCES
 from app.search.query import title_contains
 
@@ -204,6 +205,7 @@ class Summary:
     ratio_median: float | None = None
     ratio_known: int = 0  # 낙찰금액/추정가격을 계산할 수 있었던 건수
     joint_count: int = 0
+    member_count: int = 0  # 공동수급 구성원(대표는 타사) 낙찰 — 우리 회사 화면만
     first_at: datetime | None = None
     last_at: datetime | None = None
     by_year: list[YearRow] = field(default_factory=list)
@@ -211,23 +213,71 @@ class Summary:
     by_field: list[FieldRow] = field(default_factory=list)
 
 
-def period_conds(bizno: str, p: Period) -> list[ColumnElement[bool]]:
-    """이 업체 · 센 기간(등록일시) 조건."""
+# ---------- 공동수급 구성원 낙찰 (우리 회사 화면만, 2026-11-24) ----------
+# 낙찰 응답에는 대표(주계약업체)만 있다. 계약정보의 구성원 행(bid_joint_members)으로 잇되,
+# 그 계약의 대표가
+# 낙찰 행의 업체와 같을 때만 잇는다(한 공고의 여러 분류를 다른 업체가 낙찰한 경우 잘못 잇지 않게).
+# 신체계 계약은 차수가 없어 bid_ntce_ord=''이면 모든 차수와 잇는다.
+
+
+def _joint_link(bizno: str) -> list[ColumnElement[bool]]:
+    j = BidJointMember
     return [
-        BidAward.bizno == bizno,
+        j.member_bizno == bizno,
+        j.bid_ntce_no == BidAward.bid_ntce_no,
+        or_(j.bid_ntce_ord == "", j.bid_ntce_ord == BidAward.bid_ntce_ord),
+        j.bizno == BidAward.bizno,
+    ]
+
+
+def is_member_win(bizno: str) -> ColumnElement[bool]:
+    """bizno가 공동수급 구성원이고 대표는 다른 업체인 낙찰."""
+    return and_(BidAward.bizno.is_distinct_from(bizno), exists().where(*_joint_link(bizno)))
+
+
+def our_share(bizno: str) -> ScalarSelect[Any]:
+    """이 낙찰에서 bizno의 지분율(%). 공동수급이 아니거나 지분이 없으면 NULL."""
+    return (
+        select(BidJointMember.share)
+        .where(*_joint_link(bizno))
+        .order_by(BidJointMember.share.desc().nulls_last())
+        .limit(1)
+        .scalar_subquery()
+    )
+
+
+def _owner(bizno: str, member: bool) -> ColumnElement[bool]:
+    return or_(BidAward.bizno == bizno, is_member_win(bizno)) if member else BidAward.bizno == bizno
+
+
+def amount_expr(bizno: str, member: bool) -> Any:
+    """센 금액: 대표 낙찰은 낙찰금액 전액, 구성원 낙찰은 지분만큼(지분을 모르면 0)."""
+    if not member:
+        return BidAward.award_amount
+    return case(
+        (BidAward.bizno == bizno, BidAward.award_amount),
+        else_=func.round(BidAward.award_amount * func.coalesce(our_share(bizno), 0) / 100),
+    )
+
+
+def period_conds(bizno: str, p: Period, member: bool = False) -> list[ColumnElement[bool]]:
+    """이 업체 · 센 기간(등록일시) 조건. member면 공동수급 구성원 낙찰도 넣는다(우리 회사 화면)."""
+    return [
+        _owner(bizno, member),
         BidAward.registered_at >= p.eff_from,
         BidAward.registered_at < p.eff_to,
     ]
 
 
-async def summarize(s: AsyncSession, bizno: str, p: Period) -> Summary:
+async def summarize(s: AsyncSession, bizno: str, p: Period, member: bool = False) -> Summary:
     out = Summary()
+    amount = amount_expr(bizno, member)
     if p.eff_from is not None:
         row = (
             await s.execute(
                 select(
                     func.count(),
-                    func.coalesce(func.sum(BidAward.award_amount), 0),
+                    func.coalesce(func.sum(amount), 0),
                     func.count(func.distinct(BidAward.dminstt_cd)),
                     func.percentile_cont(0.5).within_group(BidAward.g2b_award_rate),
                     func.percentile_cont(0.5).within_group(BidAward.award_ratio),
@@ -235,11 +285,13 @@ async def summarize(s: AsyncSession, bizno: str, p: Period) -> Summary:
                     func.count().filter(BidAward.is_joint),
                     func.min(BidAward.registered_at),
                     func.max(BidAward.registered_at),
-                ).where(*period_conds(bizno, p))
+                    func.count().filter(is_member_win(bizno)) if member else literal(0),
+                ).where(*period_conds(bizno, p, member))
             )
         ).one()
-        (n, total, orgs, rate_med, ratio_med, ratio_n, joint, first, last) = row
+        (n, total, orgs, rate_med, ratio_med, ratio_n, joint, first, last, members) = row
         out.count, out.amount_sum, out.org_count = int(n), int(total), int(orgs)
+        out.member_count = int(members)
         out.amount_avg = round(out.amount_sum / out.count) if out.count else None
         out.g2b_rate_median = round(float(rate_med), 3) if rate_med is not None else None
         out.ratio_median = round(float(ratio_med), 5) if ratio_med is not None else None
@@ -253,9 +305,9 @@ async def summarize(s: AsyncSession, bizno: str, p: Period) -> Summary:
                         BidAward.dminstt_cd,
                         func.max(BidAward.dminstt_name),
                         func.count(),
-                        func.coalesce(func.sum(BidAward.award_amount), 0),
+                        func.coalesce(func.sum(amount), 0),
                     )
-                    .where(*period_conds(bizno, p))
+                    .where(*period_conds(bizno, p, member))
                     .group_by(BidAward.dminstt_cd)
                     .order_by(func.count().desc(), func.max(BidAward.dminstt_name))
                     .limit(TOP_ORGS)
@@ -263,7 +315,7 @@ async def summarize(s: AsyncSession, bizno: str, p: Period) -> Summary:
             ).all()
         ]
         tag = func.unnest(BidAward.fields).label("tag")
-        sub = select(tag).where(*period_conds(bizno, p)).subquery()
+        sub = select(tag).where(*period_conds(bizno, p, member)).subquery()
         out.by_field = [
             FieldRow(t, int(c))
             for t, c in (
@@ -274,20 +326,23 @@ async def summarize(s: AsyncSession, bizno: str, p: Period) -> Summary:
                 )
             ).all()
         ]
-    out.by_year = await count_by_year(s, bizno, p)
+    out.by_year = await count_by_year(s, bizno, p, member)
     return out
 
 
-async def count_by_year(s: AsyncSession, bizno: str, p: Period) -> list[YearRow]:
+async def count_by_year(
+    s: AsyncSession, bizno: str, p: Period, member: bool = False
+) -> list[YearRow]:
     counted: dict[int, tuple[int, int]] = {}
     if p.eff_from is not None:
         year = func.extract("year", func.timezone("Asia/Seoul", BidAward.registered_at))
+        amount = amount_expr(bizno, member)
         counted = {
             int(y): (int(c), int(a or 0))
             for y, c, a in (
                 await s.execute(
-                    select(year, func.count(), func.coalesce(func.sum(BidAward.award_amount), 0))
-                    .where(*period_conds(bizno, p))
+                    select(year, func.count(), func.coalesce(func.sum(amount), 0))
+                    .where(*period_conds(bizno, p, member))
                     .group_by(year)
                 )
             ).all()
@@ -314,6 +369,8 @@ async def count_by_year(s: AsyncSession, bizno: str, p: Period) -> list[YearRow]
 class AwardItem:
     award: BidAward
     bid_id: int | None  # 같은 공고가 bids에 있으면 상세 화면으로 잇는다
+    our_role: str | None = None  # 우리 회사 화면의 공동수급: 'lead'(대표)·'member'(구성원)
+    our_share: Decimal | None = None  # 그때 우리 지분(%)
 
 
 def encode_cursor(registered_at: datetime, award_id: int) -> str:
@@ -328,6 +385,13 @@ def decode_cursor(cursor: str) -> tuple[datetime, int] | None:
         return datetime.fromisoformat(ts), int(award_id)
     except (ValueError, UnicodeDecodeError):
         return None
+
+
+def _role(a: BidAward, bizno: str, share: Decimal | None) -> tuple[str | None, Decimal | None]:
+    """우리 회사 화면의 줄: 대표 낙찰이면 공동수급일 때만 'lead', 아니면(구성원) 'member'."""
+    if a.bizno == bizno:
+        return ("lead", share) if share is not None else (None, None)
+    return "member", share
 
 
 @dataclass
@@ -347,7 +411,9 @@ async def list_awards(
     q: str | None = None,
     cursor: tuple[datetime, int] | None = None,
     limit: int = 50,
+    member: bool = False,
 ) -> AwardPage:
+    """member면 공동수급 구성원 낙찰도 넣고 줄마다 우리 역할·지분을 붙인다(우리 회사 화면)."""
     if p.eff_from is None:
         return AwardPage([], 0, None)
     conds: list[Any] = []
@@ -358,7 +424,7 @@ async def list_awards(
     if q and (title := title_contains(q, BidAward.title)) is not None:
         conds.append(title)  # 한 업체의 낙찰만 보므로 색인 없이 충분하다
     total = await s.scalar(
-        select(func.count()).select_from(BidAward).where(*period_conds(bizno, p), *conds)
+        select(func.count()).select_from(BidAward).where(*period_conds(bizno, p, member), *conds)
     )
     page_conds = list(conds)
     if cursor is not None:
@@ -369,16 +435,20 @@ async def list_awards(
                 and_(BidAward.registered_at == ts, BidAward.id < last_id),
             )
         )
+    share = our_share(bizno) if member else literal(None)
     stmt = (
-        select(BidAward, Bid.id)
-        .where(*period_conds(bizno, p))
+        select(BidAward, Bid.id, share)
+        .where(*period_conds(bizno, p, member))
         .outerjoin(Bid, Bid.bid_key == literal("regular:") + BidAward.bid_ntce_no)
         .where(*page_conds)
         .order_by(BidAward.registered_at.desc(), BidAward.id.desc())
         .limit(limit + 1)
     )
     rows = (await s.execute(stmt)).all()
-    items = [AwardItem(a, bid_id) for a, bid_id in rows[:limit]]
+    items = [
+        AwardItem(a, bid_id, *(_role(a, bizno, sh) if member else (None, None)))
+        for a, bid_id, sh in rows[:limit]
+    ]
     nxt = (
         encode_cursor(items[-1].award.registered_at, items[-1].award.id)
         if len(rows) > limit

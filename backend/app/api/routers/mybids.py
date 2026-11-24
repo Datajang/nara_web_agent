@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Path, Query
@@ -69,10 +70,23 @@ async def list_my_bids(
     s: DbSession,
     ctx: Ctx,
     result: Annotated[Literal["all", "won", "lost"], Query()] = "all",
+    date_from: Annotated[date | None, Query(alias="from")] = None,
+    date_to: Annotated[date | None, Query(alias="to")] = None,
+    q: Annotated[
+        str | None, Query(max_length=100, description="사업명 일부(띄어쓰기 무시)")
+    ] = None,
     cursor: Annotated[str | None, Query(max_length=200)] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 30,
 ) -> MyBidListOut:
+    if date_from and date_to and date_from > date_to:
+        raise ApiError(
+            422,
+            "validation_error",
+            "시작일이 종료일보다 늦어요. 기간을 다시 골라 주세요.",
+            details=[{"field": "from", "reason": "after_to"}],
+        )
     _org, us, _name = await views.us_config(s, ctx.deps)
+    narrow = mb.Narrow(date_from, date_to, q or None)
     cur = None
     if cursor:
         cur = svc.decode_cursor(cursor)
@@ -80,8 +94,8 @@ async def list_my_bids(
             raise ApiError(
                 400, "bad_request", "목록 위치가 올바르지 않아요. 처음부터 다시 불러와 주세요."
             )
-    items, nxt = await mb.page(s, us, result, cur, limit)
-    counts = await mb.counts(s, us)
+    items, nxt = await mb.page(s, us, result, cur, limit, narrow)
+    counts = await mb.counts(s, us, narrow)
     since, done, total = await mb.scan_status(s)
     return MyBidListOut(
         items=[item_out(i, us) for i in items],

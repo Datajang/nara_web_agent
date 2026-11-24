@@ -1,9 +1,12 @@
 <script setup lang="ts">
 // 우리 투찰 결과 (P12): 낙찰·탈락 목록. 결과 구분(전체·낙찰·탈락)은 URL ?result=와 맞춘다.
 // 순위가 없으면 추정하지 않고 사유(비고)를 보여 준다 (docs/decisions/2026-11-17-p12a-opening-ranks.md).
+// 연도·기간·사업명 필터(2026-11-24): 결과별 건수도 같은 조건으로 센다.
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { NO_NARROW, type AwardNarrow } from '@/api/awards'
 import { keyPath, myBidsApi, rankText, resultBadge, type MyBid, type MyBidFilter, type MyBidList } from '@/api/mybids'
+import AwardsFilter from '@/components/awards/AwardsFilter.vue'
 import MoneyText from '@/components/bid/MoneyText.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
@@ -13,8 +16,10 @@ import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { copy } from '@/copy'
 import { formatDate, formatPct } from '@/utils/format'
 
+defineProps<{ years: number[] }>()
 const route = useRoute()
 const router = useRouter()
+const narrow = ref<AwardNarrow>({ ...NO_NARROW })
 const FILTERS: MyBidFilter[] = ['all', 'won', 'lost']
 const filter = computed<MyBidFilter>({
   get: () => FILTERS.find((f) => f === route.query.result) ?? 'all',
@@ -40,15 +45,17 @@ const scanText = computed(() => {
   if (!sc) return ''
   return sc.since ? copy.myBids.scan(formatDate(sc.since), sc.fetched_notices, sc.award_notices) : copy.myBids.scanNone
 })
-const emptyText = computed(
-  () => ({ all: copy.myBids.emptyAll, won: copy.myBids.emptyWon, lost: copy.myBids.emptyLost })[filter.value],
+const emptyText = computed(() =>
+  narrow.value.from || narrow.value.to || narrow.value.q
+    ? copy.myBids.emptyFiltered
+    : { all: copy.myBids.emptyAll, won: copy.myBids.emptyWon, lost: copy.myBids.emptyLost }[filter.value],
 )
 
 async function load(reset: boolean) {
   loading.value = true
   failed.value = false
   try {
-    const page = await myBidsApi.list(filter.value, reset ? null : cursor.value)
+    const page = await myBidsApi.list(filter.value, narrow.value, reset ? null : cursor.value)
     items.value = reset ? page.items : [...items.value, ...page.items]
     head.value = { counts: page.counts, scan: page.scan }
     cursor.value = page.next_cursor ?? null
@@ -59,7 +66,7 @@ async function load(reset: boolean) {
   }
 }
 
-watch(filter, () => load(true), { immediate: true })
+watch([filter, narrow], () => load(true), { immediate: true })
 
 const keyOf = (b: MyBid) => keyPath(b)
 </script>
@@ -73,6 +80,7 @@ const keyOf = (b: MyBid) => keyPath(b)
         <p class="text-xs text-text-3" data-scan>{{ scanText }}</p>
       </template>
     </UiFilterBar>
+    <AwardsFilter v-model="narrow" :years="years" />
 
     <p v-if="failed" class="flex items-center gap-3 text-danger-fg" role="alert">
       {{ copy.myBids.loadFailed }}

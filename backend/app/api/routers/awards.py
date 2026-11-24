@@ -156,6 +156,9 @@ async def get_awards(
     date_to: DateTo = None,
     field: Annotated[str | None, Query(max_length=30)] = None,
     org: Annotated[str | None, Query(max_length=20)] = None,
+    q: Annotated[
+        str | None, Query(max_length=100, description="사업명 일부(띄어쓰기 무시)")
+    ] = None,
     cursor: Annotated[str | None, Query(max_length=200)] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> AwardListOut:
@@ -168,6 +171,7 @@ async def get_awards(
         date_to=date_to,
         field_tag=field or None,
         org=org or None,
+        q=q or None,
         cursor=cursor,
         limit=limit,
     )

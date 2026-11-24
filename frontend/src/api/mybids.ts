@@ -1,5 +1,6 @@
 // 우리 투찰 결과(낙찰·탈락) API (P12, docs/decisions/2026-11-17-p12a-opening-ranks.md).
 import { copy } from '@/copy'
+import { NO_NARROW, type AwardNarrow } from './awards'
 import { api } from './client'
 import type { components } from './schema'
 
@@ -11,8 +12,11 @@ export type MyBidParticipant = S['MyBidParticipantOut']
 export type MyBidFilter = 'all' | 'won' | 'lost'
 
 export const myBidsApi = {
-  list: (result: MyBidFilter, cursor?: string | null) => {
+  list: (result: MyBidFilter, narrow: AwardNarrow = NO_NARROW, cursor?: string | null) => {
     const p = new URLSearchParams({ result })
+    if (narrow.from) p.set('from', narrow.from)
+    if (narrow.to) p.set('to', narrow.to)
+    if (narrow.q) p.set('q', narrow.q)
     if (cursor) p.set('cursor', cursor)
     return api.get<MyBidList>(`/my-bids?${p.toString()}`)
   },

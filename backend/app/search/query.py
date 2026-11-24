@@ -7,6 +7,7 @@ from typing import Annotated, Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 from sqlalchemy import ColumnElement, Select, and_, func, or_, select
+from sqlalchemy.orm import InstrumentedAttribute
 
 from app.bids.cards import CANCELLED_KIND
 from app.db.models import Bid
@@ -58,12 +59,15 @@ def _like(kw: str) -> str:
     return "%" + kw.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
 
 
-def title_contains(text: str) -> ColumnElement[bool] | None:
-    """공고명에 text가 들어 있는지. 양쪽 띄어쓰기를 모두 무시한다. 빈 값이면 None."""
+def title_contains(
+    text: str, column: ColumnElement[str] | InstrumentedAttribute[str] | None = None
+) -> ColumnElement[bool] | None:
+    """공고명(기본 Bid.title)에 text가 들어 있는지. 양쪽 띄어쓰기를 모두 무시한다. 빈 값이면 None.
+    낙찰 사업명(BidAward.title)에도 같은 규칙을 쓴다(우리 수주 현황 필터, 2026-11-24)."""
     flat = "".join(text.split())
     if not flat:
         return None
-    squashed = func.regexp_replace(Bid.title, r"\s+", "", "g")
+    squashed = func.regexp_replace(Bid.title if column is None else column, r"\s+", "", "g")
     return squashed.ilike(_like(flat), escape="\\")
 
 

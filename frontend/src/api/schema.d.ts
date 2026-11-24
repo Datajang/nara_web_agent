@@ -4024,6 +4024,8 @@ export interface operations {
                 to?: string | null;
                 field?: string | null;
                 org?: string | null;
+                /** @description 사업명 일부(띄어쓰기 무시) */
+                q?: string | null;
                 cursor?: string | null;
                 limit?: number;
             };
@@ -4330,6 +4332,10 @@ export interface operations {
         parameters: {
             query?: {
                 result?: "all" | "won" | "lost";
+                from?: string | null;
+                to?: string | null;
+                /** @description 사업명 일부(띄어쓰기 무시) */
+                q?: string | null;
                 cursor?: string | null;
                 limit?: number;
             };

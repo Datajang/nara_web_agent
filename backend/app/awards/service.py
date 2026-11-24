@@ -23,6 +23,7 @@ from app.awards.mapper import normalize_bizno, normalize_name
 from app.collector import coverage
 from app.db.models import Bid, BidAward, Company, OrgSettings, UsageLog
 from app.g2b.client import AWARD_SOURCES
+from app.search.query import title_contains
 
 KST = timezone(timedelta(hours=9))
 SOURCE = "awards"
@@ -343,6 +344,7 @@ async def list_awards(
     *,
     field_tag: str | None = None,
     org: str | None = None,
+    q: str | None = None,
     cursor: tuple[datetime, int] | None = None,
     limit: int = 50,
 ) -> AwardPage:
@@ -353,6 +355,8 @@ async def list_awards(
         conds.append(BidAward.fields.contains([field_tag]))  # @> — GIN 색인
     if org:
         conds.append(BidAward.dminstt_cd == org)
+    if q and (title := title_contains(q, BidAward.title)) is not None:
+        conds.append(title)  # 한 업체의 낙찰만 보므로 색인 없이 충분하다
     total = await s.scalar(
         select(func.count()).select_from(BidAward).where(*period_conds(bizno, p), *conds)
     )

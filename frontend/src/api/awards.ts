@@ -16,9 +16,20 @@ export interface AwardQuery {
   bizno?: string // 비우면 우리 회사
   field?: string
   org?: string
+  from?: string // YYYY-MM-DD, 낙찰 등록일(KST) 기준, 끝 날 포함
+  to?: string
+  q?: string // 사업명 일부(띄어쓰기 무시)
   cursor?: string | null
   limit?: number
 }
+
+/** 우리 수주 현황 목록 필터(2026-11-24). 빈 문자열은 조건 없음. */
+export interface AwardNarrow {
+  from: string
+  to: string
+  q: string
+}
+export const NO_NARROW: AwardNarrow = { from: '', to: '', q: '' }
 
 function qs(params: Record<string, string | number | null | undefined>): string {
   const p = new URLSearchParams()
@@ -34,7 +45,7 @@ export const awardsApi = {
   summary: (bizno?: string) => api.get<AwardSummary>(`/awards/summary${qs({ bizno })}`),
   list: (q: AwardQuery = {}) =>
     api.get<AwardList>(
-      `/awards${qs({ bizno: q.bizno, field: q.field, org: q.org, cursor: q.cursor, limit: q.limit })}`,
+      `/awards${qs({ bizno: q.bizno, field: q.field, org: q.org, from: q.from, to: q.to, q: q.q, cursor: q.cursor, limit: q.limit })}`,
     ),
   search: (q: string) => api.get<S['CompanySearchOut']>(`/companies/search${qs({ q })}`),
   companySummary: (bizno: string) => api.get<AwardSummary>(`/companies/${encodeURIComponent(bizno)}`),

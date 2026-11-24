@@ -64,10 +64,10 @@ const tab = computed<Tab>({
         <AwardsBasis :period="summary.data.value.period" />
       </header>
       <UiTabs v-model="tab" :items="TABS" :label="copy.myBids.tabsLabel" />
-      <MyBidsPanel v-if="tab === 'bids'" />
+      <MyBidsPanel v-if="tab === 'bids'" :years="summary.data.value.by_year.map((y) => y.year)" />
       <template v-else>
         <AwardSummaryView v-model:field="field" v-model:org="org" :summary="summary.data.value" />
-        <AwardTable v-model:field="field" v-model:org="org" :summary="summary.data.value" />
+        <AwardTable v-model:field="field" v-model:org="org" :summary="summary.data.value" filterable />
       </template>
       <AwardsFootnote />
     </template>

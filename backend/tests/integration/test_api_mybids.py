@@ -100,6 +100,25 @@ async def test_list_shows_wins_and_losses_with_rank_or_reason(full_api, fake_g2b
     assert scan["fetched_notices"] == 4 and scan["award_notices"] == 5 and scan["since"]
 
 
+async def test_list_filters_by_period_and_title(full_api, fake_g2b):
+    """투찰 결과 필터(2026-11-24): 기간(등록일 KST, 끝 날 포함)·사업명(띄어쓰기 무시).
+
+    결과별 건수도 같은 조건으로 센다."""
+    a = await _setup(full_api, fake_g2b)
+    period = (await a.get("/api/v1/my-bids?from=2026-11-07&to=2026-11-08")).json()
+    titled = (await a.get("/api/v1/my-bids?q=00000051 용 역")).json()  # LOST의 사업명
+    won_in = (await a.get("/api/v1/my-bids?result=won&from=2026-11-01&to=2026-11-07")).json()
+    reversed_ = await a.get("/api/v1/my-bids?from=2026-11-08&to=2026-11-07")
+    await a.aclose()
+
+    assert [i["bid_ntce_no"] for i in period["items"]] == [LOST, DQ]  # 11-08, 11-07
+    assert period["counts"] == {"all": 2, "won": 0, "lost": 2}
+    assert [i["bid_ntce_no"] for i in titled["items"]] == [LOST]
+    assert titled["counts"] == {"all": 1, "won": 0, "lost": 1}
+    assert [i["bid_ntce_no"] for i in won_in["items"]] == [WON_LATER]  # WON은 11-09
+    assert reversed_.status_code == 422
+
+
 async def test_detail_lists_all_participants_and_loads_missing_once(full_api, fake_g2b):
     a = await _setup(full_api, fake_g2b)
     before = len(_calls(fake_g2b))

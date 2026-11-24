@@ -171,6 +171,32 @@ async def test_list_filters_by_field_and_org(full_api):
     assert bad.status_code == 400
 
 
+async def test_list_filters_by_title_and_period(full_api):
+    """우리 수주 현황 낙찰 목록 필터(2026-11-24).
+
+    사업명은 띄어쓰기를 무시하고, 기간은 등록일(KST) 기준으로 끝 날을 포함한다."""
+    await _seed_awards(
+        full_api,
+        _aw("R26BK00000001", 3, title="데이터 정비 사업"),  # 11-07
+        _aw("R26BK00000002", 4, title="청사 청소 용역"),  # 11-06
+        _aw("R26BK00000003", 40, title="데이터정비 고도화"),  # 10-01
+    )
+    a = await admin_client(full_api)
+    await _configure(a)
+    by_q = (await a.get("/api/v1/awards?q=데이터 정비")).json()
+    by_period = (await a.get("/api/v1/awards?from=2026-11-06&to=2026-11-07")).json()
+    both = (await a.get("/api/v1/awards?q=청소&from=2026-11-01&to=2026-11-10")).json()
+    literal = (await a.get("/api/v1/awards?q=%25")).json()  # % 는 글자 그대로
+    too_long = await a.get("/api/v1/awards?q=" + "가" * 101)
+    await a.aclose()
+    assert [i["title"] for i in by_q["items"]] == ["데이터 정비 사업", "데이터정비 고도화"]
+    assert by_q["total"] == 2
+    assert [i["title"] for i in by_period["items"]] == ["데이터 정비 사업", "청사 청소 용역"]
+    assert [i["title"] for i in both["items"]] == ["청사 청소 용역"] and both["total"] == 1
+    assert literal["items"] == [] and literal["total"] == 0
+    assert too_long.status_code == 422
+
+
 async def test_put_starts_reclassify_only_when_keywords_change(full_api):
     await _seed_awards(full_api, _aw("R26BK00000001", 3, title="AI 분석 플랫폼"))
     a = await admin_client(full_api)

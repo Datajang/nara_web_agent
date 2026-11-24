@@ -1185,6 +1185,25 @@
             }
           },
           {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "사업명 일부(띄어쓰기 무시)",
+              "title": "Q"
+            },
+            "description": "사업명 일부(띄어쓰기 무시)"
+          },
+          {
             "name": "cursor",
             "in": "query",
             "required": false,
@@ -1700,6 +1719,59 @@
               "default": "all",
               "title": "Result"
             }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "사업명 일부(띄어쓰기 무시)",
+              "title": "Q"
+            },
+            "description": "사업명 일부(띄어쓰기 무시)"
           },
           {
             "name": "cursor",

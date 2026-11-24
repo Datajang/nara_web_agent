@@ -5,20 +5,23 @@
 - 결과: won(낙찰업체가 우리) / lost(순위 있음) / disqualified(순위 없음 = 부적격·탈락, 사유는 비고)
 - 순위를 투찰금액으로 추정하지 않는다(P12-a: 빈칸은 누락이 아니라 부적격)
 - 유효 업체 수 = 그 공고에서 순위가 있는 업체 수
+- 필터(2026-11-24): 기간(등록일 KST, 끝 날 포함)·사업명(띄어쓰기 무시). 목록과 건수에 같은 조건
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from typing import Any, Literal
 
 from sqlalchemy import and_, func, literal, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
+from app.awards.service import kst_start
 from app.db.models import Bid, BidAward, BidParticipant, BidParticipantFetch
+from app.search.query import title_contains
 
 Result = Literal["won", "lost", "disqualified"]
 Filter = Literal["all", "won", "lost"]
@@ -66,9 +69,31 @@ def _result_cond(p: Any, us: str, flt: Filter) -> Any:
     return or_(won, took_part)
 
 
-async def counts(s: AsyncSession, us: str) -> dict[str, int]:
+@dataclass(frozen=True)
+class Narrow:
+    """목록·건수를 좁히는 조건. 기간은 등록일(KST) 기준이고 끝 날을 포함한다."""
+
+    date_from: date | None = None
+    date_to: date | None = None
+    q: str | None = None
+
+    def conds(self) -> list[Any]:
+        out: list[Any] = []
+        if self.date_from is not None:
+            out.append(BidAward.registered_at >= kst_start(self.date_from))
+        if self.date_to is not None:
+            out.append(BidAward.registered_at < kst_start(self.date_to + timedelta(days=1)))
+        if self.q and (title := title_contains(self.q, BidAward.title)) is not None:
+            out.append(title)
+        return out
+
+
+NO_NARROW = Narrow()  # 조건 없음(불변이라 기본값으로 함께 쓴다)
+
+
+async def counts(s: AsyncSession, us: str, narrow: Narrow = NO_NARROW) -> dict[str, int]:
     p, on = _us_join(us)
-    base = select(func.count()).select_from(BidAward).outerjoin(p, on)
+    base = select(func.count()).select_from(BidAward).outerjoin(p, on).where(*narrow.conds())
     won = await s.scalar(base.where(_result_cond(p, us, "won")))
     lost = await s.scalar(base.where(_result_cond(p, us, "lost")))
     return {"won": int(won or 0), "lost": int(lost or 0), "all": int(won or 0) + int(lost or 0)}
@@ -121,10 +146,11 @@ async def page(
     flt: Filter = "all",
     cursor: tuple[datetime, int] | None = None,
     limit: int = 30,
+    narrow: Narrow = NO_NARROW,
 ) -> tuple[list[MyBid], tuple[datetime, int] | None]:
     """등록일시 최신순 한 쪽과 다음 쪽 커서(등록일시, 낙찰 id)."""
     p, on = _us_join(us)
-    conds = [_result_cond(p, us, flt)]
+    conds = [_result_cond(p, us, flt), *narrow.conds()]
     if cursor is not None:
         ts, last_id = cursor
         conds.append(

@@ -158,6 +158,7 @@ async def award_list(
     date_to: date | None = None,
     field_tag: str | None = None,
     org: str | None = None,
+    q: str | None = None,
     cursor: str | None = None,
     limit: int = 50,
 ) -> AwardListOut:
@@ -171,7 +172,7 @@ async def award_list(
             400, "bad_request", "목록 위치가 올바르지 않아요. 처음부터 다시 불러와 주세요."
         )
     page = await svc.list_awards(
-        s, bizno, period, field_tag=field_tag, org=org, cursor=cur, limit=limit
+        s, bizno, period, field_tag=field_tag, org=org, q=q, cursor=cur, limit=limit
     )
     return AwardListOut(
         period=period_out(period),

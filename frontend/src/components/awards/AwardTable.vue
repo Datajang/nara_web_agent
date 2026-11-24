@@ -1,9 +1,11 @@
 <script setup lang="ts">
 // 낙찰 목록 (§15.7): 분야·수요기관 필터, 커서 '더 보기'.
+// filterable이면 연도·기간·사업명 필터도 둔다(우리 수주 현황, 2026-11-24).
 // 추정가격 대비는 값이 있을 때만, 없으면 낙찰률(G2B), 그것도 없으면 '정보 없음' (§15.1 원칙 4).
 import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
-import { awardsApi, type Award, type AwardSummary } from '@/api/awards'
+import { awardsApi, NO_NARROW, type Award, type AwardNarrow, type AwardSummary } from '@/api/awards'
+import AwardsFilter from '@/components/awards/AwardsFilter.vue'
 import MoneyText from '@/components/bid/MoneyText.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
@@ -11,9 +13,12 @@ import UiSelect from '@/components/ui/UiSelect.vue'
 import { copy } from '@/copy'
 import { formatDate, formatPct } from '@/utils/format'
 
-const props = defineProps<{ summary: AwardSummary; bizno?: string; showWinner?: boolean }>()
+const props = defineProps<{ summary: AwardSummary; bizno?: string; showWinner?: boolean; filterable?: boolean }>()
 const field = defineModel<string>('field', { default: '' })
 const org = defineModel<string>('org', { default: '' })
+const narrow = ref<AwardNarrow>({ ...NO_NARROW })
+const years = computed(() => props.summary.by_year.map((y) => y.year))
+const narrowed = computed(() => Boolean(narrow.value.from || narrow.value.to || narrow.value.q))
 
 const items = ref<Award[]>([])
 const total = ref(0)
@@ -41,6 +46,7 @@ async function load(reset: boolean) {
       bizno: props.bizno,
       field: field.value,
       org: org.value,
+      ...narrow.value,
       cursor: reset ? null : cursor.value,
     })
     items.value = reset ? page.items : [...items.value, ...page.items]
@@ -53,7 +59,7 @@ async function load(reset: boolean) {
   }
 }
 
-watch([field, org, () => props.bizno], () => load(true), { immediate: true })
+watch([field, org, narrow, () => props.bizno], () => load(true), { immediate: true })
 
 function rateText(a: Award): string {
   if (a.award_ratio != null) return copy.awards.ratio(formatPct(a.award_ratio * 100))
@@ -74,13 +80,16 @@ const dateOf = (a: Award) => a.awarded_on ?? formatDate(a.registered_at)
       <div class="w-full sm:w-44"><UiSelect v-model="field" :label="copy.awards.filterField" :options="fieldOptions" /></div>
       <div class="w-full sm:w-56"><UiSelect v-model="org" :label="copy.awards.filterOrg" :options="orgOptions" /></div>
     </div>
+    <AwardsFilter v-if="filterable" v-model="narrow" :years="years" class="mb-3" />
     <p class="mb-2 text-xs text-text-3">{{ copy.awards.rateHelp }}</p>
 
     <p v-if="failed" class="flex items-center gap-3 text-danger-fg" role="alert">
       {{ copy.awards.loadFailed }}
       <UiButton size="sm" variant="secondary" @click="load(items.length === 0)">{{ copy.common.retry }}</UiButton>
     </p>
-    <p v-else-if="!loading && !items.length" class="py-6 text-center text-text-3">{{ copy.awards.emptyList }}</p>
+    <p v-else-if="!loading && !items.length" class="py-6 text-center text-text-3">
+      {{ narrowed ? copy.awards.emptyFiltered : copy.awards.emptyList }}
+    </p>
     <div v-else class="overflow-x-auto">
       <table class="w-full min-w-[760px] text-sm" data-award-table>
         <thead class="bg-surface-2 text-left text-text-2">

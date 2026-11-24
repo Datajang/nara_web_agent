@@ -22,6 +22,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.awards.mapper import normalize_bizno
+from app.awards.store import CHUNK
 from app.db.models import BidParticipant, BidParticipantFetch, UsageLog
 from app.deps import Deps
 from app.g2b.client import G2BBudgetExceeded, G2BError, call_cap, count_calls
@@ -80,19 +81,20 @@ async def store(s: AsyncSession, notice: Notice, items: list[dict[str, Any]]) ->
                 (r["bid_ntce_no"], r["bid_ntce_ord"], r["bid_clsfc_no"], r["rbid_no"], r["bizno"])
             ] = r
     values = [best[k] for k in sorted(best)]
-    if values:
-        ins = insert(BidParticipant).values(values)
+    cols = (
+        "name",
+        "rank",
+        "bid_amount",
+        "bid_rate",
+        "tech_score",
+        "price_score",
+        "total_score",
+        "remark",
+    )
+    # 한 공고 참가 업체가 수천 곳이면 인자 상한(32767)을 넘으므로 나눠 넣는다
+    for i in range(0, len(values), CHUNK):
+        ins = insert(BidParticipant).values(values[i : i + CHUNK])
         ex = ins.excluded
-        cols = (
-            "name",
-            "rank",
-            "bid_amount",
-            "bid_rate",
-            "tech_score",
-            "price_score",
-            "total_score",
-            "remark",
-        )
         await s.execute(
             ins.on_conflict_do_update(
                 index_elements=["bid_ntce_no", "bid_ntce_ord", "bid_clsfc_no", "rbid_no", "bizno"],

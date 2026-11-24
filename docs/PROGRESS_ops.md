@@ -65,3 +65,4 @@
   체크를 풀면 바로 지움, 기억한 이메일이 있으면 비밀번호 칸에 커서. E2E 선택자 `getByLabel('이메일', { exact: true })`로.
 - 개발 환경: 이 VM의 Node 22.14는 `engines`(22.18+)보다 낮고 Debian 11이라 Playwright chromium 미지원 →
   `~/.local/opt/node22`(22.23.5)와 Docker `mcr.microsoft.com/playwright:v1.65.0-noble`로 E2E 3개 통과.
+- 배포 rc8(2026-11-24, 위 두 항목 + 경보 수정). 활성 회원 6명 전원을 팀 'AX컨설팅1팀'으로(팀장 jsill2786, 서비스 `create`→`join`).

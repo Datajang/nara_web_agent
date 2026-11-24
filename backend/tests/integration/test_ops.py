@@ -130,6 +130,15 @@ async def test_check_without_alert_email_only_logs(full_api, db, tmp_path, caplo
     code, mailer = await _check(full_api, tmp_path)  # 수집 기록 없음
     assert code == 1 and mailer.outbox == []
     assert "ALERT_EMAIL" in caplog.text
+    assert json.loads((tmp_path / "state.json").read_text())["sent"] == {}
+
+
+async def test_check_unsent_alert_fires_once_email_is_set(full_api, db, tmp_path):
+    # 보내지 못한 경보를 '보냄'으로 적으면 ALERT_EMAIL을 채워도 6시간 조용하다 (2026-11-24 운영)
+    await _run(db, status="ok", finished_ago_h=3)
+    _, before = await _check(full_api, tmp_path)
+    _, after = await _check(full_api, tmp_path, alert_email="ops@corp.example")
+    assert before.outbox == [] and len(after.outbox) == 1
 
 
 async def test_check_recovered_alert_can_fire_again(full_api, db, tmp_path):

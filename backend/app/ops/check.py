@@ -139,10 +139,11 @@ async def run_check(
             await mailer.send(
                 Mail(st.alert_email, f"[{st.service_name}] 운영 경보 {len(due)}건", body)
             )
+            for a in due:
+                sent[a.key] = now.isoformat()
         else:
+            # 보내지 못한 경보는 적지 않는다 → ALERT_EMAIL을 채우면 다음 점검에서 바로 울린다
             log.warning("ALERT_EMAIL이 비어 있어 경보 메일을 보내지 않았습니다")
-        for a in due:
-            sent[a.key] = now.isoformat()
     _save(state_path, {"sent": sent, "readyz_failures": failures})
     return 1 if alerts else 0
 

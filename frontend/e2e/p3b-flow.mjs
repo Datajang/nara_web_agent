@@ -50,7 +50,7 @@ async function loginPage(email, viewport = { width: 1280, height: 800 }) {
     void d.dismiss()
   })
   await page.goto(`${BASE}/login`)
-  await page.getByLabel('이메일').fill(email)
+  await page.getByLabel('이메일', { exact: true }).fill(email)
   await page.getByLabel('비밀번호').fill(PW)
   await page.getByRole('button', { name: '로그인' }).click()
   await page.waitForURL('**/search**')

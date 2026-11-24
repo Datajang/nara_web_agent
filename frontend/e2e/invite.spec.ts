@@ -10,7 +10,7 @@ const MEMBER = process.env.E2E_MEMBER ?? 'e2e-member@corp.example'
 const MEMBER_PW = process.env.E2E_MEMBER_PW ?? 'e2e-member-password-1'
 
 async function login(page: Page, email: string, password: string) {
-  await page.getByLabel('이메일').fill(email)
+  await page.getByLabel('이메일', { exact: true }).fill(email)
   await page.getByLabel('비밀번호').fill(password)
   await page.getByRole('button', { name: '로그인' }).click()
 }

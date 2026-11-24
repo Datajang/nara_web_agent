@@ -18,7 +18,7 @@ test('회사 설정부터 업체 검색 낙찰 목록까지', async ({ page }) =
   await page.setViewportSize({ width: 1280, height: 900 })
 
   await page.goto('/login')
-  await page.getByLabel('이메일').fill(ADMIN)
+  await page.getByLabel('이메일', { exact: true }).fill(ADMIN)
   await page.getByLabel('비밀번호').fill(ADMIN_PW)
   await page.getByRole('button', { name: '로그인' }).click()
   await page.waitForURL((u) => u.pathname !== '/login')

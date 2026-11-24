@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { ApiError } from '@/api/client'
 import AuthCard from '@/components/auth/AuthCard.vue'
@@ -9,21 +9,36 @@ import { copy } from '@/copy'
 import { safeNext } from '@/router'
 import { useAuthStore } from '@/stores/auth'
 import { generalMessage } from '@/utils/authErrors'
+import { forgetRememberedEmail, readRememberedEmail, saveRememberedEmail } from '@/utils/rememberedEmail'
 
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
-const email = ref('')
+const remembered = readRememberedEmail()
+const email = ref(remembered)
 const password = ref('')
+const remember = ref(remembered !== '')
 const error = ref('')
 const busy = ref(false)
+const form = ref<HTMLFormElement | null>(null)
+
+// 기억한 이메일이 있으면 바로 비밀번호를 칠 수 있게
+onMounted(() => {
+  if (remembered) form.value?.querySelector<HTMLInputElement>('input[type="password"]')?.focus()
+})
+// 체크를 풀면 로그인하지 않아도 바로 지운다(공용 PC)
+watch(remember, (on) => {
+  if (!on) forgetRememberedEmail()
+})
 
 async function onSubmit() {
   error.value = ''
   busy.value = true
   try {
     await auth.login(email.value, password.value)
+    if (remember.value) saveRememberedEmail(email.value.trim())
+    else forgetRememberedEmail()
     await router.replace(safeNext(route.query.next))
   } catch (e) {
     if (!(e instanceof ApiError)) {
@@ -49,7 +64,7 @@ async function onSubmit() {
 
 <template>
   <AuthCard :title="copy.auth.loginTitle" :subtitle="copy.auth.loginLead">
-    <form class="flex flex-col gap-4.5" novalidate @submit.prevent="onSubmit">
+    <form ref="form" class="flex flex-col gap-4.5" novalidate @submit.prevent="onSubmit">
       <UiInput
         v-model="email"
         :label="copy.auth.email"
@@ -67,6 +82,10 @@ async function onSubmit() {
         size="lg"
         required
       />
+      <label class="inline-flex min-h-6 items-center gap-2 self-start text-base text-text-2">
+        <input v-model="remember" name="remember-email" type="checkbox" class="size-4 accent-primary" />
+        {{ copy.auth.rememberEmail }}
+      </label>
       <p
         v-if="error"
         role="alert"

@@ -45,7 +45,11 @@ async function submit(w: VueWrapper, email = 'a@corp.example', pw = 'some-passwo
 
 beforeEach(() => {
   document.body.innerHTML = ''
+  localStorage.clear()
 })
+
+const REMEMBER_KEY = 'nara.login.email'
+const ME = { id: 1, email: 'a@corp.example', display_name: 'a', role: 'member', status: 'active' }
 afterEach(() => {
   wrapper?.unmount()
   wrapper = null
@@ -62,7 +66,7 @@ describe('LoginView', () => {
     expect(w.get('input[type="password"]').attributes('autocomplete')).toBe('current-password')
   })
 
-  it('포커스 순서: 이메일 → 비밀번호 → 로그인 버튼 → 보조 링크', async () => {
+  it('포커스 순서: 이메일 → 비밀번호 → 이메일 기억하기 → 로그인 버튼 → 보조 링크', async () => {
     const w = await mountLogin(() => respond(200, {}))
     const focusables = Array.from(
       (w.element as HTMLElement).querySelectorAll<HTMLElement>('main a[href], main button, main input'),
@@ -70,8 +74,8 @@ describe('LoginView', () => {
     const kinds = focusables.map((el) =>
       el.tagName === 'INPUT' ? (el as HTMLInputElement).type : el.tagName.toLowerCase(),
     )
-    expect(kinds.slice(0, 3)).toEqual(['email', 'password', 'button'])
-    expect(kinds.slice(3).every((k) => k === 'a')).toBe(true)
+    expect(kinds.slice(0, 4)).toEqual(['email', 'password', 'checkbox', 'button'])
+    expect(kinds.slice(4).every((k) => k === 'a')).toBe(true)
     expect(focusables.every((el) => el.tabIndex === 0)).toBe(true) // 양수 tabindex 없음
   })
 
@@ -109,9 +113,76 @@ describe('LoginView', () => {
   })
 
   it('성공하면 next로 이동', async () => {
-    const me = { id: 1, email: 'a@corp.example', display_name: 'a', role: 'member', status: 'active' }
-    const w = await mountLogin(() => respond(200, me))
+    const w = await mountLogin(() => respond(200, ME))
     await submit(w)
     await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/library'), { timeout: 5000 })
+  })
+})
+
+// 이메일 기억하기 (2026-11-24 운영 피드백): 이메일만 이 브라우저에 남긴다. 비밀번호·토큰은 저장하지 않는다(§9).
+describe('LoginView 이메일 기억하기', () => {
+  const checkbox = (w: VueWrapper) => w.get<HTMLInputElement>('input[type="checkbox"]')
+
+  it('기본은 꺼져 있고 라벨로 읽힌다', async () => {
+    const w = await mountLogin(() => respond(200, ME))
+    expect(checkbox(w).element.checked).toBe(false)
+    expect(checkbox(w).element.closest('label')?.textContent?.trim()).toBe(copy.auth.rememberEmail)
+    expect((w.get('input[type="email"]').element as HTMLInputElement).value).toBe('')
+  })
+
+  it('켜고 로그인에 성공하면 이메일만 저장한다', async () => {
+    const w = await mountLogin(() => respond(200, ME))
+    await checkbox(w).setValue(true)
+    await submit(w, '  a@corp.example ', 'some-password-1')
+    await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/library'), { timeout: 5000 })
+    expect(localStorage.getItem(REMEMBER_KEY)).toBe('a@corp.example')
+    expect(JSON.stringify({ ...localStorage })).not.toContain('some-password-1')
+  })
+
+  it('로그인에 실패하면 저장하지 않는다', async () => {
+    const w = await mountLogin(() =>
+      respond(401, { error: { code: 'invalid_credentials', message: '', details: [] } }),
+    )
+    await checkbox(w).setValue(true)
+    await submit(w)
+    expect(localStorage.getItem(REMEMBER_KEY)).toBeNull()
+  })
+
+  it('저장된 이메일이 있으면 채워 두고, 체크된 채로 비밀번호 칸에 커서를 둔다', async () => {
+    localStorage.setItem(REMEMBER_KEY, 'saved@corp.example')
+    const w = await mountLogin(() => respond(200, ME))
+    expect((w.get('input[type="email"]').element as HTMLInputElement).value).toBe('saved@corp.example')
+    expect(checkbox(w).element.checked).toBe(true)
+    expect(document.activeElement).toBe(w.get('input[type="password"]').element)
+  })
+
+  it('체크를 풀면 로그인하지 않아도 바로 지운다', async () => {
+    localStorage.setItem(REMEMBER_KEY, 'saved@corp.example')
+    const w = await mountLogin(() => respond(200, ME))
+    await checkbox(w).setValue(false)
+    expect(localStorage.getItem(REMEMBER_KEY)).toBeNull()
+  })
+
+  it('끄고 로그인하면 예전에 저장한 이메일도 지운다', async () => {
+    localStorage.setItem(REMEMBER_KEY, 'old@corp.example')
+    const w = await mountLogin(() => respond(200, ME))
+    await checkbox(w).setValue(false)
+    await submit(w)
+    await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/library'), { timeout: 5000 })
+    expect(localStorage.getItem(REMEMBER_KEY)).toBeNull()
+  })
+
+  it('저장소가 막혀도(사생활 보호 창) 로그인은 된다', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('SecurityError')
+    })
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('SecurityError')
+    })
+    const w = await mountLogin(() => respond(200, ME))
+    await checkbox(w).setValue(true)
+    await submit(w)
+    await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/library'), { timeout: 5000 })
+    vi.restoreAllMocks()
   })
 })

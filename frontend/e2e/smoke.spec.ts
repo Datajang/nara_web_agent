@@ -14,7 +14,7 @@ test('로그인부터 분석 기록 다시 열기까지', async ({ page }) => {
   })
 
   await page.goto('/login')
-  await page.getByLabel('이메일').fill(ADMIN)
+  await page.getByLabel('이메일', { exact: true }).fill(ADMIN)
   await page.getByLabel('비밀번호').fill(ADMIN_PW)
   await page.getByRole('button', { name: '로그인' }).click()
 

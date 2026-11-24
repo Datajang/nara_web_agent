@@ -494,6 +494,7 @@ export const copy = {
     displayNameHint: '화면에 보일 이름이에요. 비워 두어도 돼요.',
     newPassword: '새 비밀번호',
     submitLogin: '로그인',
+    rememberEmail: '이메일 기억하기',
     submitRegister: '가입하기',
     toRegister: '계정이 없나요? 가입하기',
     toLogin: '로그인 화면으로',

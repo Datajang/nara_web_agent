@@ -58,3 +58,10 @@
 - **확인**: 첫 수집 05:04 성공(일반 1,230건·사전규격 508건 새로, G2B 5회) → `/readyz` 전부 ok, 경보 해소.
   `send-test-mail`로 `ALERT_EMAIL` 수신 확인, 새 주소 로그인 확인.
 - **남은 문제**: 백업(18:31)·낙찰 수집(04:34) 첫 실행 확인 뒤 옛 VM 삭제. 개발 환경(MIGRATE §6: `.env`·로컬 문서·개발 DB)은 아직 안 풀림.
+
+## 운영 피드백 3차 (2026-11-24)
+
+- 로그인 '이메일 기억하기': 기본 꺼짐, 로그인 성공 때만 이 브라우저에 이메일만 저장(`nara.login.email`, 비밀번호·토큰 저장 안 함 §9),
+  체크를 풀면 바로 지움, 기억한 이메일이 있으면 비밀번호 칸에 커서. E2E 선택자 `getByLabel('이메일', { exact: true })`로.
+- 개발 환경: 이 VM의 Node 22.14는 `engines`(22.18+)보다 낮고 Debian 11이라 Playwright chromium 미지원 →
+  `~/.local/opt/node22`(22.23.5)와 Docker `mcr.microsoft.com/playwright:v1.65.0-noble`로 E2E 3개 통과.

@@ -40,6 +40,22 @@ P11 배포(0010) 뒤 같은 timer가 계약정보(공동수급, source=contracts
 P12(0011) 뒤에는 개찰 결과(우리 투찰 결과, source=openings)도 받는다: 낙찰 몫과 따로 `G2B_OPENINGS_DAILY_BUDGET`(기본 300),
 최근 14일 낙찰 공고 먼저, 남는 호출로 과거. 관리자 화면 수집 이력에서 source=openings로 확인.
 
+## LLM 사용량 보기 (읽기 전용, 2026-11-24)
+`sudo -u postgres psql -p 5434 -d nara -X -v days=14 < deploy/sql/llm_usage.sql` (저장소 루트에서) —
+날짜별 호출 수·기능별 호출/지연·시간대별·최대 동시 요청. 외부 LLM API 한도 검토용.
+
+## LLM 동시 호출 상한 시험 (4 → 8, `docs/decisions/2026-11-24-llm-concurrency.md`)
+분석 중인 사람이 없을 때 한다(재시작하면 진행 중 SSE가 끊긴다). 같은 키가 두 줄이면 뒤 줄이 이기므로 지우고 넣는다.
+```bash
+sudo journalctl -u nara-vllm --no-pager | grep -E 'KV cache size|Maximum concurrency' | tail -2   # 용량 확인
+sudo cp -a /etc/nara/nara.env /etc/nara/nara.env.before-conc8-$(date -u +%Y%m%dT%H%M%SZ)
+sudo sed -i '/^LLM_MAX_CONCURRENCY=/d' /etc/nara/nara.env && echo 'LLM_MAX_CONCURRENCY=8' | sudo tee -a /etc/nara/nara.env
+sudo systemctl restart nara-api && sleep 3 && curl -s http://127.0.0.1:8010/readyz
+sudo journalctl -u nara-vllm -f | grep -E 'Running|KV cache usage'   # 분석 1건 돌리는 동안 (Ctrl+C로 끝)
+```
+측정: 아직 분석·요약한 적 없는 첨부 많은 공고를 하나 분석 → 위 사용량 쿼리 2번 표 `analyze`의 시간을 264초와 비교.
+vLLM 로그에서 `Running: 8 reqs`·`Waiting: 0`·KV 사용률을 본다. 되돌리기: 백업 파일을 `nara.env`로 복사 → `nara-api` 재시작.
+
 ## 실제 장애 복구
 `systemctl stop nara-api nara-collector.timer` → 위 명령으로 새 DB(예: `nara_restored`)에 복원·확인 →
 `nara.env`의 `DATABASE_URL` DB 이름을 바꿈 → `systemctl start nara-api nara-collector.timer` → `/readyz`.

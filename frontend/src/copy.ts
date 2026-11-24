@@ -702,7 +702,7 @@ export const copy = {
     from: '시작일',
     to: '종료일',
     search: '사업명',
-    searchPlaceholder: '사업명 일부 (띄어쓰기 무시)',
+    searchPlaceholder: '사업명 일부',
     submit: '검색',
     reset: '조건 지우기',
     badRange: '시작일이 종료일보다 늦어요. 기간을 다시 골라 주세요.',

@@ -793,13 +793,14 @@ vllm serve Qwen/Qwen3.5-9B \
   --reasoning-parser qwen3 \
   --enable-auto-tool-choice --tool-call-parser qwen3_coder \
   --default-chat-template-kwargs '{"enable_thinking": false}' \
+  --speculative-config '{"method": "mtp", "num_speculative_tokens": 1}' \
   --api-key "$LLM_API_KEY" --host 127.0.0.1 --port 8011
 ```
 
 - 레시피에서 확인한 플래그: `--reasoning-parser qwen3`, `--enable-auto-tool-choice`, `--tool-call-parser qwen3_coder`, `--default-chat-template-kwargs`. \[확인됨\]
 - 이 모델과 L4 조합으로 직접 돌려 보지 않았거나 레시피에서 9B 예시로 확인하지 못한 항목은 `--quantization fp8`(온라인 FP8 양자화), `--language-model-only`(비전 인코더 제외), `--max-num-seqs 8`, `--max-model-len 32768`입니다. P0-b에서 모두 동작을 확인했습니다(FP8 가중치 10.36 GiB, 32K에서 동시 8요청) \[확인됨: P0-b, `docs/LLM_SETUP.md`\]. BF16으로 되돌리면 32K 기동에 `--gpu-memory-utilization 0.95`가 필요합니다.
 - 도구 호출이 깨지거나 긴 입력에서 출력이 망가지면 `--tool-call-parser qwen3_xml`로 바꿔 다시 시험합니다. 커뮤니티에서 두 파서의 동작이 모델·입력에 따라 다르다는 보고가 있습니다. P0-b에서는 `qwen3_coder`로 도구 호출·인자가 정상이라 바꾸지 않았습니다 \[확인됨\].
-- MTP 추론 가속(`--speculative-config '{"method": "mtp", "num_speculative_tokens": 1}'`)은 레시피에 있는 선택 옵션입니다. 기본 구성이 안정된 뒤 P0 벤치마크로 이득을 확인하고 켭니다.
+- MTP 추론 가속(`--speculative-config '{"method": "mtp", "num_speculative_tokens": 1}'`)은 레시피에 있는 선택 옵션입니다. 운영에서 단일 요청 23.6 → 29.8~33.2토큰/초, 동시 4요청 합계 92 → 120으로 켰습니다(KV 60K → 51K토큰) \[확인됨: 2026-11-24, docs/decisions/2026-11-24-mtp.md\].
 - 접두 캐시(prefix caching)는 이 모델 계열에서 실험 단계로 표기되어 있어 기본으로 켜지 않습니다. \[미확인\]
 - 속도 가늠: 디코드는 메모리 대역폭에 묶이므로 이론 상한은 약 300GB/s ÷ 가중치 크기입니다. BF16(약 18GB)은 초당 16토큰 안팎, FP8(약 9GB)은 초당 30토큰 안팎이 상한입니다. 배치로 합계 처리량은 올라가지만 한 요청당 속도는 이보다 낮습니다. 실측(P0-b, FP8): 단일 요청 초당 24.5토큰, 동시 8요청 합계 초당 177토큰 \[확인됨\].
 

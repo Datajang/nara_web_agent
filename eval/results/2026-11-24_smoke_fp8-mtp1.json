@@ -1,0 +1,88 @@
+{
+  "label": "fp8-mtp1",
+  "model": "brain",
+  "vllm_flags": "fp8 + --speculative-config mtp num_speculative_tokens=1",
+  "run_at": "2026-11-24T15:28:42",
+  "server": {
+    "models": [
+      {
+        "id": "brain",
+        "max_model_len": 32768
+      }
+    ]
+  },
+  "gpu_memory_mib": {
+    "before": [
+      18743
+    ],
+    "after": [
+      19113
+    ]
+  },
+  "results": [
+    {
+      "name": "simple",
+      "passed": true,
+      "metrics": {
+        "ttft_s": 2.073,
+        "latency_s": 4.215,
+        "completion_tokens": 64,
+        "tokens_per_s": 29.88,
+        "sample": "나라장터는 대한민국 정부에서 운영하는 전자조달망으로, 모든 공공기관의 물품 구매와 공사, 용역 발주를 통합적으로 관리하는 시스템입니다. 이 플랫폼을 통해 정부는 투명한 입찰 절차를 보장하고, 기업들은 공정한 경쟁 기"
+      },
+      "error": null
+    },
+    {
+      "name": "json_schema",
+      "passed": true,
+      "metrics": {
+        "latency_s": 4.223,
+        "raw": "{\n  \"title\": \"2026 년 AI 기반 민원 분석 시스템 구축 용역\",\n  \"budget_won\": 150000000,\n  \"deadline\": \"2026-12-01T10:00:00\",\n  \"method\": \"협상에 의한 계약\"\n}",
+        "budget_ok": true
+      },
+      "error": null
+    },
+    {
+      "name": "tool_call",
+      "passed": true,
+      "metrics": {
+        "latency_s": 1.262,
+        "function": "search_bids",
+        "arguments": "{\"keyword\": \"AI\", \"days\": 30}"
+      },
+      "error": null
+    },
+    {
+      "name": "long_input",
+      "passed": true,
+      "metrics": {
+        "target_tokens": 12000,
+        "prompt_tokens": 11970,
+        "ttft_s": 3.147,
+        "latency_s": 3.388,
+        "answer": "NARA-7342"
+      },
+      "error": null
+    },
+    {
+      "name": "concurrency",
+      "passed": true,
+      "metrics": {
+        "requests": 4,
+        "succeeded": 4,
+        "latency_p50_s": 11.695,
+        "latency_max_s": 12.154,
+        "ttft_p50_s": 2.672,
+        "ttft_max_s": 2.673,
+        "aggregate_tokens_per_s": 84.24,
+        "per_request_tokens_per_s": [
+          29.71,
+          27.0,
+          27.16,
+          29.71
+        ]
+      },
+      "error": null
+    }
+  ]
+}

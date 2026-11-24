@@ -65,5 +65,5 @@ uv run eval/smoke_llm.py --label fp8_warm_c8 --checks simple,concurrency --concu
 ## 남은 일
 
 - FP8 품질(추출 정확도·환각률)은 골든셋 라벨 확정 뒤 판단한다(초안 라벨 결과는 위 결정 기록).
-- MTP 추론 가속, prefix caching은 시험하지 않았다(§8.2 선택 항목).
+- MTP 추론 가속은 2026-11-24 채택(단일 요청 약 1.3~1.4배, `docs/decisions/2026-11-24-mtp.md`, 절차 `docs/ops/LLM_MTP.md`). prefix caching은 미시험(§8.2).
 - 운영 유닛(§11.3)은 `/opt/nara/vllm-venv`, `User=nara`를 가정한다. P4에서 sudo로 만든다.

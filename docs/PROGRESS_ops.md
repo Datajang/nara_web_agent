@@ -66,3 +66,5 @@
 - 개발 환경: 이 VM의 Node 22.14는 `engines`(22.18+)보다 낮고 Debian 11이라 Playwright chromium 미지원 →
   `~/.local/opt/node22`(22.23.5)와 Docker `mcr.microsoft.com/playwright:v1.65.0-noble`로 E2E 3개 통과.
 - 배포 rc8(2026-11-24, 위 두 항목 + 경보 수정). 활성 회원 6명 전원을 팀 'AX컨설팅1팀'으로(팀장 jsill2786, 서비스 `create`→`join`).
+- [AX컨설팅1팀] 관심 경쟁사 초기화(사용자 요청): 팀 목록은 팀원 개인 목록의 합이라 팀원 행을 지움 — 1건
+  (user 1, bizno 1168137757 (주)씨에이에스, 2026-11-22 추가).

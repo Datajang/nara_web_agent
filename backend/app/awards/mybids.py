@@ -16,11 +16,11 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any, Literal
 
-from sqlalchemy import and_, func, literal, or_, select, tuple_
+from sqlalchemy import and_, func, literal, or_, select, tuple_, union
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from app.awards.service import is_member_win, kst_start, our_share
+from app.awards.service import NO_JOINT, JointShares, kst_start
 from app.db.models import Bid, BidAward, BidParticipant, BidParticipantFetch
 from app.search.query import title_contains
 
@@ -62,9 +62,14 @@ def _us_join(us: str) -> tuple[Any, Any]:
     return p, on
 
 
-def _result_cond(p: Any, us: str, flt: Filter) -> Any:
-    # 낙찰 = 우리가 대표이거나 공동수급 구성원(대표는 타사)인 낙찰
-    won = or_(BidAward.bizno == us, is_member_win(us))
+def _result_cond(p: Any, us: str, flt: Filter, js: JointShares = NO_JOINT) -> Any:
+    # 낙찰 = 우리가 대표이거나 공동수급 구성원(대표는 타사)인 낙찰. 구성원 낙찰 id는 미리 받아 둔다
+    # (상관 서브쿼리로 거르면 낙찰 전체를 훑는다 — service.JointShares)
+    won = (
+        or_(BidAward.bizno == us, BidAward.id.in_(sorted(js.member)))
+        if js.member
+        else BidAward.bizno == us
+    )
     took_part = p.bizno.is_not(None)
     if flt == "won":
         return won
@@ -95,11 +100,41 @@ class Narrow:
 NO_NARROW = Narrow()  # 조건 없음(불변이라 기본값으로 함께 쓴다)
 
 
-async def counts(s: AsyncSession, us: str, narrow: Narrow = NO_NARROW) -> dict[str, int]:
+def _mine(us: str, js: JointShares) -> Any:
+    """우리와 관련된 낙찰 id(우리 낙찰 ∪ 개찰 결과에 우리가 있는 낙찰 ∪ 구성원 낙찰).
+
+    목록을 '등록일 최신순 + LIMIT'으로 바로 뽑으면 플래너가 낙찰 전체를 최신순으로 훑으며 참가 행을
+    하나씩 찾는다(운영 1.3초). 업체 색인으로 후보 id를 먼저 모으면 수 ms (2026-11-24).
+    """
+    bp = BidParticipant
+    led = select(BidAward.id).where(BidAward.bizno == us)
+    took = (
+        select(BidAward.id)
+        .join(
+            bp,
+            and_(
+                bp.bid_ntce_no == BidAward.bid_ntce_no,
+                bp.bid_ntce_ord == BidAward.bid_ntce_ord,
+                bp.bid_clsfc_no == BidAward.bid_clsfc_no,
+                bp.rbid_no == BidAward.rbid_no,
+            ),
+        )
+        .where(bp.bizno == us)
+    )
+    parts = [led, took]
+    if js.member:
+        parts.append(select(BidAward.id).where(BidAward.id.in_(sorted(js.member))))
+    sq = union(*parts).subquery()
+    return select(sq.c.id)
+
+
+async def counts(
+    s: AsyncSession, us: str, narrow: Narrow = NO_NARROW, js: JointShares = NO_JOINT
+) -> dict[str, int]:
     p, on = _us_join(us)
     base = select(func.count()).select_from(BidAward).outerjoin(p, on).where(*narrow.conds())
-    won = await s.scalar(base.where(_result_cond(p, us, "won")))
-    lost = await s.scalar(base.where(_result_cond(p, us, "lost")))
+    won = await s.scalar(base.where(_result_cond(p, us, "won", js)))
+    lost = await s.scalar(base.where(_result_cond(p, us, "lost", js)))
     return {"won": int(won or 0), "lost": int(lost or 0), "all": int(won or 0) + int(lost or 0)}
 
 
@@ -151,10 +186,11 @@ async def page(
     cursor: tuple[datetime, int] | None = None,
     limit: int = 30,
     narrow: Narrow = NO_NARROW,
+    js: JointShares = NO_JOINT,
 ) -> tuple[list[MyBid], tuple[datetime, int] | None]:
     """등록일시 최신순 한 쪽과 다음 쪽 커서(등록일시, 낙찰 id)."""
     p, on = _us_join(us)
-    conds = [_result_cond(p, us, flt), *narrow.conds()]
+    conds = [BidAward.id.in_(_mine(us, js)), _result_cond(p, us, flt, js), *narrow.conds()]
     if cursor is not None:
         ts, last_id = cursor
         conds.append(
@@ -165,7 +201,7 @@ async def page(
         )
     rows = (
         await s.execute(
-            select(BidAward, p, Bid.id, is_member_win(us), our_share(us))
+            select(BidAward, p, Bid.id)
             .outerjoin(p, on)
             .outerjoin(Bid, Bid.bid_key == literal("regular:") + BidAward.bid_ntce_no)
             .where(*conds)
@@ -173,16 +209,20 @@ async def page(
             .limit(limit + 1)
         )
     ).all()
-    items = [MyBid(a, u, bid_id, member=bool(m), share=sh) for a, u, bid_id, m, sh in rows[:limit]]
+    items = [_item(a, u, bid_id, js) for a, u, bid_id in rows[:limit]]
     nxt = (items[-1].award.registered_at, items[-1].award.id) if len(rows) > limit else None
     return await _enrich(s, items), nxt
 
 
-async def one(s: AsyncSession, us: str, key: AwardKey) -> MyBid | None:
+def _item(a: BidAward, u: BidParticipant | None, bid_id: int | None, js: JointShares) -> MyBid:
+    return MyBid(a, u, bid_id, member=a.id in js.member, share=js.shares.get(a.id))
+
+
+async def one(s: AsyncSession, us: str, key: AwardKey, js: JointShares = NO_JOINT) -> MyBid | None:
     p, on = _us_join(us)
     row = (
         await s.execute(
-            select(BidAward, p, Bid.id, is_member_win(us), our_share(us))
+            select(BidAward, p, Bid.id)
             .outerjoin(p, on)
             .outerjoin(Bid, Bid.bid_key == literal("regular:") + BidAward.bid_ntce_no)
             .where(
@@ -195,7 +235,7 @@ async def one(s: AsyncSession, us: str, key: AwardKey) -> MyBid | None:
     ).first()
     if row is None:
         return None
-    (item,) = await _enrich(s, [MyBid(row[0], row[1], row[2], member=bool(row[3]), share=row[4])])
+    (item,) = await _enrich(s, [_item(row[0], row[1], row[2], js)])
     return item
 
 

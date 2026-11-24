@@ -96,8 +96,9 @@ async def list_my_bids(
             raise ApiError(
                 400, "bad_request", "목록 위치가 올바르지 않아요. 처음부터 다시 불러와 주세요."
             )
-    items, nxt = await mb.page(s, us, result, cur, limit, narrow)
-    counts = await mb.counts(s, us, narrow)
+    js = await svc.joint_shares(s, us)  # 공동수급 구성원 낙찰 id·지분(한 번만)
+    items, nxt = await mb.page(s, us, result, cur, limit, narrow, js)
+    counts = await mb.counts(s, us, narrow, js)
     since, done, total = await mb.scan_status(s)
     return MyBidListOut(
         items=[item_out(i, us) for i in items],
@@ -120,7 +121,8 @@ async def get_my_bid(
     ctx.limiter.hit(f"my-bid:{user.id}", 30, 60)
     _org, us, _name = await views.us_config(s, ctx.deps)
     key = (no, ord, clsfc, rbid)
-    item = await mb.one(s, us, key)
+    js = await svc.joint_shares(s, us)
+    item = await mb.one(s, us, key, js)
     if item is None:
         raise ApiError(404, "not_found", "낙찰 정보를 찾지 못했어요.")
     budget_exhausted = failed = False
@@ -128,7 +130,7 @@ async def get_my_bid(
         await s.commit()  # 온디맨드 채우기는 별도 세션·트랜잭션
         ensured = await parts.ensure(ctx.deps, [(no, ord)], user.id, max_calls=1)
         budget_exhausted, failed = ensured.budget_exhausted, ensured.failed
-        item = await mb.one(s, us, key) or item
+        item = await mb.one(s, us, key, js) or item
     rows = await mb.participants(s, key) if item.fetched else None
     counts = await mb.award_counts(s, [r.bizno for r in rows or []])
     a = item.award

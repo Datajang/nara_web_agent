@@ -1,6 +1,6 @@
 // 공고 검색·상세·북마크·피드백 API (SPEC §6.2·§6.3).
 import { api, requestBlob } from './client'
-import type { BidDetail, FeedbackIn, FileText, SearchQuery, SearchResult } from './types'
+import type { BidDetail, BookmarkPutOut, FeedbackIn, FileText, SearchQuery, SearchResult } from './types'
 
 export const bidsApi = {
   search: (q: Partial<SearchQuery>) => api.post<SearchResult>('/bids/search', q),
@@ -16,7 +16,13 @@ export const bidsApi = {
       `/bids/${encodeURIComponent(bidId)}/files/${fileId}/text?max_chars=${maxChars}`,
     ),
   bookmark: (bidId: string, note = '', analysisId: number | null = null) =>
-    api.put<void>(`/bookmarks/${encodeURIComponent(bidId)}`, { note, analysis_id: analysisId }),
+    api.put<BookmarkPutOut>(`/bookmarks/${encodeURIComponent(bidId)}`, {
+      note,
+      analysis_id: analysisId,
+    }),
+  /** 북마크마다 결과 메일 켜기·끄기 (2026-11-25) */
+  setNotify: (bidId: string, on: boolean) =>
+    api.patch<BookmarkPutOut>(`/bookmarks/${encodeURIComponent(bidId)}`, { notify_result: on }),
   unbookmark: (bidId: string) => api.delete<void>(`/bookmarks/${encodeURIComponent(bidId)}`),
   feedback: (body: FeedbackIn) => api.post<{ id: number }>('/feedback', body),
 }

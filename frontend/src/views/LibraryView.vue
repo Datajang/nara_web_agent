@@ -130,6 +130,14 @@ function saveNote(b: Bookmark) {
     copy.library.noteSaved,
   )
 }
+function setNotify(b: Bookmark, on: boolean) {
+  void act(
+    () => bidsApi.setNotify(b.bid.bid_id, on),
+    ['bookmarks'],
+    on ? copy.resultMail.turnedOn : copy.resultMail.turnedOff,
+  )
+}
+
 function unbookmark(b: BidCard) {
   void act(() => bidsApi.unbookmark(b.bid_id), ['bookmarks'], copy.bid.unbookmarked)
 }
@@ -241,6 +249,19 @@ function unbookmark(b: BidCard) {
             <UiTextarea v-model="notes[b.bid.bid_id]" :label="copy.library.note" :rows="2" :max-length="1000" />
             <div class="flex flex-wrap gap-2">
               <UiButton size="sm" variant="secondary" @click="saveNote(b)">{{ copy.library.noteSave }}</UiButton>
+              <label
+                v-if="b.bid.source === 'regular'"
+                class="inline-flex h-8 items-center gap-2 px-2 text-sm text-text-2"
+              >
+                <input
+                  name="result-mail"
+                  type="checkbox"
+                  class="size-4 accent-primary"
+                  :checked="b.notify_result !== false"
+                  @change="setNotify(b, ($event.target as HTMLInputElement).checked)"
+                />
+                {{ copy.resultMail.libraryToggle }}
+              </label>
               <RouterLink
                 v-if="b.analysis_id"
                 :to="`/bids/${b.bid.bid_id}?analysis=${b.analysis_id}`"

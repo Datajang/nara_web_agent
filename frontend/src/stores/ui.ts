@@ -45,5 +45,19 @@ export const useUiStore = defineStore('ui', () => {
     toasts.value = toasts.value.filter((t) => t.id !== id)
   }
 
-  return { toasts, toast, dismiss, sidebarCollapsed, toggleSidebar }
+  // 북마크 결과 메일 안내 팝업(2026-11-25). watching=false면 '개찰일 정보 없음' 문구
+  const resultNotice = ref<{ watching: boolean } | null>(null)
+  function showResultNotice(watching: boolean): void {
+    resultNotice.value = { watching }
+  }
+
+  return {
+    toasts,
+    toast,
+    dismiss,
+    sidebarCollapsed,
+    toggleSidebar,
+    resultNotice,
+    showResultNotice,
+  }
 })

@@ -455,6 +455,21 @@ export const copy = {
     passwordChanged: '비밀번호를 바꿨어요. 다른 기기에서는 로그아웃돼요.',
     wrongPassword: '현재 비밀번호가 맞지 않아요.',
   },
+  // 북마크 공고 결과 메일 (2026-11-25)
+  resultMail: {
+    noticeTitle: '결과가 나오면 메일로 알려드려요',
+    noticeBody: (email: string) =>
+      `개찰 직후와 최종 결과(낙찰·유찰·재공고) 때 ${email}로 보내드려요. 보관함에서 공고마다, 설정 > 계정에서 전체를 끌 수 있어요.`,
+    noticeNoOpening: '이 공고는 개찰일 정보가 없어 결과 메일을 보내드릴 수 없어요.',
+    hideForever: '다시 보지 않기',
+    ok: '확인',
+    libraryToggle: '결과 메일',
+    turnedOn: '이 공고의 결과 메일을 켰어요.',
+    turnedOff: '이 공고의 결과 메일을 껐어요.',
+    accountLabel: '결과 메일 받기',
+    accountHint: '북마크한 공고의 개찰·낙찰 결과를 메일로 받아요',
+    accountSaved: '결과 메일 설정을 저장했어요.',
+  },
   common: {
     retry: '다시 시도',
     save: '저장',

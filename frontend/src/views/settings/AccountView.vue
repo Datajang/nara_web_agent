@@ -49,6 +49,19 @@ async function changePassword() {
   }
 }
 
+const savingMail = ref(false)
+async function setResultMail(on: boolean) {
+  savingMail.value = true
+  try {
+    auth.me = await authApi.updateMe({ result_mail: on })
+    ui.toast(copy.resultMail.accountSaved, 'success')
+  } catch (e) {
+    ui.toast(generalMessage(e), 'danger')
+  } finally {
+    savingMail.value = false
+  }
+}
+
 async function logout() {
   await auth.logout()
   await router.replace('/login')
@@ -74,6 +87,20 @@ async function logout() {
       />
       <div><UiButton type="submit" :disabled="!current || !next">{{ copy.account.changePassword }}</UiButton></div>
     </form>
+    <div class="flex flex-col gap-1 rounded-card border border-border bg-surface p-4">
+      <label class="inline-flex items-center gap-2 text-base text-text">
+        <input
+          name="result-mail-all"
+          type="checkbox"
+          class="size-4 accent-primary"
+          :checked="auth.me?.result_mail !== false"
+          :disabled="savingMail"
+          @change="setResultMail(($event.target as HTMLInputElement).checked)"
+        />
+        {{ copy.resultMail.accountLabel }}
+      </label>
+      <p class="text-sm text-text-3">{{ copy.resultMail.accountHint }}</p>
+    </div>
     <div><UiButton variant="secondary" @click="logout">{{ copy.nav.logout }}</UiButton></div>
   </div>
 </template>

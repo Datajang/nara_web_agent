@@ -24,6 +24,7 @@ export type AnalysisSummary = S['AnalysisSummaryOut']
 export type AnalysisDetail = S['AnalysisDetail']
 export type Bookmark = S['BookmarkOut']
 export type BookmarkList = S['BookmarkList']
+export type BookmarkPutOut = S['BookmarkPutOut'] // 결과 메일 감시 상태 (2026-11-25)
 export type Conversation = S['ConversationOut']
 export type ChatMessage = S['MessageOut']
 export type FeedbackIn = S['FeedbackIn']

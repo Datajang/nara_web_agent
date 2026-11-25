@@ -6,6 +6,7 @@ import type { BidCard } from '@/api/types'
 import { copy } from '@/copy'
 import { useUiStore } from '@/stores/ui'
 import { generalMessage } from '@/utils/authErrors'
+import { maybeShowResultNotice } from '@/utils/resultMailNotice'
 
 export function useBookmarkToggle<T extends BidCard>(items: Ref<T[]>) {
   const ui = useUiStore()
@@ -19,7 +20,7 @@ export function useBookmarkToggle<T extends BidCard>(items: Ref<T[]>) {
     const next = !bid.bookmarked
     mark(bid.bid_id, next)
     try {
-      if (next) await bidsApi.bookmark(bid.bid_id)
+      if (next) maybeShowResultNotice(bid, await bidsApi.bookmark(bid.bid_id))
       else await bidsApi.unbookmark(bid.bid_id)
       ui.toast(next ? copy.bid.bookmarked : copy.bid.unbookmarked, 'success')
       void queryClient.invalidateQueries({ queryKey: ['bookmarks'] })

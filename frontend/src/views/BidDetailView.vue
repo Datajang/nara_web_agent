@@ -32,6 +32,7 @@ import { useSse } from '@/composables/useSse'
 import { copy } from '@/copy'
 import { useUiStore } from '@/stores/ui'
 import { generalMessage } from '@/utils/authErrors'
+import { maybeShowResultNotice } from '@/utils/resultMailNotice'
 import { saveBlob } from '@/utils/saveBlob'
 
 const IN_PROGRESS_RETRY_MS = 5000
@@ -210,7 +211,7 @@ async function toggleBookmark() {
   if (!bid.value) return
   try {
     if (bid.value.bookmarked) await bidsApi.unbookmark(bid.value.bid_id)
-    else await bidsApi.bookmark(bid.value.bid_id, '', analysisId.value)
+    else maybeShowResultNotice(bid.value, await bidsApi.bookmark(bid.value.bid_id, '', analysisId.value))
     ui.toast(bid.value.bookmarked ? copy.bid.unbookmarked : copy.bid.bookmarked, 'success')
     await detail.refetch()
     void queryClient.invalidateQueries({ queryKey: ['bookmarks'] })

@@ -14,7 +14,7 @@
 
 ## Global Constraints
 - 일반공고(`bids.source == 'regular'`)만. 사전규격 제외
-- 메일 두 통: ① 개찰 직후(참가 업체 순위·투찰가·우리 순위·1순위) ② 최종(낙찰자·낙찰금액 또는 유찰·재공고). 개찰 없이 낙찰이 먼저 보이면 ②에 순위·투찰가를 넣어 1통
+- 메일: ① 개찰 직후(참가 업체 순위·투찰가·우리 순위·1순위) ② 최종(낙찰자·낙찰금액 또는 유찰) ③ 유찰 뒤 재공고 발견(같은 수요기관·같은 사업명·`reNtceYn=Y`, 30일, DB만). 개찰 없이 낙찰이 먼저 보이면 ②에 순위·투찰가를 넣어 1통
 - 받는 조건: 북마크 `notify_result` 켬 ∧ `users.result_mail` 켬 ∧ `users.status == 'active'` ∧ 그 단계 감지 시각 > 북마크 `created_at` ∧ 미발송
 - 확인 간격: 개찰 전 호출 없음 → 개찰 뒤 3시간 5분 → 24시간까지 30분 → 이후 3시간, 개찰 60일 뒤 `expired`(메일 없음). 개찰 7일 넘게 지난 공고는 감시 행을 만들지 않음
 - 경쟁사 투찰가 상위 10곳 + '외 N곳'. 우리 순위는 `org_settings.our_bizno`, 없거나 목록에 없으면 '미참가'. 협상계약이면 기술·가격·총점
@@ -53,7 +53,7 @@
 - Test: `backend/tests/integration/test_result_models.py`
 
 **Interfaces:**
-- Produces: `Bookmark.notify_result: bool`(server_default true), `User.result_mail: bool`(true), `BidResultWatch`(bid_id PK FK bids CASCADE, stage text CHECK `waiting|opened|final|expired`, notice_ord text, opening_at, next_check_at, opened_at, final_kind text CHECK `awarded|failed|rebid` NULL, final_at, checks int, updated_at), `BidResultMail`(id, user_id FK CASCADE, bid_id FK CASCADE, stage CHECK `opened|final`, sent_at, UNIQUE(user_id,bid_id,stage)). 인덱스 `ix_bid_result_watch_due(next_check_at) WHERE stage IN ('waiting','opened')`
+- Produces: `Bookmark.notify_result: bool`(server_default true), `User.result_mail: bool`(true), `BidResultWatch`(bid_id PK FK bids CASCADE, stage text CHECK `waiting|opened|final|expired`, notice_ord text, opening_at, next_check_at, opened_at, final_kind text CHECK `awarded|failed` NULL, final_at, renotice_bid_id FK bids SET NULL, renotice_at, checks int, updated_at), `BidResultMail`(id, user_id FK CASCADE, bid_id FK CASCADE, stage CHECK `opened|final|renotice`, sent_at, UNIQUE(user_id,bid_id,stage)). 인덱스 `ix_bid_result_watch_due(next_check_at) WHERE stage IN ('waiting','opened')`
 
 - [ ] **Step 1:** 실패 테스트 `test_existing_bookmark_defaults_on`(마이그레이션 전 행이 켬으로 읽힘), `test_result_mail_unique_per_stage`(같은 user·bid·stage 두 번 INSERT → IntegrityError)
 - [ ] **Step 2:** 실행 → FAIL(컬럼 없음)
@@ -68,7 +68,7 @@
 - Test: `backend/tests/integration/test_g2b_client.py`
 
 **Interfaces:**
-- Produces: `ENDPOINTS["result_watch"]`(개찰완료 목록과 같은 오퍼레이션), `RESULT_WATCH_SOURCE = "result_watch"`, `G2BClient.award_by_notice(bid_ntce_no: str) -> list[dict[str, Any]]`(낙찰, Task 1 확인 파라미터, 그 번호 행만), `G2BClient.opening_status(bid_ntce_no: str, bid_ntce_ord: str) -> list[dict[str, Any]]`(Task 1이 정한 오퍼레이션·필드). 셋 다 source `result_watch` 예산. `Settings.g2b_result_watch_daily_budget: int = 500`. fake에 같은 메서드
+- Produces: `ENDPOINTS["result_watch"]`(개찰완료 목록과 같은 오퍼레이션), `RESULT_WATCH_SOURCE = "result_watch"`, `G2BClient.award_by_notice(bid_ntce_no: str) -> list[dict[str, Any]]`(낙찰, Task 1 확인 파라미터, 그 번호 행만), `G2BClient.opening_status(bid_ntce_no: str, bid_ntce_ord: str) -> list[dict[str, Any]]`(`getOpengResultListInfoServc`, inqryDiv=4·bidNtceNo, 그 차수 행만 — 행마다 `progrsDivCdNm`·`rbidNo`·`bidClsfcNo`·`inptDt`). 셋 다 source `result_watch` 예산. `Settings.g2b_result_watch_daily_budget: int = 500`. fake에 같은 메서드
 - 기존 `opening_results(..., source="result_watch")` 그대로 재사용
 
 - [ ] **Step 1:** 실패 테스트 `test_award_by_notice_filters_number`, `test_opening_status_parses_rows`, `test_result_watch_budget_separate`(result_watch 몫이 0이면 `G2BBudgetExceeded`, awards 몫은 그대로)
@@ -81,7 +81,7 @@
 - Test: `backend/tests/unit/test_result_schedule.py`, `backend/tests/integration/test_result_watch.py`
 
 **Interfaces:**
-- Produces: `next_check(opening_at: datetime, now: datetime) -> datetime | None`(None = 60일 지남 → expired; 개찰 전이면 opening_at), `opening_of(bid: Bid) -> tuple[str, datetime] | None`(`raw.bidNtceOrd` 기본 '000'·`parse_kst(raw.opengDt)`, 없거나 깨지면 None), `async ensure_watch(s, bid: Bid, now) -> BidResultWatch | None`(regular 아님·개찰 없음·개찰 7일 초과면 None, 있으면 차수·개찰이 바뀐 경우 갱신하고 stage `waiting`으로 되돌림), `async sync_watches(s, now) -> int`(notify 켠 일반공고 북마크 중 감시 행이 없는 것 만들기 + 진행 중 감시의 차수·개찰 재확인 — 기존 북마크와 수집기가 받은 정정공고를 여기서 맞춘다)
+- Produces: `RENOTICE_DAYS = 30`, `next_check(opening_at: datetime, now: datetime) -> datetime | None`(None = 60일 지남 → expired; 개찰 전이면 opening_at), `opening_of(bid: Bid) -> tuple[str, datetime] | None`(`raw.bidNtceOrd` 기본 '000'·`parse_kst(raw.opengDt)`, 없거나 깨지면 None), `async ensure_watch(s, bid: Bid, now) -> BidResultWatch | None`(regular 아님·개찰 없음·개찰 7일 초과면 None, 있으면 차수·개찰이 바뀐 경우 갱신하고 stage `waiting`으로 되돌림), `async sync_watches(s, now) -> int`(notify 켠 일반공고 북마크 중 감시 행이 없는 것 만들기 + 진행 중 감시의 차수·개찰 재확인 — 기존 북마크와 수집기가 받은 정정공고를 여기서 맞춘다)
 
 - [ ] **Step 1:** 단위 테스트 표: 개찰 1시간 전 → opening_at / 개찰+10분 → +5분 / +5시간 → +30분 / +30시간 → +3시간 / +61일 → None. 통합: `test_prespec_not_watched`, `test_missing_opening_not_watched`, `test_old_opening_not_watched`(8일 전), `test_revision_reschedules`(차수 001→002, 개찰일 변경 → notice_ord·opening_at·next_check_at 갱신, Review 2), `test_sync_creates_for_existing_bookmarks`
 - [ ] **Step 2:** FAIL → 구현 → PASS → Commit `feat: 결과 감시 일정·등록`
@@ -94,9 +94,9 @@
 
 **Interfaces:**
 - Consumes: Task 3 메서드, `participants.store(s, notice, items)`(행이 있을 때만 — 0행은 저장·표시하지 않음), `awards.collector.load_settings(deps)`·`award_store(keywords)`(낙찰 저장)
-- Produces: `@dataclass Change(bid_id: int, stage: Literal['opened','final'])`, `async check_due(deps: Deps, now: datetime, limit: int = 200) -> list[Change]` — 확인할 때가 된 watch를 개찰 오래된 순으로; waiting이면 개찰완료 목록 → 있으면 `opened`; waiting·opened 모두 낙찰 → 있으면 `final/awarded`; Task 1 규칙으로 유찰 `final/failed`·재입찰·재공고 `final/rebid`; 같은 실행에서 opened와 final이 함께면 `Change(final)` 하나만. 바뀐 것 없으면 `next_check` 갱신·`checks+1`, None이면 `expired`. 예산 소진이면 거기서 멈추고 지금까지의 Change 반환
+- Produces: `@dataclass Change(bid_id: int, stage: Literal['opened','final','renotice'])`, `same_title(a: str, b: str) -> bool`(공백·`재공고`·괄호 표기 무시), `async check_due(deps: Deps, now: datetime, limit: int = 200) -> list[Change]` — 확인할 때가 된 watch를 개찰 오래된 순으로; waiting이면 개찰완료 목록 → 있으면 `opened`; waiting·opened 모두 낙찰 → 있으면 `final/awarded`; 상태가 유찰이면 `final/failed`(분류가 여럿이면 모든 분류가 유찰일 때만), 재입찰·재시담은 최종 아님(계속 감시); `final/failed` 뒤 30일 동안 DB에서 재공고 찾기 → 찾으면 `Change(renotice)`; 같은 실행에서 opened와 final이 함께면 `Change(final)` 하나만. 바뀐 것 없으면 `next_check` 갱신·`checks+1`, None이면 `expired`. 예산 소진이면 거기서 멈추고 지금까지의 Change 반환
 
-- [ ] **Step 1:** fake G2B로 실패 테스트: `test_opening_found_moves_to_opened`, `test_award_found_moves_to_final`, `test_award_before_opening_single_change`, `test_no_result_reschedules`, `test_expired_after_60_days`, `test_failed_and_rebid_kinds`(Task 1 값), `test_budget_exhausted_stops_cleanly`(Review 5), `test_multiple_classes_one_change`(분류 2·재입찰 1행 → Change 1개, Review 1)
+- [ ] **Step 1:** fake G2B로 실패 테스트: `test_opening_found_moves_to_opened`, `test_award_found_moves_to_final`, `test_award_before_opening_single_change`, `test_no_result_reschedules`, `test_expired_after_60_days`, `test_failed_kind`, `test_rebid_and_residam_keep_watching`, `test_renotice_found_in_db`(유찰 뒤 같은 기관·사업명 '(재공고)' 새 공고 수집 → `Change(renotice)`, 다른 기관이면 없음), `test_renotice_window_30_days`, `test_budget_exhausted_stops_cleanly`(Review 5), `test_multiple_classes_one_change`(분류 2·재입찰 1행 → Change 1개, Review 1)
 - [ ] **Step 2:** FAIL → 구현 → PASS → Commit `feat: 북마크 공고 결과 확인기`
 
 ### Task 6: 메일 문안 (`app/results/mail.py`)
@@ -106,10 +106,10 @@
 - Test: `backend/tests/unit/test_result_mail.py`
 
 **Interfaces:**
-- Produces: `@dataclass ResultView(title: str, bid_ref: str, org: str | None, rows: list[RankRow], our_rank: str, winner: str | None, amount: int | None, kind: Literal['opened','awarded','failed','rebid'], negotiated: bool)`, `RankRow(rank: int | None, name: str, bid_amount: int | None, scores: tuple[...] | None, remark: str | None, clsfc: str)`, `async load_view(s, bid_id, our_bizno) -> ResultView`, `render(view: ResultView, to: str, app_origin: str) -> Mail`(텍스트+HTML, 공고 상세 링크 `{APP_ORIGIN}/bids/b{id}`, 설정 링크 `{APP_ORIGIN}/settings/account`)
-- 제목(정확한 문구): ① `[나라장터] 개찰 결과: {사업명}` ② `[나라장터] 낙찰 결과: {사업명}` / `[나라장터] 유찰: {사업명}` / `[나라장터] 재공고: {사업명}`. 본문 끝 `결과 메일은 설정 > 계정에서 끌 수 있어요.`
+- Produces: `@dataclass ResultView(title: str, bid_ref: str, org: str | None, rows: list[RankRow], our_rank: str, winner: str | None, amount: int | None, kind: Literal['opened','awarded','failed','renotice'], renotice_ref: str | None, negotiated: bool)`, `RankRow(rank: int | None, name: str, bid_amount: int | None, scores: tuple[...] | None, remark: str | None, clsfc: str)`, `async load_view(s, bid_id, our_bizno) -> ResultView`, `render(view: ResultView, to: str, app_origin: str) -> Mail`(텍스트+HTML, 공고 상세 링크 `{APP_ORIGIN}/bids/b{id}`, 설정 링크 `{APP_ORIGIN}/settings/account`)
+- 제목(정확한 문구): ① `[나라장터] 개찰 결과: {사업명}` ② `[나라장터] 낙찰 결과: {사업명}` / `[나라장터] 유찰: {사업명}` / `[나라장터] 재공고가 올라왔어요: {사업명}`(재공고 상세 링크). 본문 끝 `결과 메일은 설정 > 계정에서 끌 수 있어요.`
 
-- [ ] **Step 1:** 실패 테스트: `test_opened_mail_has_rank_table`(1순위 업체 '낙찰 예정자' 표시, 12곳 → 10행 + '외 2곳'), `test_our_rank_missing_says_not_participated`, `test_awarded_mail_has_winner_amount`, `test_failed_mail_says_yuchal`, `test_negotiated_shows_scores`, `test_html_escapes_names`(업체명 `<b>`), `test_classes_grouped`(분류별 소제목, Review 1)
+- [ ] **Step 1:** 실패 테스트: `test_opened_mail_has_rank_table`(1순위 업체 '낙찰 예정자' 표시, 12곳 → 10행 + '외 2곳'), `test_our_rank_missing_says_not_participated`, `test_awarded_mail_has_winner_amount`, `test_failed_mail_says_yuchal`, `test_renotice_mail_links_new_bid`, `test_negotiated_shows_scores`, `test_html_escapes_names`(업체명 `<b>`), `test_classes_grouped`(분류별 소제목, Review 1)
 - [ ] **Step 2:** FAIL → 구현 → PASS → Commit `feat: 결과 메일 문안`
 
 ### Task 7: 받는 사람·발송 (`app/results/dispatch.py`) + CLI
@@ -120,7 +120,7 @@
 
 **Interfaces:**
 - Consumes: Task 5 `Change`, Task 6 `load_view`·`render`, `build_mailer(settings)`
-- Produces: `async recipients(s, change: Change) -> list[User]`(Global Constraints의 받는 조건, 감지 시각 = watch.opened_at/final_at), `async dispatch(deps, mailer: Mailer, changes: list[Change]) -> int`(사람마다 발송 성공 뒤 `BidResultMail` 기록, 실패는 로그만 남기고 다음 사람), `python -m app.results`(= `sync_watches` → `check_due` → `dispatch`, usage_logs event `collector`·cache.source `result_watch`)
+- Produces: `async recipients(s, change: Change) -> list[User]`(Global Constraints의 받는 조건, 감지 시각 = watch.opened_at/final_at/renotice_at), `async dispatch(deps, mailer: Mailer, changes: list[Change]) -> int`(사람마다 발송 성공 뒤 `BidResultMail` 기록, 실패는 로그만 남기고 다음 사람), `python -m app.results`(= `sync_watches` → `check_due` → `dispatch`, usage_logs event `collector`·cache.source `result_watch`)
 - 재시도: 실행 시작 때 최근 7일 안에 감지됐는데 `BidResultMail`이 없는 (사람, 단계)도 다시 보낸다(SMTP 실패분)
 
 - [ ] **Step 1:** 실패 테스트(MemoryMailer): `test_sends_once_per_stage`, `test_bookmark_off_or_switch_off_or_inactive_skipped`, `test_bookmarked_after_detection_skipped`, `test_smtp_failure_retried_next_run`(Review 4: 셋 중 하나 실패 → 2통, 다음 실행 1통, 총 3), `test_other_users_bookmarks_not_leaked`(메일 수신자 목록에 북마크 안 한 사람 없음)

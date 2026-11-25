@@ -10,7 +10,7 @@
 
 ## 사용자가 정한 것
 - 메일 내용: 북마크한 사업명, 낙찰자와 금액, 우리 순위, 경쟁사 투찰가. 유찰·재공고면 그 사실
-- 메일 두 통: ① 개찰 직후 — 참가 업체 순위·투찰가·우리 순위·1순위(낙찰 예정자) ② 최종 — 낙찰자·낙찰금액 또는 유찰·재공고
+- 메일: ① 개찰 직후 — 참가 업체 순위·투찰가·우리 순위·1순위(낙찰 예정자) ② 최종 — 낙찰자·낙찰금액 또는 유찰 ③ 유찰 뒤 재공고가 올라오면(B 방식, 2026-11-25)
 - 받는 사람: 일반공고 북마크 = 자동 켜짐, 북마크마다 끌 수 있음 + 계정 설정 '결과 메일 받기' 전체 스위치
 - 북마크하면 '결과가 나오면 메일로 알려드려요' 팝업
 - 방법: 결과 확인 전용 타이머(5분), 수집기와 분리
@@ -23,7 +23,7 @@
 ## 설계
 **데이터(Alembic)**: `bookmarks.notify_result bool default true`, `users.result_mail bool default true`,
 `bid_result_watch`(bid_id PK, stage `waiting|opened|final|expired`, next_check_at, opened_at, final_kind
-`awarded|failed|rebid`, final_at, checks), `bid_result_mails`(user_id, bid_id, stage, sent_at, UNIQUE(user,bid,stage)).
+`awarded|failed`, final_at, renotice_bid_id, checks), `bid_result_mails`(user_id, bid_id, stage `opened|final|renotice`, sent_at, UNIQUE(user,bid,stage)).
 기존 북마크도 켜짐 상태로 들어간다.
 
 **감시 대상**: 북마크(notify on)가 하나라도 있는 일반공고 중 개찰 예정(`raw.opengDt`)이 있고 final이 아닌 것.
@@ -32,7 +32,12 @@
 **타이머 `nara-result-watch`(5분)**: `next_check_at <= now`인 watch만 G2B를 부른다. 간격(Claude 결정):
 개찰 전엔 부르지 않음 → 개찰 뒤 3시간 5분마다 → 24시간까지 30분 → 이후 3시간마다, 개찰 60일 뒤 `expired`(메일 없음).
 - ①: `getOpengResultListInfoOpengCompt`(공고번호·차수). 행이 있으면 저장(참가 업체 캐시 재사용) → stage `opened`, 메일①
-- ②: `getScsbidListSttusServc`(inqryDiv=4) 낙찰 행 → `awarded`, 메일②. 유찰·재공고 판별은 **[미확인] → 확인 스크립트 먼저**
+- 상태: `getOpengResultListInfoServc`의 `progrsDivCdNm`(2026-11-25 확인, `docs/decisions/2026-11-25-result-status-probe.md`).
+  개찰완료 → ①, 유찰 → ② 유찰, 재입찰·재시담 → 최종 아님(계속 감시)
+- ②: `getScsbidListSttusServc`(inqryDiv=4) 낙찰 행 → `awarded`, 메일②
+- 재공고(B 방식, 사용자 선택): 원공고와 직접 연결이 없어, 유찰 뒤 30일 동안 수집된 일반공고 중 `reNtceYn=Y` ∧ 같은
+  수요기관 ∧ 같은 사업명(공백·'재공고' 표기 무시)을 DB에서 찾는다(G2B 호출 없음) → 메일③ '재공고가 올라왔어요'+링크.
+  사업명이 바뀐 재공고는 놓칠 수 있다
 - ①을 건너뛰고 바로 낙찰이 보이면 메일②에 순위·투찰가를 함께 넣는다(1통)
 - 주의: 지금 `bid_participant_fetches`는 0행이어도 '받음'으로 표시해 다시 안 부른다. 감시는 결과가 나올 때까지 다시
   불러야 하므로 0행 표시를 쓰지 않는다(화면 온디맨드 동작은 그대로)

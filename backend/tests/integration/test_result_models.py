@@ -1,4 +1,7 @@
-"""결과 메일 테이블·컬럼 (계획 Task 2, 설계 docs/superpowers/specs/2026-11-25-bid-result-mail-design.md)."""
+"""결과 메일 테이블·컬럼 (계획 Task 2).
+
+설계: docs/superpowers/specs/2026-11-25-bid-result-mail-design.md
+"""
 
 from __future__ import annotations
 
@@ -26,7 +29,7 @@ async def _user_bid(s) -> tuple[int, int]:
 
 
 async def test_existing_bookmark_defaults_on(db):
-    """컬럼을 모르는 이전 코드가 넣은 북마크·계정도 결과 메일 켬으로 읽힌다(설계: 기존 북마크도 켜짐)."""
+    """이전 코드가 넣은 북마크·계정도 결과 메일 켬으로 읽힌다(설계: 기존 북마크도 켜짐)."""
     async with db.transaction() as s:
         uid, bid = await _user_bid(s)
         await s.execute(

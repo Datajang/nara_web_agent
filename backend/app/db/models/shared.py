@@ -179,7 +179,8 @@ class CollectorCoverage(Base):
 class BidResultWatch(Base):
     """북마크된 일반공고의 결과 감시 (5분 타이머, 2026-11-25 결과 메일 설계).
 
-    stage: waiting(개찰 결과 기다림) → opened(개찰완료, 최종 기다림) → final(낙찰·유찰) / expired(60일).
+    stage: waiting(개찰 결과 기다림) → opened(개찰완료, 최종 기다림)
+    → final(낙찰·유찰) / expired(60일).
     유찰(final_kind=failed)이면 30일 동안 DB에서 재공고를 찾아 renotice_bid_id에 둔다.
     """
 

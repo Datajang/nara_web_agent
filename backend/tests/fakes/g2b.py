@@ -256,6 +256,10 @@ class FakeG2B:
         self.delay_s = 0.0  # 느린 G2B ('수집 중' 시험)
         # 이 페이지 번호는 빈 목록을 준다(totalCount는 그대로) — 창의 일부만 받은 경우
         self.drop_pages: set[int] = set()
+        # G2B 결함 흉내 (2026-11-25 probe): 건수에는 잡히지만 응답에 안 오는 행(공고번호),
+        # 2페이지부터 앞 페이지와 겹치는 행 수(순서가 흔들려 중복이 오고 다른 행이 빠짐)
+        self.hidden: set[str] = set()
+        self.page_overlap = 0
 
     @property
     def calls(self) -> int:
@@ -318,7 +322,11 @@ class FakeG2B:
         rows, page = int(p.get("numOfRows", "10")), int(p.get("pageNo", "1"))
         if rows > 999:  # 실제 API: 1000 이상이면 오류 없이 기본 10행
             rows = 10
-        chunk = [] if page in self.drop_pages else matched[(page - 1) * rows : page * rows]
+        visible = [
+            it for it in matched if (it.get("bidNtceNo") or it.get("ntceNo")) not in self.hidden
+        ]
+        at = (page - 1) * rows - (self.page_overlap if page > 1 else 0)
+        chunk = [] if page in self.drop_pages else visible[at : at + rows]
         body = {"items": chunk, "numOfRows": rows, "pageNo": page, "totalCount": len(matched)}
         return httpx.Response(
             200,

@@ -21,7 +21,7 @@ from app.collector.upsert import upsert_bids
 from app.collector.windows import split_windows
 from app.db.models import CollectorRun, UsageLog
 from app.deps import Deps
-from app.g2b.client import G2BClient, G2BError, count_calls
+from app.g2b.client import G2BClient, G2BError, collect_shortfalls, count_calls
 from app.g2b.mapper import to_record
 
 log = logging.getLogger(__name__)
@@ -85,7 +85,7 @@ async def _collect(
         s.add(run)
         await s.flush()
         run_id = run.id
-    with count_calls() as calls:
+    with count_calls() as calls, collect_shortfalls() as notes:
         for start, end in windows:
             if max_calls is not None and calls.value >= max_calls:
                 # cap_status='ok': 하루 몫을 정해 나눠 받는 백필(계약)은 상한이 정상 종료다
@@ -104,6 +104,9 @@ async def _collect(
             result.inserted += inserted
             result.updated += updated
     result.g2b_calls = calls.value
+    if notes:  # G2B가 건수보다 1행 덜 준 창(결함)은 넘어가되 수집 이력에 남긴다
+        msg = f"G2B 행 누락 허용 {len(notes)}곳: " + "; ".join(notes[:3])
+        result.error = f"{result.error} / {msg}" if result.error else msg
     async with deps.db.transaction() as s:
         await s.execute(
             update(CollectorRun)

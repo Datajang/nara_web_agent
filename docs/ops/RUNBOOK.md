@@ -40,6 +40,9 @@ P11 배포(0010) 뒤 같은 timer가 계약정보(공동수급, source=contracts
 P12(0011) 뒤에는 개찰 결과(우리 투찰 결과, source=openings)도 받는다: 낙찰 몫과 따로 `G2B_OPENINGS_DAILY_BUDGET`(기본 300),
 최근 14일 낙찰 공고 먼저, 남는 호출로 과거. 관리자 화면 수집 이력에서 source=openings로 확인.
 
+## 낙찰·계약 다시 받기 (빠진 행 채우기, 커버리지 그대로, `docs/decisions/2026-11-25-awards-paging.md`)
+`sudo -u nara env NARA_ENV_FILE=/etc/nara/nara.env /opt/nara/venv/bin/python -m app.collector refetch --source awards --from 2017-04-13 --to <오늘>`
+
 ## 팀 배정 (관리자, 2026-11-25) — 활성 계정만, 하나라도 문제면 아무것도 안 바꿈
 `cd /opt/nara/app/backend && sudo -u nara env NARA_ENV_FILE=/etc/nara/nara.env /opt/nara/venv/bin/python -m app.cli`
 `team-assign --team <팀 이름> [--owner <팀장>] --email <계정> --email <계정> ...`

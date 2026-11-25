@@ -7,7 +7,7 @@ P8 완료 기준: 같은 창을 두 번 받아도 행이 늘지 않음 · 예산
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-from sqlalchemy import func, inspect, select, text
+from sqlalchemy import delete, func, inspect, select, text
 
 from app.awards import collector as awards
 from app.db.models import (
@@ -83,7 +83,8 @@ async def test_partial_pages_do_not_complete_window(deps, fake_g2b):
         "awards",
         *(award_item(f"R26BK1{i:07d}", NOW - timedelta(minutes=i + 1)) for i in range(150)),
     )
-    fake_g2b.drop_pages = {2}  # 100행 페이지 1만 오고 2는 빈 목록
+    # G2B가 건수보다 3행 덜 준다(허용치 1행 초과) → 창 실패
+    fake_g2b.hidden = {"R26BK10000001", "R26BK10000002", "R26BK10000003"}
     result = await awards.backfill(deps, days=7)
     assert result.status == "failed" and "일부만" in (result.error or "")
     assert await _coverage(deps) is None  # 경계를 옮기지 않음
@@ -249,3 +250,36 @@ async def test_runs_use_existing_modes(deps, fake_g2b):
     async with deps.db.session() as s:
         runs = (await s.execute(select(CollectorRun.source, CollectorRun.mode))).all()
     assert runs == [("awards", "backfill"), ("awards", "incremental")]
+
+
+# ---------- 페이지 겹침 수정 뒤 다시 받기·누락 허용 기록 (2026-11-25) ----------
+
+
+async def test_tolerated_missing_row_completes_window_and_is_recorded(deps, fake_g2b):
+    fake_g2b.add(
+        "awards", *(award_item(f"R26BK5{i:07d}", NOW - timedelta(minutes=i + 1)) for i in range(30))
+    )
+    fake_g2b.hidden = {"R26BK50000007"}  # G2B 결함: 건수엔 있고 응답엔 없음
+    result = await awards.backfill(deps, days=7)
+    assert result.status == "ok" and "누락 허용" in (result.error or "")
+    assert await _coverage(deps) is not None
+    assert await _count(deps, BidAward) == 29
+    async with deps.db.session() as s:
+        run = (await s.scalars(select(CollectorRun).order_by(CollectorRun.id.desc()))).first()
+    assert run.status == "ok" and "누락 허용" in (run.error or "")
+
+
+async def test_refetch_fills_rows_missed_inside_coverage_without_moving_it(deps, fake_g2b):
+    fake_g2b.add(
+        "awards", *(award_item(f"R26BK6{i:07d}", NOW - timedelta(hours=i + 1)) for i in range(20))
+    )
+    await awards.backfill(deps, days=7)
+    before = await _coverage(deps)
+    # 예전 페이지 겹침으로 빠졌던 행이라고 치고 지운다
+    async with deps.db.transaction() as s:
+        await s.execute(delete(BidAward).where(BidAward.bid_ntce_no == "R26BK60000003"))
+    result = await awards.refetch(deps, "awards", NOW - timedelta(days=30), NOW + timedelta(days=1))
+    assert result.status == "ok"
+    assert await _count(deps, BidAward) == 20
+    after = await _coverage(deps)
+    assert (after.covered_from, after.covered_to) == (before.covered_from, before.covered_to)

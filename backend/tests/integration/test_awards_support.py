@@ -10,11 +10,11 @@ from app.awards import collector as awards
 from app.awards.reclassify import reclassify
 from app.collector import __main__ as collector_cli
 from app.db.models import BidAward, CollectorRun, OrgSettings, UsageLog
-from app.g2b.client import G2BBudgetExceeded, G2BClient, G2BIncomplete
+from app.g2b.client import G2BBudgetExceeded, G2BClient, G2BIncomplete, collect_shortfalls
 from app.ops.status import last_collector_ok
 from app.usage.budget import DbCallBudget
 from tests.conftest import NOW, TEST_KEYS
-from tests.fakes.g2b import FakeG2B, award_item, regular_item
+from tests.fakes.g2b import FakeG2B, award_item, contract_item, regular_item
 from tests.helpers import seed
 
 
@@ -43,7 +43,7 @@ async def test_page_size_is_capped_at_999():
     assert fake.requests[0].url.params["numOfRows"] == "999"
 
 
-async def test_missing_page_raises_incomplete_for_awards_only():
+async def test_missing_rows_raise_incomplete_for_awards_only():
     fake = FakeG2B()
     fake.add(
         "awards", *(award_item(f"R26BK1{i:07d}", NOW - timedelta(minutes=i + 1)) for i in range(15))
@@ -52,9 +52,10 @@ async def test_missing_page_raises_incomplete_for_awards_only():
         "regular",
         *(regular_item(f"R26BK2{i:07d}", NOW - timedelta(minutes=i + 1)) for i in range(15)),
     )
-    fake.drop_pages = {2}
+    fake.hidden = {"R26BK10000001", "R26BK10000002", "R26BK10000003"}  # 허용치(1행)를 넘게 빠짐
     with pytest.raises(G2BIncomplete):
         await _client(fake, page_size=10).fetch("awards", NOW - timedelta(days=1), NOW)
+    fake.drop_pages = {2}
     # 공고 수집은 기존 동작 그대로(받은 만큼)
     assert (
         len(await _client(fake, page_size=10).fetch("regular", NOW - timedelta(days=1), NOW)) == 10
@@ -146,8 +147,55 @@ async def test_reclassify_recomputes_fields_and_prices(deps, fake_g2b):
     assert str(row.award_ratio) == "0.90000"
 
 
+async def test_cli_refetch_only_for_awards_and_contracts_with_dates():
+    with pytest.raises(SystemExit):
+        await collector_cli.main(
+            ["refetch", "--source", "regular", "--from", "2026-11-01", "--to", "2026-11-02"]
+        )
+    with pytest.raises(SystemExit):
+        await collector_cli.main(["refetch", "--source", "awards"])
+
+
 async def test_cli_rejects_fill_for_awards():
     with pytest.raises(SystemExit):
         await collector_cli.main(
             ["fill", "--source", "awards", "--from", "2026-11-01", "--to", "2026-11-02"]
         )
+
+
+# ---------- 페이지 겹침·행 누락 (docs/decisions/2026-11-25-awards-paging.md) ----------
+
+
+def _ntce(it):
+    return it.get("bidNtceNo") or it.get("ntceNo")
+
+
+@pytest.mark.parametrize("source", ["awards", "contracts"])
+async def test_unstable_paging_is_avoided_by_splitting_windows(source):
+    # G2B는 페이지를 넘기면 순서가 흔들려 겹친다: 창을 쪼개 한 페이지에 다 받는다
+    fake = FakeG2B()
+    make = (
+        (lambda n, t: award_item(n, t))
+        if source == "awards"
+        else (lambda n, t: contract_item(n, t, [("주계약업체", "가", "60", "1234567890")]))
+    )
+    fake.add(
+        source, *(make(f"R26BK3{i:07d}", NOW - timedelta(minutes=7 * i + 1)) for i in range(45))
+    )
+    fake.page_overlap = 2
+    items = await _client(fake, page_size=10).fetch(source, NOW - timedelta(days=1), NOW)
+    assert sorted(_ntce(i) for i in items) == sorted(f"R26BK3{i:07d}" for i in range(45))
+    assert all(r.url.params["pageNo"] == "1" for r in fake.requests)
+
+
+async def test_one_missing_row_in_a_page_is_tolerated_and_noted():
+    # 2017-04-17 오전: G2B가 173건이라 하고 172행만 준다 → 넘어가되 기록
+    fake = FakeG2B()
+    fake.add(
+        "awards", *(award_item(f"R26BK4{i:07d}", NOW - timedelta(minutes=i + 1)) for i in range(8))
+    )
+    fake.hidden = {"R26BK40000003"}
+    with collect_shortfalls() as notes:
+        items = await _client(fake, page_size=10).fetch("awards", NOW - timedelta(days=1), NOW)
+    assert len(items) == 7
+    assert len(notes) == 1 and "7/8" in notes[0]

@@ -8,6 +8,8 @@
   과거 쪽은 covered_from에서 뒤로 채워 구간이 끊기지 않게 한다.
   예산을 넘으면 멈추고 다음 실행에서 이어간다.
 - collector_runs.mode는 기존 backfill·incremental을 쓴다. fill(요청 중 보충)은 쓰지 않는다.
+- 다시 받기(refetch): 이미 덮은 구간 안을 다시 받아 빠진 행을 채운다(커버리지 경계는 그대로).
+  예전 페이지 겹침으로 조용히 빠진 행 복구용 (docs/decisions/2026-11-25-awards-paging.md)
 """
 
 from __future__ import annotations
@@ -93,3 +95,24 @@ async def incremental(deps: Deps) -> RunResult:
         cov = await coverage.get(s, SOURCE)
     windows = plan_incremental(cov, now)
     return await _collect(deps, SOURCE, "incremental", windows, store=award_store(keywords))
+
+
+async def refetch(
+    deps: Deps, source: str, start: datetime, end: datetime, store: Store | None = None
+) -> RunResult:
+    """[start, end) 중 커버리지 안쪽을 7일 창으로 다시 받는다(최신부터). upsert라 중복 없음.
+
+    실패·예산 초과로 멈추면 그 창부터 다시 부르면 된다(수집 이력의 error에 창이 남는다).
+    """
+    async with deps.db.session() as s:
+        cov = await coverage.get(s, source)
+    if cov is None:
+        return RunResult(status="ok")
+    a, b = max(start, cov.covered_from), min(end, cov.covered_to)
+    if a >= b:
+        return RunResult(status="ok")
+    if store is None:
+        _, keywords = await load_settings(deps)
+        store = award_store(keywords)
+    windows = split_dates(a, b, MAX_DATES, newest_first=True)
+    return await _collect(deps, source, "backfill", windows, store=store)

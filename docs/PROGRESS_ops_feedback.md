@@ -40,3 +40,5 @@
 - 배포 rc17(2026-11-25, 사용자 요청으로 Claude 실행): 위 5건. 마이그레이션·vLLM 변경 없음, /healthz·/readyz 정상.
 - 사용자 관리 '활성'에 소속 팀·팀장 표시(`AdminUserOut.team`·`team_role`), 관리 CLI `team-assign`(활성 계정 팀 배정·팀 생성·팀장 지정,
   검사 실패 시 아무것도 안 바꿈, `docs/ops/RUNBOOK.md` 팀 배정).
+- 낙찰·계약 페이지 겹침 수정: 페이지를 넘기면 행이 겹쳐 조용히 빠짐(probe) → 창을 시간으로 쪼개 한 페이지씩, 1행 결함은 기록 후 허용,
+  `collector refetch`로 기존 구간 다시 받기 (`docs/decisions/2026-11-25-awards-paging.md`).

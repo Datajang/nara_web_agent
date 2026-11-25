@@ -62,8 +62,18 @@ LOOKUP_ENDPOINTS = {
 MAX_SPAN = timedelta(days=15)
 # 공고(v1.3)·낙찰·계약: 조회 시작일~종료일이 KST 날짜 7개를 넘으면 resultCode 07 (분 길이와 무관)
 SOURCE_MAX_DATES = {"regular": 7, "awards": 7, "contracts": 7}
-# 모든 페이지를 받아야 성공으로 친다(창 완결성, §15.4). 중간에 빈 페이지면 G2BIncomplete
+# 창 완결성(§15.4): 창의 모든 행을 받아야 성공. 낙찰·계약은 페이지를 넘기면 순서가 흔들려
+# 행이 겹치고 다른 행이 빠지므로(2026-11-25 probe) 창을 시간으로 쪼개 한 페이지씩만 받는다.
+# 한 페이지 안에서 G2B가 건수보다 적게 주는 결함은 SHORTFALL_OK 이하만 허용하고 기록한다
 STRICT_PAGING = frozenset({"awards", "contracts"})
+SPLIT_FILL = 0.8  # 쪼갤 때 한 조각 목표 = 페이지의 80% (G2B 건수가 조금 늘어도 한 페이지)
+
+
+def shortfall_ok(total: int) -> int:
+    """한 페이지 응답에서 허용하는 누락 행 수: 1행 또는 0.1%."""
+    return max(1, total // 1000)
+
+
 # numOfRows=1000은 오류 없이 10행만 온다 (2026-11-16 probe)
 MAX_PAGE_SIZE = 999
 _KEY_PARAM = re.compile(r"(ServiceKey=)[^&\s'\"]+", re.IGNORECASE)
@@ -89,6 +99,20 @@ class CallBudget(Protocol):
     async def reserve(self) -> None: ...
 
     def settle(self, n: int) -> None: ...
+
+
+_shortfalls: ContextVar[list[str] | None] = ContextVar("g2b_shortfalls", default=None)
+
+
+@contextlib.contextmanager
+def collect_shortfalls() -> Iterator[list[str]]:
+    """이 블록 안에서 허용한 G2B 행 누락(창·받은/건수)을 모은다. 수집 이력에 남기는 용도."""
+    notes: list[str] = []
+    token = _shortfalls.set(notes)
+    try:
+        yield notes
+    finally:
+        _shortfalls.reset(token)
 
 
 @dataclass
@@ -260,6 +284,8 @@ class G2BClient:
         }
         if keyword and kw_param:
             params[kw_param] = keyword
+        if source in STRICT_PAGING:
+            return await self._fetch_whole(source, f"{base}/{op}", params, start, end)
         items: list[dict[str, Any]] = []
         page = 1
         while True:
@@ -275,6 +301,39 @@ class G2BClient:
                     )
                 return items
             page += 1
+
+    async def _fetch_whole(
+        self, source: str, url: str, params: dict[str, str], start: datetime, end: datetime
+    ) -> list[dict[str, Any]]:
+        """[start, end)를 한 페이지로 받는다. 건수가 페이지보다 많으면 시간으로 나눠 다시 받는다."""
+        q = {
+            **params,
+            "inqryBgnDt": start.astimezone(KST).strftime("%Y%m%d%H%M"),
+            "inqryEndDt": (end - timedelta(minutes=1)).astimezone(KST).strftime("%Y%m%d%H%M"),
+            "pageNo": "1",
+        }
+        body = await self._call(source, url, q)
+        got, total = _items(body), int(body.get("totalCount") or 0)
+        minutes = int((end - start).total_seconds() // 60)
+        if total > self.page_size and minutes > 1:
+            n = min(minutes, -(-total // int(self.page_size * SPLIT_FILL)))
+            step = timedelta(minutes=-(-minutes // n))
+            out: list[dict[str, Any]] = []
+            a = start
+            while a < end:
+                b = min(end, a + step)
+                out.extend(await self._fetch_whole(source, url, params, a, b))
+                a = b
+            return out
+        missing = total - len(got)
+        where = f"{q['inqryBgnDt']}~{q['inqryEndDt']} {len(got)}/{total}건"
+        if total > self.page_size or missing > shortfall_ok(total):
+            raise G2BIncomplete(f"G2B {source} 창 일부만 받음: {where}")
+        if missing > 0:
+            log.warning("G2B %s 행 누락 허용(G2B 결함): %s", source, where)
+            if (notes := _shortfalls.get()) is not None:
+                notes.append(where)
+        return got
 
     async def _call(self, source: str, url: str, params: dict[str, str]) -> dict[str, Any]:
         q = {"ServiceKey": self.keys.get(source, ""), **params}

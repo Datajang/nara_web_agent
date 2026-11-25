@@ -240,6 +240,8 @@ nara_web_agent/
 | `usage_logs` | `user_id` FK null, `event` ('search'\|'recommend'\|'analyze'\|'assistant\_turn'\|'collector'), `cache` jsonb, `g2b_calls` int, `llm_calls` int, `prompt_tokens` int, `completion_tokens` int, `duration_ms` int, `created_at` | (`created_at`). `cache` = {"bids\_db": bool, "file\_text": bool, "summary": bool, "analysis": bool, "score": bool}. R4 절감 효과 측정의 근거 |
 | `feedback` | `user_id` FK, `target_type` ('analysis'\|'assistant\_message'\|'search\_run'), `target_id`, `rating` smallint (-1\|1), `reason` text null ('wrong'\|'missing'\|'irrelevant'\|'too\_long'\|'other', 👎일 때만), `comment` text null, `model` text null, `prompt_version` text null, `created_at` | §12.7 평가 루프에 사용. `model`·`prompt_version`은 서버가 채움(분석은 그 분석의 값, 나머지는 현재 설정). 사유 집계는 `GET /admin/usage`의 `feedback` \[결정: P4\] |
 
+결과 메일(2026-11-25): `bookmarks.notify_result`, `users.result_mail`, `bid_result_watch`, `bid_result_mails` — `docs/RESULT_MAIL.md`.
+
 ### v1 데이터 이전 \[가정\]
 
 v1 SQLite 데이터는 양이 적다고 가정하고 이전은 선택 작업(P5)으로 둡니다. 필요하면 `scripts/migrate_v1_sqlite.py`로 users→users(status=active, 비밀번호 해시는 bcrypt라 그대로 이전), projects→profiles, conversations·messages→새 구조, bookmarked\_bids→bookmarks(공고 행이 없으면 `bid_key=legacy:{id}`로 생성)로 옮깁니다. 사용자가 이전이 필요 없다고 하면 생략합니다(§14).
@@ -498,6 +500,7 @@ LLM과 G2B는 호출 횟수를 세는 가짜 객체로 바꿔 검증합니다.
 | `GET /admin/users` · `PATCH /admin/users/{id}` | 관리자 | status, role | 사용자 관리·승인 |
 | `GET /admin/usage` | 관리자 | `from`, `to`, `group=day` | 캐시 적중률, G2B 호출 수, 입력·출력 토큰 수(5.8) + `feedback`(대상·평가·사유별 건수, §12.7) \[결정: P3a·P4\] |
 | `GET /admin/collector/runs` · `POST /admin/collector/run` | 관리자 | mode, source, days | 수집 이력(+소스별 `coverage`) / 수동 실행(202) |
+| `PUT·PATCH /bookmarks/{bid_id}` (결과 메일) | 회원 | note·analysis\_id / notify\_result | 200 `{notify_result, watching, opening_at}` — `docs/RESULT_MAIL.md` (2026-11-25) |
 | `GET /healthz` · `GET /readyz` | 공개 |  | 프로세스 생존 / DB·LLM·수집 상태. DB 불가만 503, 본문 `{db, llm, collector(ok\|stale\|never), collector_last_ok_at}`. 루트 경로(`/api/v1` 밖)이고 nginx가 외부에서 막음 \[결정: P3a·P4\] |
 
 ### 6.3 핵심 요청·응답
@@ -698,7 +701,7 @@ MCP 서버의 세 도구를 웹 탭으로 옮기고, 어시스턴트·기록·�
 | --- | --- | --- |
 | 검색 기록 (`runs`) | 날짜, 조건 요약, 결과 수, 종류(검색 / 추천) | 클릭하면 스냅샷을 외부 호출 없이 엽니다. \[다시 검색\]은 같은 조건으로 새 실행. 항목 삭제 가능 |
 | 분석 기록 (`analyses`) | 공고명, 사용한 프로필명, 날짜 | 클릭하면 `/bids/:bidId`에서 해당 분석을 엽니다. 목록에서 제거(내 연결만 삭제, 공유 결과는 유지) |
-| 북마크 (`bookmarks`) | 공고 카드 + 메모 | 메모 편집, 제목 검색, 마감 임박순 정렬, 연결된 분석 열기 |
+| 북마크 (`bookmarks`) | 공고 카드 + 메모 | 메모 편집, 제목 검색, 마감 임박순 정렬, 연결된 분석 열기, 일반공고마다 '결과 메일' 켜기/끄기(`docs/RESULT_MAIL.md`) |
 
 ### 7.8 설정
 
@@ -711,7 +714,7 @@ MCP 서버의 세 도구를 웹 탭으로 옮기고, 어시스턴트·기록·�
 - 삭제 시 확인 모달을 띄웁니다. 과거 기록은 유지하고 `profile_id`만 null이 됩니다.
 - ‘기본 프로필’은 사용자당 하나이고, 지정하면 다른 프로필의 기본 표시가 풀립니다.
 
-**계정 (`/settings/account`)**: 이름 변경, 비밀번호 변경(현재 비밀번호 필요), 로그아웃을 제공합니다. 계정 삭제는 v2 범위 밖이며 관리자가 비활성화합니다.
+**계정 (`/settings/account`)**: 이름 변경, 비밀번호 변경(현재 비밀번호 필요), '결과 메일 받기' 스위치(2026-11-25), 로그아웃을 제공합니다. 계정 삭제는 v2 범위 밖이며 관리자가 비활성화합니다.
 
 ### 7.9 관리자
 
@@ -1222,7 +1225,7 @@ R1(회원가입)과 내부 서비스에 필요한 보안 수준을 정합니다.
 
 ### 9.6 메일 문안
 
-링크 주소는 `{APP_ORIGIN}/verify-email?token=...`, `{APP_ORIGIN}/reset-password?token=...` 형식입니다.
+링크 주소는 `{APP_ORIGIN}/verify-email?token=...`, `{APP_ORIGIN}/reset-password?token=...` 형식입니다. 북마크 공고 결과 메일(개찰·낙찰·유찰·재공고) 문안은 `docs/RESULT_MAIL.md`.
 
 | 종류 | 제목 | 본문 요지 |
 | --- | --- | --- |

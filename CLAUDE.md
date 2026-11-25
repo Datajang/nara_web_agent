@@ -56,5 +56,6 @@ cd frontend && npm ci && npm run lint && npm run typecheck && npm run test && np
 | v1 코드를 옮기거나 지울 때 | `docs/v1/OVERVIEW.md` |
 | 새 VM으로 서버 이전(묶기·환경·풀기) | `docs/ops/MIGRATE.md` + `deploy/migrate/` |
 | v1 → v2 서버 전환(P4) | `docs/ops/CUTOVER.md` (+ `docs/v1/DEPLOY_CUTOVER.md`) |
+| 북마크 공고 결과 메일(타이머·메일·API·화면) | `docs/RESULT_MAIL.md` |
 | 확인 결과·결정 기록 | `docs/decisions/README.md` |
 | 경쟁사 분석(§15) | `docs/SPEC.md` §15, `docs/g2b/AWARDS.md`, 진행은 `docs/PROGRESS_competitor.md` |

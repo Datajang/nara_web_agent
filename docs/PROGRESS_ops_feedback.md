@@ -32,3 +32,5 @@
   공고 조회 창 15일 → KST 날짜 7개. probe 4회로 확인 (`docs/decisions/2026-11-24-bid-service-02.md`).
 - 배포 rc15(2026-11-24, 사용자 서버 실행): 입찰공고 v1.3(02) 전환, 개찰 INSERT 분할, vLLM MTP 유닛(drop-in 삭제, 재시작 없음).
   배포 직후 공고 증분 ok, 따라잡기 재시작: 개찰 `backfill --source openings`, 공고 `--days 2192` → `reclassify_awards`.
+- 북마크 공고 결과 메일(사용자 요청): 일반공고 북마크 → 개찰 직후·최종(낙찰·유찰)·재공고 메일, 5분 타이머 `nara-result-watch`,
+  팝업·보관함·계정 스위치. 0013 마이그레이션. 배포 뒤 타이머를 한 번 켠다 (`docs/RESULT_MAIL.md`).

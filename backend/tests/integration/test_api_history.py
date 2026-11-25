@@ -20,7 +20,7 @@ async def _owner_resources(api, fake_g2b):
     run = (await a.post("/api/v1/bids/search", json={"keywords": ["AI"], "days": 7})).json()
     events = await sse(a, f"/api/v1/bids/b{bid_id}/analyze", {"profile_id": pid})
     aid = events[-2]["analysis_id"]
-    assert (await a.put(f"/api/v1/bookmarks/b{bid_id}", json={"note": "검토"})).status_code == 204
+    assert (await a.put(f"/api/v1/bookmarks/b{bid_id}", json={"note": "검토"})).status_code == 200
     cid = (await a.post("/api/v1/conversations", json={"profile_id": pid})).json()["id"]
     return a, {"run": run["run_id"], "aid": aid, "bid": bid_id, "cid": cid, "pid": pid}
 
@@ -78,7 +78,7 @@ async def test_bookmarks_put_is_idempotent_and_delete_twice_404(full_api):
     first, second = (await c.delete(p)).status_code, (await c.delete(p)).status_code
     unknown = (await c.put("/api/v1/bookmarks/b999999", json={})).status_code
     await c.aclose()
-    assert codes == [204, 204] and len(items) == 1 and items[0]["note"] == "바꿈"
+    assert codes == [200, 200] and len(items) == 1 and items[0]["note"] == "바꿈"
     assert items[0]["bid"]["bookmarked"] is True and card["bookmarked"] is True
     assert (first, second, unknown) == (204, 404, 404)
 

@@ -73,6 +73,7 @@ class MeOut(UserBase):
 
     interest_keywords: list[str] = []
     feed_include_small: bool = False  # 관심 공고에 1억 미만도 보기
+    result_mail: bool = True  # 북마크 공고 결과 메일 전체 스위치(2026-11-25)
     team: MeTeam | None = None
     team_role: TeamRole | None = None
 
@@ -85,6 +86,7 @@ class MePatch(BaseModel):
     new_password: RawPassword | None = None
     interest_keywords: Annotated[list[Keyword], Field(max_length=10)] | None = None
     feed_include_small: bool | None = None
+    result_mail: bool | None = None
 
 
 class AdminUserOut(UserBase):

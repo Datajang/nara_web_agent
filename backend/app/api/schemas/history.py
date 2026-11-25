@@ -67,6 +67,19 @@ class BookmarkOut(BaseModel):
     note: str
     analysis_id: int | None
     created_at: datetime
+    notify_result: bool = True  # 결과 메일(2026-11-25)
+
+
+class BookmarkPatch(BaseModel):
+    notify_result: bool
+
+
+class BookmarkPutOut(BaseModel):
+    """북마크 저장·결과 메일 켜기 응답. watching: 결과를 지켜보고 있는지(개찰일이 있는 일반공고)."""
+
+    notify_result: bool
+    watching: bool
+    opening_at: datetime | None
 
 
 class BookmarkList(BaseModel):

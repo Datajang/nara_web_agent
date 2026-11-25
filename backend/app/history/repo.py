@@ -246,6 +246,27 @@ async def put_bookmark(
     await s.commit()
 
 
+async def bookmark_notify(s: AsyncSession, user_id: int, bid_id: int) -> bool:
+    """내 북마크의 결과 메일 켜짐 여부(다시 PUT해도 끈 설정은 그대로)."""
+    on = await s.scalar(
+        select(Bookmark.notify_result).where(Bookmark.user_id == user_id, Bookmark.bid_id == bid_id)
+    )
+    return bool(on)
+
+
+async def set_notify(s: AsyncSession, user_id: int, bid_id: int, on: bool) -> Bookmark:
+    """내 북마크의 결과 메일 켜기·끄기. 내 북마크가 아니면 404."""
+    bm = (
+        await s.execute(
+            select(Bookmark).where(Bookmark.user_id == user_id, Bookmark.bid_id == bid_id)
+        )
+    ).scalar_one_or_none()
+    if bm is None:
+        raise not_found("북마크")
+    bm.notify_result = on
+    return bm
+
+
 async def delete_bookmark(s: AsyncSession, user_id: int, bid_id: int) -> None:
     res = await s.execute(
         delete(Bookmark).where(Bookmark.user_id == user_id, Bookmark.bid_id == bid_id)

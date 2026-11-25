@@ -908,7 +908,11 @@ export interface paths {
         delete: operations["delete_bookmark_api_v1_bookmarks__bid_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Patch Bookmark
+         * @description 북마크마다 결과 메일 켜기·끄기(2026-11-25). 켜면 결과 감시를 건다.
+         */
+        patch: operations["patch_bookmark_api_v1_bookmarks__bid_id__patch"];
         trace?: never;
     };
     "/api/v1/feedback": {
@@ -1488,6 +1492,28 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Notify Result
+             * @default true
+             */
+            notify_result: boolean;
+        };
+        /** BookmarkPatch */
+        BookmarkPatch: {
+            /** Notify Result */
+            notify_result: boolean;
+        };
+        /**
+         * BookmarkPutOut
+         * @description 북마크 저장·결과 메일 켜기 응답. watching: 결과를 지켜보고 있는지(개찰일이 있는 일반공고).
+         */
+        BookmarkPutOut: {
+            /** Notify Result */
+            notify_result: boolean;
+            /** Watching */
+            watching: boolean;
+            /** Opening At */
+            opening_at: string | null;
         };
         /** BudgetContract */
         BudgetContract: {
@@ -2222,6 +2248,11 @@ export interface components {
              * @default false
              */
             feed_include_small: boolean;
+            /**
+             * Result Mail
+             * @default true
+             */
+            result_mail: boolean;
             team?: components["schemas"]["MeTeam"] | null;
             /** Team Role */
             team_role?: ("owner" | "member") | null;
@@ -2238,6 +2269,8 @@ export interface components {
             interest_keywords?: string[] | null;
             /** Feed Include Small */
             feed_include_small?: boolean | null;
+            /** Result Mail */
+            result_mail?: boolean | null;
         };
         /** MeTeam */
         MeTeam: {
@@ -5080,11 +5113,13 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["BookmarkPutOut"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -5114,6 +5149,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_bookmark_api_v1_bookmarks__bid_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookmarkPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookmarkPutOut"];
+                };
             };
             /** @description Validation Error */
             422: {

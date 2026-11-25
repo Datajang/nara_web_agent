@@ -2876,8 +2876,66 @@
           }
         },
         "responses": {
-          "204": {
-            "description": "Successful Response"
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookmarkPutOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "history"
+        ],
+        "summary": "Patch Bookmark",
+        "description": "북마크마다 결과 메일 켜기·끄기(2026-11-25). 켜면 결과 감시를 건다.",
+        "operationId": "patch_bookmark_api_v1_bookmarks__bid_id__patch",
+        "parameters": [
+          {
+            "name": "bid_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Bid Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookmarkPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookmarkPutOut"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -4643,6 +4701,11 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "notify_result": {
+            "type": "boolean",
+            "title": "Notify Result",
+            "default": true
           }
         },
         "type": "object",
@@ -4653,6 +4716,51 @@
           "created_at"
         ],
         "title": "BookmarkOut"
+      },
+      "BookmarkPatch": {
+        "properties": {
+          "notify_result": {
+            "type": "boolean",
+            "title": "Notify Result"
+          }
+        },
+        "type": "object",
+        "required": [
+          "notify_result"
+        ],
+        "title": "BookmarkPatch"
+      },
+      "BookmarkPutOut": {
+        "properties": {
+          "notify_result": {
+            "type": "boolean",
+            "title": "Notify Result"
+          },
+          "watching": {
+            "type": "boolean",
+            "title": "Watching"
+          },
+          "opening_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opening At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "notify_result",
+          "watching",
+          "opening_at"
+        ],
+        "title": "BookmarkPutOut",
+        "description": "북마크 저장·결과 메일 켜기 응답. watching: 결과를 지켜보고 있는지(개찰일이 있는 일반공고)."
       },
       "BudgetContract": {
         "properties": {
@@ -6729,6 +6837,11 @@
             "title": "Feed Include Small",
             "default": false
           },
+          "result_mail": {
+            "type": "boolean",
+            "title": "Result Mail",
+            "default": true
+          },
           "team": {
             "anyOf": [
               {
@@ -6831,6 +6944,17 @@
               }
             ],
             "title": "Feed Include Small"
+          },
+          "result_mail": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Mail"
           }
         },
         "type": "object",

@@ -16,15 +16,18 @@ from app.api.schemas.history import (
     BookmarkIn,
     BookmarkList,
     BookmarkOut,
+    BookmarkPatch,
+    BookmarkPutOut,
     SearchRunDetail,
     SearchRunList,
     SearchRunOut,
 )
 from app.bids.cards import build_cards
-from app.db.models import SearchRun
+from app.db.models import Bid, SearchRun
 from app.history import repo
 from app.llm.schemas import AnyAnalysis
 from app.llm.versions import bid_ref
+from app.results.watch import ensure_watch, opening_of
 
 _ANALYSIS: TypeAdapter[AnyAnalysis] = TypeAdapter(AnyAnalysis)
 
@@ -141,20 +144,45 @@ async def list_bookmarks(user: ActiveUser, s: DbSession, ctx: Ctx) -> BookmarkLi
     return BookmarkList(
         items=[
             BookmarkOut(
-                bid=card, note=bm.note, analysis_id=bm.analysis_id, created_at=bm.created_at
+                bid=card,
+                note=bm.note,
+                analysis_id=bm.analysis_id,
+                created_at=bm.created_at,
+                notify_result=bm.notify_result,
             )
             for (bm, _), card in zip(rows, cards, strict=True)
         ]
     )
 
 
-@router.put("/bookmarks/{bid_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def _watch_out(s: DbSession, bid: Bid, notify: bool, ctx: Ctx) -> BookmarkPutOut:
+    """알림이 켜져 있으면 결과 감시를 걸고(일반공고·개찰일 있음) 그 상태를 돌려준다."""
+    watching = notify and await ensure_watch(s, bid, ctx.deps.clock()) is not None
+    await s.commit()
+    found = opening_of(bid) if bid.source == "regular" else None
+    return BookmarkPutOut(
+        notify_result=notify, watching=watching, opening_at=found[1] if found else None
+    )
+
+
+@router.put("/bookmarks/{bid_id}")
 async def put_bookmark(
     bid_id: str, body: BookmarkIn, user: ActiveUser, s: DbSession, ctx: Ctx
-) -> Response:
+) -> BookmarkPutOut:
     bid = await load_bid(s, bid_id)
     await repo.put_bookmark(s, user.id, bid.id, body.note, body.analysis_id, ctx.deps.clock())
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    notify = await repo.bookmark_notify(s, user.id, bid.id)
+    return await _watch_out(s, bid, notify, ctx)
+
+
+@router.patch("/bookmarks/{bid_id}")
+async def patch_bookmark(
+    bid_id: str, body: BookmarkPatch, user: ActiveUser, s: DbSession, ctx: Ctx
+) -> BookmarkPutOut:
+    """북마크마다 결과 메일 켜기·끄기(2026-11-25). 켜면 결과 감시를 건다."""
+    bid = await load_bid(s, bid_id)
+    bm = await repo.set_notify(s, user.id, bid.id, body.notify_result)
+    return await _watch_out(s, bid, bm.notify_result, ctx)
 
 
 @router.delete("/bookmarks/{bid_id}", status_code=status.HTTP_204_NO_CONTENT)

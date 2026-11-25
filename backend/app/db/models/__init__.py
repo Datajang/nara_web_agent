@@ -1,6 +1,7 @@
 from app.db.models.awards import (
     BidAward,
     BidJointMember,
+    BidOpeningStatus,
     BidParticipant,
     BidParticipantFetch,
     Company,
@@ -39,6 +40,7 @@ from app.db.models.shared import (
 __all__ = [
     "BidAward",
     "BidJointMember",
+    "BidOpeningStatus",
     "BidParticipant",
     "BidParticipantFetch",
     "Company",

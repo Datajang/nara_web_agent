@@ -8,6 +8,7 @@ import UiBadge from '@/components/ui/UiBadge.vue'
 import { copy } from '@/copy'
 import DeadlineStamp from './DeadlineStamp.vue'
 import MoneyText from './MoneyText.vue'
+import OutcomeBadge from './OutcomeBadge.vue'
 import ScoreBadge from './ScoreBadge.vue'
 
 withDefaults(defineProps<{ bid: BidCard; showScore?: boolean; compact?: boolean }>(), {
@@ -41,6 +42,7 @@ const emit = defineEmits<{ 'toggle-bookmark': [BidCard] }>()
         </UiBadge>
         <UiBadge v-if="bid.revision > 1" tone="warning">{{ copy.bid.revised }}</UiBadge>
         <UiBadge v-if="bid.cancelled" tone="danger">{{ copy.bid.cancelled }}</UiBadge>
+        <OutcomeBadge :outcome="bid.outcome" />
         <UiBadge v-if="bid.summary_ready" tone="success">{{ copy.bid.summaryReady }}</UiBadge>
         <ScoreBadge v-if="showScore && bid.score != null" :score="bid.score" />
       </p>

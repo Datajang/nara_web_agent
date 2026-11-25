@@ -11,7 +11,13 @@ from app.config import Settings, get_settings
 from app.db.session import Database
 from app.deps import Deps
 from app.files.download import HttpDownloader
-from app.g2b.client import AWARD_SOURCES, OPENINGS_SOURCE, RESULT_WATCH_SOURCE, G2BClient
+from app.g2b.client import (
+    AWARD_SOURCES,
+    OPENINGS_SOURCE,
+    RESULT_WATCH_SOURCE,
+    STATUS_SOURCE,
+    G2BClient,
+)
 from app.usage.budget import DbCallBudget
 
 
@@ -26,6 +32,7 @@ def g2b_keys(settings: Settings) -> dict[str, str]:
         **dict.fromkeys(AWARD_SOURCES, award_key),
         OPENINGS_SOURCE: award_key,
         RESULT_WATCH_SOURCE: award_key,
+        STATUS_SOURCE: award_key,
     }
 
 
@@ -54,6 +61,13 @@ def build_g2b(http: httpx.AsyncClient, db: Database, settings: Settings) -> G2BC
                 settings.g2b_result_watch_daily_budget,
                 sources=[RESULT_WATCH_SOURCE],
                 label="결과 메일",
+            ),
+            # 개찰 상태 수집(2026-11-26, 마감 공고 사유)도 자기 몫
+            STATUS_SOURCE: DbCallBudget(
+                db,
+                settings.g2b_status_daily_budget,
+                sources=[STATUS_SOURCE],
+                label="개찰 상태",
             ),
         },
     )

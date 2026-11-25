@@ -20,6 +20,7 @@ import AnalyzeProgress from '@/components/bid/AnalyzeProgress.vue'
 import CompetitionPanel from '@/components/bid/CompetitionPanel.vue'
 import ProgressSteps from '@/components/bid/ProgressSteps.vue'
 import OfficialFacts from '@/components/bid/OfficialFacts.vue'
+import OutcomeBadge from '@/components/bid/OutcomeBadge.vue'
 import SummaryFacts from '@/components/bid/SummaryFacts.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
@@ -260,6 +261,7 @@ async function toggleBookmark() {
           </UiBadge>
           <UiBadge v-if="bid.revision > 1" tone="warning">{{ copy.bid.revised }}</UiBadge>
           <UiBadge v-if="bid.cancelled" tone="danger">{{ copy.bid.cancelled }}</UiBadge>
+          <OutcomeBadge :outcome="bid.outcome" />
           <span class="text-sm tabular text-text-3">{{ bid.bid_no }}</span>
         </div>
         <h2 class="text-xl font-semibold leading-snug tracking-tight text-text sm:text-2xl">{{ bid.title }}</h2>

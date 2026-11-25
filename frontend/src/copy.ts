@@ -108,6 +108,17 @@ export const copy = {
     prespec: '사전규격',
     revised: '정정',
     cancelled: '취소공고',
+    // 마감 공고 사유(2026-11-26): 마감된 공고 카드·상세의 배지 하나
+    outcome: {
+      awarded: (company: string | null, more: number) =>
+        company ? `낙찰 · ${company}${more > 0 ? ` 외 ${more}` : ''}` : '낙찰',
+      failed: (reason: string | null) => (reason ? `유찰 · ${reason}` : '유찰'),
+      opened: (company: string | null) => (company ? `개찰완료 · 1순위 ${company}` : '개찰완료'),
+      rebid: '재입찰',
+      beforeOpening: (at: string) => `개찰 전 ${at}`,
+      waiting: '결과 대기',
+      prespecClosed: '의견 마감',
+    },
     summaryReady: '요약 있음',
     original: '원문',
     originalNewTab: '나라장터 원문 (새 탭)',

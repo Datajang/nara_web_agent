@@ -3,6 +3,7 @@ import type { components } from './schema'
 
 type S = components['schemas']
 export type BidCard = S['BidCard']
+export type BidOutcome = S['BidOutcome'] // 마감 공고 사유(2026-11-26)
 export type SearchQuery = S['SearchQuery']
 export type SearchResult = S['SearchResultOut']
 export type BidDetail = S['BidDetail']

@@ -40,7 +40,12 @@ export const feedApi = {
     for (const k of filter.kw ?? []) p.append('kw', k)
     if (filter.due) p.set('due', filter.due)
     const f = await api.get<Feed>(`/feed?${p}`)
-    const items: FeedItem[] = f.items.map((i) => ({ ...i, score: i.score ?? null, reason: i.reason ?? null }))
+    const items: FeedItem[] = f.items.map((i) => ({
+      ...i,
+      score: i.score ?? null,
+      reason: i.reason ?? null,
+      outcome: i.outcome ?? null,
+    }))
     return { ...f, items }
   },
 }

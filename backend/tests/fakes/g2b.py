@@ -26,7 +26,7 @@ OPS = {
 # 기간 제한: 사전규격은 약 15일, 공고(v1.3)·낙찰·계약은 KST 날짜 7개까지(날짜 차 6일 이하)
 # (docs/decisions/2026-11-16-awards-probe.md, 2026-11-24-bid-service-02.md)
 MAX_SPAN = {"prespec": timedelta(days=16)}
-MAX_DATE_DIFF = {"regular": 6, "awards": 6, "contracts": 6}
+MAX_DATE_DIFF = {"regular": 6, "awards": 6, "contracts": 6, "status": 6}
 # 입찰공고 v1.3은 서비스 경로도 02로 바뀌었다(운영계정 트래픽은 02에만 승인)
 BID_SERVICE_PATH = "/1230000/ad/BidPublicInfoService02/"
 # 단건 조회용 일반 조회 (docs/decisions/2026-11-12-g2b-single-lookup.md): inqryDiv=2 + 번호
@@ -37,12 +37,14 @@ DATE_FIELD = {
     "prespec": "rgstDt",
     "awards": "rgstDt",
     "contracts": "rgstDt",
+    "status": "opengDt",  # 개찰결과 목록 기간 조회는 개찰일시(inqryDiv=3)
 }
 TITLE_FIELD = {
     "regular": "bidNtceNm",
     "prespec": "prdctClsfcNoNm",
     "awards": "bidNtceNm",
     "contracts": "cntrctNm",
+    "status": "bidNtceNm",
 }
 OPENING_OP = "getOpengResultListInfoOpengCompt"
 STATUS_OP = "getOpengResultListInfoServc"
@@ -282,7 +284,10 @@ class FakeG2B:
             return httpx.Response(404, text="unknown service")
         if op in LOOKUP_OPS:
             return self._lookup(LOOKUP_OPS[op], p)
-        if op == STATUS_OP or (op == AWARD_OP and p.get("inqryDiv") == "4"):
+        by_period_status = op == STATUS_OP and p.get("inqryDiv") == "3"
+        if (op == STATUS_OP and not by_period_status) or (
+            op == AWARD_OP and p.get("inqryDiv") == "4"
+        ):
             src = "opening_status" if op == STATUS_OP else "awards"
             matched = [it for it in self.items[src] if it["bidNtceNo"] == p.get("bidNtceNo")]
             return _ok({"items": matched, "totalCount": len(matched)})
@@ -294,7 +299,7 @@ class FakeG2B:
                 and (not p.get("bidNtceOrd") or it["bidNtceOrd"] == p["bidNtceOrd"])
             ]
             return _ok({"items": matched, "totalCount": len(matched)})
-        source = OPS.get(op)
+        source = "status" if by_period_status else OPS.get(op)
         if source is None:
             return httpx.Response(404, text="unknown op")
         bgn = datetime.strptime(p["inqryBgnDt"], "%Y%m%d%H%M").replace(tzinfo=KST)
@@ -313,7 +318,7 @@ class FakeG2B:
             )
         kw = p.get("bidNtceNm") or p.get("prdctClsfcNoNm")
         matched = []
-        for it in self.items[source]:
+        for it in self.items["opening_status" if source == "status" else source]:
             dt = datetime.strptime(it[DATE_FIELD[source]][:16], "%Y-%m-%d %H:%M").replace(
                 tzinfo=KST
             )

@@ -5,6 +5,8 @@
 - cancelled: 취소공고 표시. 원본 raw.ntceKindNm. 검색 결과에서는 빠지고(2026-11-17 결정),
   북마크·지난 기록·번호로 열기처럼 이미 아는 공고에서만 보인다.
 - summary_ready: 현재 프롬프트 버전의 요약이 이미 있는지(조회가 요약을 만들지 않는다).
+- outcome(2026-11-26): 마감된 공고의 사유 배지(낙찰·유찰·개찰완료·재입찰·개찰 전·결과 대기).
+  `app.bids.outcome`이 DB만 읽어 정한다.
 """
 
 from __future__ import annotations
@@ -17,10 +19,11 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.bids.outcome import CANCELLED_KIND, BidOutcome, is_cancelled, load_outcomes
 from app.db.models import Bid, BidSummary, Bookmark
 from app.llm.versions import SUMMARY_PROMPT, bid_ref, prompt_version
 
-CANCELLED_KIND = "취소공고"
+__all__ = ["CANCELLED_KIND", "BidCard", "BidOutcome", "bid_status", "build_cards", "is_cancelled"]
 
 
 class BidCard(BaseModel):
@@ -41,14 +44,11 @@ class BidCard(BaseModel):
     bookmarked: bool
     score: int | None = None  # 추천 결과에서만
     reason: str | None = None
+    outcome: BidOutcome | None = None  # 마감 사유(진행 중·취소·개찰일 없음이면 null)
 
 
 def bid_status(bid: Bid, now: datetime) -> Literal["open", "closed"]:
     return "open" if bid.deadline_at is None or bid.deadline_at > now else "closed"
-
-
-def is_cancelled(bid: Bid) -> bool:
-    return (bid.raw or {}).get("ntceKindNm") == CANCELLED_KIND
 
 
 async def build_cards(
@@ -83,6 +83,7 @@ async def build_cards(
             ).scalars()
         )
     scores = scores or {}
+    outcomes = await load_outcomes(s, bids, now)
     return [
         BidCard(
             bid_id=bid_ref(b.id),
@@ -102,6 +103,7 @@ async def build_cards(
             bookmarked=b.id in marked,
             score=scores.get(b.id, (None, None))[0],
             reason=scores.get(b.id, (None, None))[1],
+            outcome=outcomes.get(b.id),
         )
         for b in bids
     ]

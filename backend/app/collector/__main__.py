@@ -9,6 +9,8 @@
   python -m app.collector backfill --source contracts        # 낙찰 수집 범위 안에서 과거로
   python -m app.collector incremental --source openings      # 개찰 결과: 최근 14일 낙찰 공고 (P12)
   python -m app.collector backfill --source openings         # 개찰 결과: 그보다 오래된 공고
+  python -m app.collector incremental --source status        # 개찰 상태: 어제·오늘
+  python -m app.collector backfill --source status           # 개찰 상태: 과거로(org_settings 연수)
   python -m app.collector refetch --source awards|contracts --from 2017-04-13 --to 2026-11-25
       # 이미 받은 구간을 다시 받아 빠진 행 채우기(커버리지 그대로, 2026-11-25 페이지 겹침 복구)
 
@@ -26,6 +28,7 @@ from datetime import datetime, timedelta, timezone
 
 from app.awards import collector as awards
 from app.awards import contracts, openings
+from app.awards import status as opening_status
 from app.collector import runner
 from app.logging_setup import configure_logging
 from app.runtime import real_deps
@@ -42,7 +45,7 @@ async def main(argv: list[str] | None = None) -> int:
     ap.add_argument("mode", choices=["incremental", "backfill", "fill", "refetch"])
     ap.add_argument(
         "--source",
-        choices=["regular", "prespec", "awards", "contracts", "openings", "all"],
+        choices=["regular", "prespec", "awards", "contracts", "openings", "status", "all"],
         default="all",
     )
     ap.add_argument(
@@ -55,8 +58,8 @@ async def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--to", dest="date_to", type=_date)
     args = ap.parse_args(argv)
     configure_logging()
-    if args.source in ("awards", "contracts", "openings") and args.mode == "fill":
-        ap.error("낙찰·계약·개찰 결과(awards·contracts·openings)에는 fill을 쓰지 않습니다 (§15.4)")
+    if args.source in ("awards", "contracts", "openings", "status") and args.mode == "fill":
+        ap.error("낙찰·계약·개찰 결과·개찰 상태에는 fill을 쓰지 않습니다")
     if args.mode == "refetch":
         if args.source not in ("awards", "contracts"):
             ap.error("refetch는 낙찰·계약(awards·contracts)만 씁니다")
@@ -76,6 +79,12 @@ async def main(argv: list[str] | None = None) -> int:
                     awards.backfill(deps, args.days)
                     if args.mode == "backfill"
                     else awards.incremental(deps)
+                )
+            elif src == "status":
+                r = await (
+                    opening_status.backfill(deps, args.days)
+                    if args.mode == "backfill"
+                    else opening_status.incremental(deps)
                 )
             elif src == "openings":
                 r = await openings.run(deps, args.mode)

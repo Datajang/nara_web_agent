@@ -542,6 +542,7 @@ LLM과 G2B는 호출 횟수를 세는 가짜 객체로 바꿔 검증합니다.
 }
 ```
 
+- 카드의 `outcome`(2026-11-26): 마감된 공고의 사유 배지(낙찰·유찰·개찰완료·재입찰·개찰 전·결과 대기·의견 마감), 진행 중이면 null. `docs/BID_OUTCOME.md`
 - `total`은 스냅샷에 저장된 건수이며 스냅샷은 최대 500건 \[가정\]입니다. 더 많이 매칭되면 `truncated: true`로 표시하고, 다음 페이지는 `GET /search-runs/{run_id}?offset=50`으로 읽습니다.
 - `status`는 `deadline_at`에서 계산한 값입니다. `deadline_at`이 null이면 `open`이며 화면에는 ‘마감 미정’으로 표시합니다(§4 규칙).
 - `from_cache`는 G2B 호출 없이 DB만으로 답했는지를 뜻합니다.

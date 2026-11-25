@@ -17,7 +17,7 @@ SEARCH = "/api/v1/bids/search"
 CARD_KEYS = {
     "bid_id", "source", "bid_no", "title", "org_name", "budget", "deadline_at", "notice_at",
     "status", "cancelled", "revision", "detail_url", "has_files", "summary_ready", "bookmarked",
-    "score", "reason",
+    "score", "reason", "outcome",
 }  # fmt: skip
 Q = {"keywords": ["AI"], "days": 7, "source": "regular", "status": "all"}
 
@@ -290,3 +290,41 @@ async def test_export_requires_login_and_limits_size(full_api):
     too_many = [f"b{i}" for i in range(1, 502)]
     assert (await c.post(EXPORT, json={"bid_ids": too_many})).status_code == 422
     await c.aclose()
+
+
+async def test_closed_bid_cards_show_outcome(full_api):
+    """마감 공고 사유(2026-11-26): 낙찰·유찰·개찰 전, 진행 중이면 null. DB만 읽는다."""
+    from app.awards.mapper import to_award
+    from app.awards.status import status_store
+    from app.awards.store import upsert_awards
+    from tests.fakes.g2b import award_item, kst_str, status_item
+
+    past = kst_str(NOW - timedelta(days=1))
+
+    def closed(no, opening):
+        it = regular_item(no, NOW - timedelta(days=10), deadline=past)
+        it["opengDt"] = kst_str(opening)
+        return it
+
+    won, failed, soon = "R26BK74000001", "R26BK74000002", "R26BK74000003"
+    ids = await seed(
+        full_api.ctx.deps,
+        "regular",
+        closed(won, NOW - timedelta(hours=20)),
+        closed(failed, NOW - timedelta(hours=20)),
+        closed(soon, NOW + timedelta(days=2)),
+        regular_item("R26BK74000004", NOW),  # 진행 중
+    )
+    async with full_api.db.transaction() as s:
+        aw = award_item(won, NOW - timedelta(hours=2), name="(주)가온데이터")
+        await upsert_awards(s, [to_award(aw)], {})
+        st = status_item(failed, "유찰")
+        st["opengRsltNtcCntnts"] = "무응찰"
+        await status_store(s, [st])
+    c = await member(full_api, "a@corp.example")
+    got = [(await c.get(f"/api/v1/bids/b{i}")).json()["outcome"] for i in ids]
+    await c.aclose()
+    assert got[0]["kind"] == "awarded" and got[0]["company"] == "(주)가온데이터"
+    assert (got[1]["kind"], got[1]["reason"]) == ("failed", "무응찰")
+    assert got[2]["kind"] == "before_opening" and got[2]["opening_at"]
+    assert got[3] is None

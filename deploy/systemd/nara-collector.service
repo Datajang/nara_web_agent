@@ -11,6 +11,8 @@ EnvironmentFile=/etc/nara/nara.env
 Environment=TMPDIR=/var/lib/nara/tmp
 Environment=HOME=/var/lib/nara
 ExecStart=/opt/nara/venv/bin/python -m app.collector incremental
+# 개찰 상태(마감 공고 사유, 2026-11-26): 실패해도 공고 수집 결과에 영향 없게 -
+ExecStart=-/opt/nara/venv/bin/python -m app.collector incremental --source status
 TimeoutStartSec=900
 NoNewPrivileges=true
 ProtectSystem=strict

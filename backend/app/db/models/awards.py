@@ -133,6 +133,33 @@ class BidParticipantFetch(Base):
     fetched_at: Mapped[datetime] = ts_now()
 
 
+class BidOpeningStatus(Base):
+    """개찰결과 목록의 진행 상태 1행 = 공고·차수·분류·재입찰 (2026-11-26, 0014).
+
+    `status` 수집 소스가 개찰일시 창으로 받아 덮어쓴다.
+    마감 공고 카드의 사유(유찰·개찰완료·재입찰)에 쓴다.
+    """
+
+    __tablename__ = "bid_opening_status"
+
+    bid_ntce_no: Mapped[str] = mapped_column(Text, primary_key=True)
+    bid_ntce_ord: Mapped[str] = mapped_column(Text, primary_key=True)
+    bid_clsfc_no: Mapped[str] = mapped_column(Text, primary_key=True)
+    rbid_no: Mapped[str] = mapped_column(Text, primary_key=True)
+    status: Mapped[str] = mapped_column(Text)  # 개찰완료·유찰·재입찰·재시담
+    opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # opengDt
+    input_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # inptDt
+    participant_count: Mapped[int | None] = mapped_column(Integer)
+    result_text: Mapped[str | None] = mapped_column(Text)  # opengRsltNtcCntnts(200자)
+    top_name: Mapped[str | None] = mapped_column(Text)  # opengCorpInfo 1순위 업체
+    top_bizno: Mapped[str | None] = mapped_column(Text)
+    updated_at: Mapped[datetime] = ts_now()
+
+    @property
+    def key(self) -> tuple[str, str, str, str]:
+        return (self.bid_ntce_no, self.bid_ntce_ord, self.bid_clsfc_no, self.rbid_no)
+
+
 class BidJointMember(Base):
     """공동수급 구성원(계약정보 corpList, 주계약업체 포함). P11 계약 수집기가 채운다.
 

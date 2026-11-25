@@ -4418,6 +4418,17 @@
             ],
             "default": null,
             "title": "Reason"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BidOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           }
         },
         "required": [
@@ -4569,6 +4580,16 @@
             ],
             "title": "Reason"
           },
+          "outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BidOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "prespec_reg_no": {
             "anyOf": [
               {
@@ -4667,6 +4688,70 @@
           "official"
         ],
         "title": "BidDetail"
+      },
+      "BidOutcome": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "awarded",
+              "failed",
+              "opened",
+              "rebid",
+              "before_opening",
+              "waiting",
+              "prespec_closed"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Company"
+          },
+          "more": {
+            "default": 0,
+            "title": "More",
+            "type": "integer"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          },
+          "opening_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Opening At"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "BidOutcome",
+        "type": "object"
       },
       "BidSummary": {
         "properties": {
@@ -6359,6 +6444,16 @@
               }
             ],
             "title": "Reason"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BidOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "matched_keywords": {
             "items": {

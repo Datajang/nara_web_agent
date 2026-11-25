@@ -44,12 +44,17 @@ ENDPOINTS: dict[str, tuple[str, str, str | None]] = {
     "openings": (AWARD_BASE, "getOpengResultListInfoOpengCompt", None),
     # 북마크 공고 결과 감시(2026-11-25). 개찰완료 목록과 같은 오퍼레이션, 예산은 자기 몫
     "result_watch": (AWARD_BASE, "getOpengResultListInfoOpengCompt", None),
+    # 개찰 상태(2026-11-26): 개찰결과 목록을 개찰일시 창으로. 마감 공고 사유용, 예산은 자기 몫
+    "status": (AWARD_BASE, "getOpengResultListInfoServc", None),
 }
 # 낙찰정보·계약정보 서비스 소스. 키는 NARA_AWARD_API_KEY(없으면 NARA_API_KEY)
 AWARD_SOURCES = frozenset({"awards", "opening_compt", "contracts"})
 OPENINGS_SOURCE = "openings"  # 낙찰정보 서비스 키를 쓰지만 낙찰 몫 예산이 아니라 자기 몫으로 센다
 # 결과 메일 감시(G2B_RESULT_WATCH_DAILY_BUDGET): 낙찰 단건·개찰결과 상태·개찰완료 목록
 RESULT_WATCH_SOURCE = "result_watch"
+# 개찰 상태 수집(G2B_STATUS_DAILY_BUDGET): 개찰결과 목록 기간 조회
+# (docs/decisions/2026-11-26-opening-status-bulk.md)
+STATUS_SOURCE = "status"
 AWARD_OP = "getScsbidListSttusServc"
 # 개찰결과: progrsDivCdNm(개찰완료·유찰·재입찰·재시담)
 STATUS_OP = "getOpengResultListInfoServc"
@@ -61,11 +66,13 @@ LOOKUP_ENDPOINTS = {
 }
 MAX_SPAN = timedelta(days=15)
 # 공고(v1.3)·낙찰·계약: 조회 시작일~종료일이 KST 날짜 7개를 넘으면 resultCode 07 (분 길이와 무관)
-SOURCE_MAX_DATES = {"regular": 7, "awards": 7, "contracts": 7}
+SOURCE_MAX_DATES = {"regular": 7, "awards": 7, "contracts": 7, "status": 7}
+# 조회 구분: 기본 1(등록일시). 개찰 상태는 3(개찰일시)
+INQRY_DIV = {"status": "3"}
 # 창 완결성(§15.4): 창의 모든 행을 받아야 성공. 낙찰·계약은 페이지를 넘기면 순서가 흔들려
 # 행이 겹치고 다른 행이 빠지므로(2026-11-25 probe) 창을 시간으로 쪼개 한 페이지씩만 받는다.
 # 한 페이지 안에서 G2B가 건수보다 적게 주는 결함은 SHORTFALL_OK 이하만 허용하고 기록한다
-STRICT_PAGING = frozenset({"awards", "contracts"})
+STRICT_PAGING = frozenset({"awards", "contracts", "status"})
 SPLIT_FILL = 0.8  # 쪼갤 때 한 조각 목표 = 페이지의 80% (G2B 건수가 조금 늘어도 한 페이지)
 
 
@@ -276,7 +283,7 @@ class G2BClient:
         base, op, kw_param = ENDPOINTS[source]
         params: dict[str, str] = {
             "type": "json",
-            "inqryDiv": "1",
+            "inqryDiv": INQRY_DIV.get(source, "1"),
             "inqryBgnDt": start.astimezone(KST).strftime("%Y%m%d%H%M"),
             # 끝은 배타적: 마지막 분까지 포함하도록 1분 뺀다
             "inqryEndDt": (end - timedelta(minutes=1)).astimezone(KST).strftime("%Y%m%d%H%M"),

@@ -8,7 +8,7 @@
 # (약 6시간)가 한 번에 돈다. 다음 날 timer와 겹치지 않게 24시간보다 짧게
 # (docs/decisions/2026-11-24-g2b-operating-quota.md)
 [Unit]
-Description=nara collector (awards + contracts + openings: incremental + backfill)
+Description=nara collector (awards + contracts + openings: incremental + backfill, status backfill)
 After=network-online.target postgresql.service
 
 [Service]
@@ -23,6 +23,7 @@ ExecStart=-/opt/nara/venv/bin/python -m app.collector incremental --source contr
 ExecStart=-/opt/nara/venv/bin/python -m app.collector incremental --source openings
 ExecStart=-/opt/nara/venv/bin/python -m app.collector backfill --source awards
 ExecStart=-/opt/nara/venv/bin/python -m app.collector backfill --source contracts
+ExecStart=-/opt/nara/venv/bin/python -m app.collector backfill --source status
 ExecStart=/opt/nara/venv/bin/python -m app.collector backfill --source openings
 TimeoutStartSec=72000
 NoNewPrivileges=true

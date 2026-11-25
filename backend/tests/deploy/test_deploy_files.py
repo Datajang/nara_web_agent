@@ -48,12 +48,26 @@ def test_awards_collector_runs_incremental_then_backfill():
         "-/opt/nara/venv/bin/python -m app.collector incremental --source openings",
         "-/opt/nara/venv/bin/python -m app.collector backfill --source awards",
         "-/opt/nara/venv/bin/python -m app.collector backfill --source contracts",
+        "-/opt/nara/venv/bin/python -m app.collector backfill --source status",
         "/opt/nara/venv/bin/python -m app.collector backfill --source openings",
     ]
+
     # 운영계정 하루치(계약 백필 + 개찰 8만 회)를 다 돌 만큼 길고, 다음 날 timer와는 겹치지 않게
     timeout = int(one(u, "Service", "TimeoutStartSec"))
     assert 12 * 3600 <= timeout < 24 * 3600
     assert one(u, "Service", "WorkingDirectory") == "/opt/nara/app/backend"
+
+
+def test_collector_takes_opening_status_after_bids():
+    """마감 공고 사유(2026-11-26): 공고 증분 뒤 개찰 상태 증분.
+
+    개찰 상태가 실패해도 공고 결과와 무관(-).
+    """
+    starts = unit("nara-collector.service")["Service"]["ExecStart"]
+    assert starts == [
+        "/opt/nara/venv/bin/python -m app.collector incremental",
+        "-/opt/nara/venv/bin/python -m app.collector incremental --source status",
+    ]
 
 
 def test_v1_deploy_files_are_gone():
@@ -93,7 +107,7 @@ def test_app_services_read_env_file_and_are_sandboxed(name):
 def test_app_services_use_release_venv_and_private_tmpdir(name):
     u = unit(name)
     assert one(u, "Service", "WorkingDirectory") == "/opt/nara/app/backend"
-    assert one(u, "Service", "ExecStart").startswith("/opt/nara/venv/bin/")
+    assert all(c.lstrip("-").startswith("/opt/nara/venv/bin/") for c in u["Service"]["ExecStart"])
     assert "/var/lib/nara" in one(u, "Service", "ReadWritePaths").split()
     assert "TMPDIR=/var/lib/nara/tmp" in u["Service"]["Environment"]
 

@@ -1376,6 +1376,8 @@ export interface components {
              * @default null
              */
             reason: string | null;
+            /** @default null */
+            outcome: components["schemas"]["BidOutcome"] | null;
         };
         /** BidDetail */
         BidDetail: {
@@ -1419,6 +1421,7 @@ export interface components {
             score?: number | null;
             /** Reason */
             reason?: string | null;
+            outcome?: components["schemas"]["BidOutcome"] | null;
             /** Prespec Reg No */
             prespec_reg_no: string | null;
             /** Related Bid Id */
@@ -1436,6 +1439,34 @@ export interface components {
              * @default []
              */
             doc_budgets: components["schemas"]["DocBudget"][];
+        };
+        /** BidOutcome */
+        BidOutcome: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "awarded" | "failed" | "opened" | "rebid" | "before_opening" | "waiting" | "prespec_closed";
+            /**
+             * Company
+             * @default null
+             */
+            company: string | null;
+            /**
+             * More
+             * @default 0
+             */
+            more: number;
+            /**
+             * Reason
+             * @default null
+             */
+            reason: string | null;
+            /**
+             * Opening At
+             * @default null
+             */
+            opening_at: string | null;
         };
         /** BidSummary */
         BidSummary: {
@@ -2047,6 +2078,7 @@ export interface components {
             score?: number | null;
             /** Reason */
             reason?: string | null;
+            outcome?: components["schemas"]["BidOutcome"] | null;
             /** Matched Keywords */
             matched_keywords: string[];
         };

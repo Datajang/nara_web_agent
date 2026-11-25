@@ -7,10 +7,10 @@ from datetime import datetime, timedelta
 import httpx
 import pytest
 
-from app.g2b.client import G2BBudgetExceeded, G2BClient, G2BError
+from app.g2b.client import RESULT_WATCH_SOURCE, G2BBudgetExceeded, G2BClient, G2BError
 from app.usage.budget import DbCallBudget
 from tests.conftest import NOW, TEST_KEYS
-from tests.fakes.g2b import FIXTURES, FakeG2B, regular_item
+from tests.fakes.g2b import FIXTURES, FakeG2B, award_item, regular_item, status_item
 
 DAY = (NOW - timedelta(days=1), NOW)
 
@@ -107,4 +107,49 @@ async def test_budget_exceeded_stops_before_calling(db):
     client = _client(fake, budget=DbCallBudget(db, limit=0))
     with pytest.raises(G2BBudgetExceeded):
         await client.fetch("regular", *DAY)
+    assert fake.calls == 0
+
+
+# ---------- 결과 메일 감시용 호출 (2026-11-25, result-status-probe 결정 문서) ----------
+
+
+async def test_award_by_notice_filters_number():
+    """낙찰을 공고번호로 1회 조회(inqryDiv=4). 다른 공고 행은 버린다."""
+    fake = FakeG2B()
+    fake.add("awards", award_item("R26BK00000001", NOW), award_item("R26BK00000002", NOW))
+    rows = await _client(fake).award_by_notice("R26BK00000001")
+    assert [r["bidNtceNo"] for r in rows] == ["R26BK00000001"]
+    p = fake.requests[0].url.params
+    assert (p["inqryDiv"], p["bidNtceNo"]) == ("4", "R26BK00000001")
+
+
+async def test_opening_status_parses_rows():
+    """개찰결과(진행 상태)를 공고번호로 조회해 그 차수 행만 준다."""
+    fake = FakeG2B()
+    fake.add(
+        "opening_status",
+        status_item("R26BK00000001", "유찰", ord="000"),
+        status_item("R26BK00000001", "개찰완료", ord="001"),
+        status_item("R26BK00000009", "개찰완료"),
+    )
+    rows = await _client(fake).opening_status("R26BK00000001", "001")
+    assert [(r["bidNtceOrd"], r["progrsDivCdNm"]) for r in rows] == [("001", "개찰완료")]
+    p = fake.requests[0].url.params
+    assert (p["inqryDiv"], p["bidNtceNo"]) == ("4", "R26BK00000001")
+
+
+async def test_result_watch_budget_separate(db):
+    """결과 감시 몫이 바닥나면 부르지 않는다. 낙찰 몫이 남아 있어도 마찬가지."""
+    fake = FakeG2B()
+    client = _client(
+        fake,
+        source_budgets={
+            "awards": DbCallBudget(db, 100, sources=["awards"]),
+            RESULT_WATCH_SOURCE: DbCallBudget(db, 0, sources=[RESULT_WATCH_SOURCE]),
+        },
+    )
+    with pytest.raises(G2BBudgetExceeded):
+        await client.award_by_notice("R26BK00000001")
+    with pytest.raises(G2BBudgetExceeded):
+        await client.opening_results("R26BK00000001", "000", source=RESULT_WATCH_SOURCE)
     assert fake.calls == 0

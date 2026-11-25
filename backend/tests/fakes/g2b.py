@@ -45,6 +45,8 @@ TITLE_FIELD = {
     "contracts": "cntrctNm",
 }
 OPENING_OP = "getOpengResultListInfoOpengCompt"
+STATUS_OP = "getOpengResultListInfoServc"
+AWARD_OP = "getScsbidListSttusServc"
 
 
 def _template(name: str) -> dict[str, Any]:
@@ -195,6 +197,30 @@ def opening_item(
     return it
 
 
+def status_item(
+    no: str,
+    status: str,
+    *,
+    ord: str = "000",
+    clsfc: str = "0",
+    rbid: str = "000",
+    opened_at: str = "2026-11-10 10:00:00",
+    entered_at: str = "2026-11-10 10:00:30",
+) -> dict[str, Any]:
+    """개찰결과 항목(getOpengResultListInfoServc, 2026-11-25 실제 응답 필드)."""
+    return {
+        "bidNtceNo": no,
+        "bidNtceOrd": ord,
+        "bidClsfcNo": clsfc,
+        "rbidNo": rbid,
+        "progrsDivCdNm": status,
+        "opengDt": opened_at,
+        "inptDt": entered_at,
+        "bidNtceNm": "데이터 정비 용역",
+        "prtcptCnum": "0",
+    }
+
+
 def contract_item(
     ntce_no: str,
     registered_at: datetime,
@@ -223,6 +249,7 @@ class FakeG2B:
             "awards": [],
             "contracts": [],
             "opening_compt": [],
+            "opening_status": [],  # 개찰결과(진행 상태) — 결과 메일 감시
         }
         self.requests: list[httpx.Request] = []
         self.fail_queue: list[httpx.Response] = []
@@ -251,6 +278,10 @@ class FakeG2B:
             return httpx.Response(404, text="unknown service")
         if op in LOOKUP_OPS:
             return self._lookup(LOOKUP_OPS[op], p)
+        if op == STATUS_OP or (op == AWARD_OP and p.get("inqryDiv") == "4"):
+            src = "opening_status" if op == STATUS_OP else "awards"
+            matched = [it for it in self.items[src] if it["bidNtceNo"] == p.get("bidNtceNo")]
+            return _ok({"items": matched, "totalCount": len(matched)})
         if op == OPENING_OP:
             matched = [
                 it

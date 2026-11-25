@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     g2b_contracts_backfill_calls: int = 100
     # 개찰 결과 자동 수집(P12, 우리 투찰 결과). 용역 낙찰 하루 약 240건 + 남는 만큼 과거 공고
     g2b_openings_daily_budget: int = 300
+    g2b_result_watch_daily_budget: int = 500  # 북마크 공고 결과 메일 감시 (2026-11-25)
     g2b_page_size: int = 999  # docs/decisions/2026-11-11-g2b-probe.md
 
     # 첨부 파일 (§5.6)

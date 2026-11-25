@@ -1,7 +1,9 @@
-"""결과 메일 [미확인] 확인 (설계 docs/superpowers/specs/2026-11-25-bid-result-mail-design.md, 2026-11-25).
+"""결과 메일 [미확인] 확인 (2026-11-25).
 
-확인 항목: (a) 낙찰 목록 inqryDiv=4 + bidNtceNo 단건 조회 (b) 개찰결과의 진행 상태 필드(유찰·재입찰 등)
-(c) 재공고 표시 (d) 개찰 시각 대비 Open API 반영 시각. 호출 30회 이하. 서비스키는 출력하지 않는다(규칙 4).
+설계: docs/superpowers/specs/2026-11-25-bid-result-mail-design.md
+확인 항목: (a) 낙찰 목록 inqryDiv=4 + bidNtceNo 단건 조회
+(b) 개찰결과의 진행 상태 필드(유찰·재입찰 등) (c) 재공고 표시
+(d) 개찰 시각 대비 Open API 반영 시각. 호출 30회 이하. 서비스키는 출력하지 않는다(규칙 4).
 
 실행: cd backend && uv run python -m scripts.probe_results --env-file ../.env
 """
@@ -147,7 +149,8 @@ async def main() -> None:
             ]
             print(
                 f"[{it.get('progrsDivCdNm')}] {no}-{ord_} 낙찰(div4) code={aw.get('code')}"
-                f" rows={len(aw.get('items', []))} {winners[:2]} | 개찰완료 rows={len(oc.get('items', []))}"
+                f" rows={len(aw.get('items', []))} {winners[:2]}"
+                f" | 개찰완료 rows={len(oc.get('items', []))}"
             )
         # (c) 유찰 표본의 공고 차수·재공고 필드
         fail = [it for it in items if "유찰" in str(it.get("progrsDivCdNm"))][:2]

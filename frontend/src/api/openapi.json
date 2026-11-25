@@ -1697,6 +1697,104 @@
         }
       }
     },
+    "/api/v1/my-bids/export": {
+      "get": {
+        "tags": [
+          "mybids"
+        ],
+        "summary": "Export My Bids",
+        "description": "투찰 결과 엑셀: 목록과 같은 조건·같은 쿼리. LLM·G2B 호출 없음.",
+        "operationId": "export_my_bids_api_v1_my_bids_export_get",
+        "parameters": [
+          {
+            "name": "result",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "all",
+                "won",
+                "lost"
+              ],
+              "type": "string",
+              "default": "all",
+              "title": "Result"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "사업명 일부(띄어쓰기 무시)",
+              "title": "Q"
+            },
+            "description": "사업명 일부(띄어쓰기 무시)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/my-bids": {
       "get": {
         "tags": [

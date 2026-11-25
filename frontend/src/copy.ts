@@ -762,6 +762,11 @@ export const copy = {
     emptyFiltered: '조건에 맞는 투찰 결과가 없어요. 기간이나 사업명을 바꿔 보세요.',
     loadMore: '더 보기',
     loadFailed: '투찰 결과를 불러오지 못했어요. 다시 시도해 주세요.',
+    // 엑셀 다운로드(2026-11-25): 화면 조건 그대로, 요약 + 연도별 시트
+    exportButton: '엑셀 다운로드',
+    exportLabel: '지금 조건의 투찰 결과를 연도별 시트 엑셀로 받기',
+    exportDone: '엑셀 파일을 받았어요.',
+    exportFilename: (date: string) => `${date}_투찰 결과.xlsx`,
     detailTitle: '투찰 결과 상세',
     back: '투찰 결과 목록으로',
     openBid: '공고 보기',

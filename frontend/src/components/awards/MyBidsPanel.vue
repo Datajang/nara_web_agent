@@ -2,10 +2,21 @@
 // 우리 투찰 결과 (P12): 낙찰·탈락 목록. 결과 구분(전체·낙찰·탈락)은 URL ?result=와 맞춘다.
 // 순위가 없으면 추정하지 않고 사유(비고)를 보여 준다 (docs/decisions/2026-11-17-p12a-opening-ranks.md).
 // 연도·기간·사업명 필터(2026-11-24): 결과별 건수도 같은 조건으로 센다.
+// 엑셀 다운로드(2026-11-25): 지금 조건 그대로 서버가 요약 + 연도별 시트로 만든다.
+import { Download } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { NO_NARROW, type AwardNarrow } from '@/api/awards'
-import { keyPath, myBidsApi, rankText, resultBadge, type MyBid, type MyBidFilter, type MyBidList } from '@/api/mybids'
+import {
+  keyPath,
+  myBidsApi,
+  myBidsExportFilename,
+  rankText,
+  resultBadge,
+  type MyBid,
+  type MyBidFilter,
+  type MyBidList,
+} from '@/api/mybids'
 import AwardsFilter from '@/components/awards/AwardsFilter.vue'
 import MoneyText from '@/components/bid/MoneyText.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
@@ -14,7 +25,10 @@ import UiFilterBar from '@/components/ui/UiFilterBar.vue'
 import UiSegmented from '@/components/ui/UiSegmented.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { copy } from '@/copy'
+import { useUiStore } from '@/stores/ui'
+import { generalMessage } from '@/utils/authErrors'
 import { formatDate, formatPct } from '@/utils/format'
+import { saveBlob } from '@/utils/saveBlob'
 
 defineProps<{ years: number[] }>()
 const route = useRoute()
@@ -68,6 +82,20 @@ async function load(reset: boolean) {
 
 watch([filter, narrow], () => load(true), { immediate: true })
 
+const ui = useUiStore()
+const exporting = ref(false)
+async function exportXlsx() {
+  exporting.value = true
+  try {
+    saveBlob(await myBidsApi.exportXlsx(filter.value, narrow.value), myBidsExportFilename())
+    ui.toast(copy.myBids.exportDone, 'success')
+  } catch (e) {
+    ui.toast(generalMessage(e), 'danger')
+  } finally {
+    exporting.value = false
+  }
+}
+
 const keyOf = (b: MyBid) => keyPath(b)
 // 공동수급 역할·지분(2026-11-24): 구성원 낙찰도 '낙찰'로 센다
 const roleText = (b: MyBid) => {
@@ -81,8 +109,20 @@ const roleText = (b: MyBid) => {
     <p class="text-sm text-text-2">{{ copy.myBids.intro }}</p>
     <UiFilterBar :label="copy.myBids.filterLabel">
       <UiSegmented v-model="filter" :label="copy.myBids.filterLabel" :options="options" hide-label />
-      <template v-if="scanText" #end>
-        <p class="text-xs text-text-3" data-scan>{{ scanText }}</p>
+      <template #end>
+        <p v-if="scanText" class="text-xs text-text-3" data-scan>{{ scanText }}</p>
+        <UiButton
+          size="sm"
+          variant="secondary"
+          :loading="exporting"
+          :disabled="!items.length"
+          :title="copy.myBids.exportLabel"
+          data-my-bids-export
+          @click="exportXlsx"
+        >
+          <Download class="size-4" aria-hidden="true" />
+          <span>{{ copy.myBids.exportButton }}</span>
+        </UiButton>
       </template>
     </UiFilterBar>
     <AwardsFilter v-model="narrow" :years="years" />

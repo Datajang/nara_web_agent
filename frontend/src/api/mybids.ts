@@ -1,7 +1,7 @@
 // 우리 투찰 결과(낙찰·탈락) API (P12, docs/decisions/2026-11-17-p12a-opening-ranks.md).
 import { copy } from '@/copy'
 import { NO_NARROW, type AwardNarrow } from './awards'
-import { api } from './client'
+import { api, requestBlob } from './client'
 import type { components } from './schema'
 
 type S = components['schemas']
@@ -11,15 +11,23 @@ export type MyBidDetail = S['MyBidDetailOut']
 export type MyBidParticipant = S['MyBidParticipantOut']
 export type MyBidFilter = 'all' | 'won' | 'lost'
 
+function params(result: MyBidFilter, narrow: AwardNarrow): URLSearchParams {
+  const p = new URLSearchParams({ result })
+  if (narrow.from) p.set('from', narrow.from)
+  if (narrow.to) p.set('to', narrow.to)
+  if (narrow.q) p.set('q', narrow.q)
+  return p
+}
+
 export const myBidsApi = {
   list: (result: MyBidFilter, narrow: AwardNarrow = NO_NARROW, cursor?: string | null) => {
-    const p = new URLSearchParams({ result })
-    if (narrow.from) p.set('from', narrow.from)
-    if (narrow.to) p.set('to', narrow.to)
-    if (narrow.q) p.set('q', narrow.q)
+    const p = params(result, narrow)
     if (cursor) p.set('cursor', cursor)
     return api.get<MyBidList>(`/my-bids?${p.toString()}`)
   },
+  /** 투찰 결과 엑셀(2026-11-25): 화면 조건 그대로, 요약 + 연도별 시트. */
+  exportXlsx: (result: MyBidFilter, narrow: AwardNarrow = NO_NARROW) =>
+    requestBlob(`/my-bids/export?${params(result, narrow).toString()}`),
   detail: (k: MyBidKey) => api.get<MyBidDetail>(`/my-bids/${keyPath(k)}`),
 }
 
@@ -48,4 +56,11 @@ export function rankText(b: MyBid): string {
   if (!b.fetched) return copy.myBids.rankLater
   if (b.result === 'won') return '' // 공동수급 구성원 등 개찰 결과에 우리 행이 없는 낙찰
   return b.remark ? `${copy.myBids.noRank} · ${b.remark}` : copy.myBids.noRank
+}
+
+const KST_DATE = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' })
+
+/** "[오늘 날짜(한국)]_투찰 결과.xlsx" — 서버 이름과 같다. */
+export function myBidsExportFilename(now: Date = new Date()): string {
+  return copy.myBids.exportFilename(KST_DATE.format(now))
 }

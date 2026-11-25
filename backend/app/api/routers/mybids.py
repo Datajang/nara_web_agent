@@ -1,6 +1,7 @@
 """우리 투찰 결과(낙찰·탈락) API (P12, docs/decisions/2026-11-17-p12a-opening-ranks.md).
 
 - GET /my-bids: 우리가 낙찰했거나 개찰 결과에 우리가 있는 공고. 결과·순위·낙찰업체
+- GET /my-bids/export: 같은 조건의 엑셀(요약 + 연도별 시트, 2026-11-25)
 - GET /my-bids/{no}/{ord}/{clsfc}/{rbid}: 공고 하나의 참가업체 전체(순위·투찰·점수·비고)와
   업체별 낙찰 수.
   개찰 결과가 아직 없으면 그 공고만 온디맨드로 1회 부른다(낙찰 몫, P11과 같은 캐시)
@@ -11,8 +12,9 @@ from __future__ import annotations
 
 from datetime import date
 from typing import Annotated, Literal
+from urllib.parse import quote
 
-from fastapi import APIRouter, Path, Query
+from fastapi import APIRouter, Path, Query, Response
 
 from app.api.deps import ActiveUser, Ctx, DbSession
 from app.api.schemas.mybids import (
@@ -24,6 +26,7 @@ from app.api.schemas.mybids import (
     OpeningScanOut,
 )
 from app.awards import mybids as mb
+from app.awards import mybids_export as mbx
 from app.awards import participants as parts
 from app.awards import service as svc
 from app.awards import views
@@ -66,20 +69,15 @@ def item_out(i: mb.MyBid, us: str) -> MyBidOut:
     )
 
 
-@router.get("/my-bids")
-async def list_my_bids(
-    _: ActiveUser,
-    s: DbSession,
-    ctx: Ctx,
-    result: Annotated[Literal["all", "won", "lost"], Query()] = "all",
-    date_from: Annotated[date | None, Query(alias="from")] = None,
-    date_to: Annotated[date | None, Query(alias="to")] = None,
-    q: Annotated[
-        str | None, Query(max_length=100, description="사업명 일부(띄어쓰기 무시)")
-    ] = None,
-    cursor: Annotated[str | None, Query(max_length=200)] = None,
-    limit: Annotated[int, Query(ge=1, le=100)] = 30,
-) -> MyBidListOut:
+ResultQ = Annotated[Literal["all", "won", "lost"], Query()]
+FromQ = Annotated[date | None, Query(alias="from")]
+ToQ = Annotated[date | None, Query(alias="to")]
+TitleQ = Annotated[str | None, Query(max_length=100, description="사업명 일부(띄어쓰기 무시)")]
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+EXPORT_MAX = 5000  # 우리 관련 공고는 수백 건. 넘으면 앞(최신)부터 자른다
+
+
+def _check_range(date_from: date | None, date_to: date | None) -> None:
     if date_from and date_to and date_from > date_to:
         raise ApiError(
             422,
@@ -87,6 +85,61 @@ async def list_my_bids(
             "시작일이 종료일보다 늦어요. 기간을 다시 골라 주세요.",
             details=[{"field": "from", "reason": "after_to"}],
         )
+
+
+@router.get("/my-bids/export", response_class=Response, responses={200: {"content": {XLSX: {}}}})
+async def export_my_bids(
+    user: ActiveUser,
+    s: DbSession,
+    ctx: Ctx,
+    result: ResultQ = "all",
+    date_from: FromQ = None,
+    date_to: ToQ = None,
+    q: TitleQ = None,
+) -> Response:
+    """투찰 결과 엑셀: 목록과 같은 조건·같은 쿼리. LLM·G2B 호출 없음."""
+    _check_range(date_from, date_to)
+    ctx.limiter.hit(f"mybids-export:{user.id}", 20, 60)
+    _org, us, _name = await views.us_config(s, ctx.deps)
+    narrow = mb.Narrow(date_from, date_to, q or None)
+    js = await svc.joint_shares(s, us)
+    items: list[mb.MyBid] = []
+    cur = None
+    while len(items) < EXPORT_MAX:
+        page, cur = await mb.page(s, us, result, cur, 500, narrow, js)
+        items += page
+        if cur is None:
+            break
+    _since, done, _total = await mb.scan_status(s)
+    now = ctx.deps.clock()
+    body = mbx.build_xlsx(
+        [item_out(i, us) for i in items[:EXPORT_MAX]],
+        done,
+        mbx.describe(result, date_from, date_to, q or None),
+        now,
+        ctx.deps.settings.app_origin,
+    )
+    name = mbx.export_filename(now)
+    return Response(
+        body,
+        media_type=XLSX,
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(name)}"},
+    )
+
+
+@router.get("/my-bids")
+async def list_my_bids(
+    _: ActiveUser,
+    s: DbSession,
+    ctx: Ctx,
+    result: ResultQ = "all",
+    date_from: FromQ = None,
+    date_to: ToQ = None,
+    q: TitleQ = None,
+    cursor: Annotated[str | None, Query(max_length=200)] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 30,
+) -> MyBidListOut:
+    _check_range(date_from, date_to)
     _org, us, _name = await views.us_config(s, ctx.deps)
     narrow = mb.Narrow(date_from, date_to, q or None)
     cur = None

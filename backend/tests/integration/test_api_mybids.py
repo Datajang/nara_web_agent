@@ -156,6 +156,37 @@ async def test_joint_member_win_counts_as_won(full_api, fake_g2b):
     assert joint not in [i["bid_ntce_no"] for i in lost["items"]]
 
 
+async def test_export_follows_filters(full_api, fake_g2b):
+    """투찰 결과 엑셀(2026-11-25): 화면 조건 그대로, 요약 + 연도별 시트, 시작>종료는 422."""
+    from io import BytesIO
+
+    from openpyxl import load_workbook
+
+    a = await _setup(full_api, fake_g2b)
+    full = await a.get("/api/v1/my-bids/export")
+    lost = await a.get("/api/v1/my-bids/export?result=lost&q=용역")
+    bad = await a.get("/api/v1/my-bids/export?from=2026-11-08&to=2026-11-07")
+    await a.aclose()
+
+    assert full.status_code == 200, full.text
+    assert full.headers["content-type"].startswith("application/vnd.openxmlformats")
+    assert "attachment" in full.headers["content-disposition"]
+    wb = load_workbook(BytesIO(full.content))
+    assert wb.sheetnames == ["요약", "2026"]
+    nos = [r[13] for r in list(wb["2026"].iter_rows(values_only=True))[1:]]
+    assert sorted(nos) == sorted(f"{n}-000" for n in (WON, LOST, DQ, WON_LATER))
+    summary = list(wb["요약"].iter_rows(values_only=True))
+    assert summary[1][:4] == (2026, 4, 2, 2)
+    assert any("받은 공고 4건" in str(r[0]) for r in summary)
+    lw = load_workbook(BytesIO(lost.content))
+    results = {r[1] for r in list(lw["2026"].iter_rows(values_only=True))[1:]}
+    assert results == {"탈락", "부적격"}
+    assert any(
+        "결과 탈락 · 사업명 '용역'" in str(r[0]) for r in lw["요약"].iter_rows(values_only=True)
+    )
+    assert bad.status_code == 422
+
+
 async def test_detail_lists_all_participants_and_loads_missing_once(full_api, fake_g2b):
     a = await _setup(full_api, fake_g2b)
     before = len(_calls(fake_g2b))

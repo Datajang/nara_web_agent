@@ -567,6 +567,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/my-bids/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export My Bids
+         * @description 투찰 결과 엑셀: 목록과 같은 조건·같은 쿼리. LLM·G2B 호출 없음.
+         */
+        get: operations["export_my_bids_api_v1_my_bids_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/my-bids": {
         parameters: {
             query?: never;
@@ -4364,6 +4384,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CompetitionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_my_bids_api_v1_my_bids_export_get: {
+        parameters: {
+            query?: {
+                result?: "all" | "won" | "lost";
+                from?: string | null;
+                to?: string | null;
+                /** @description 사업명 일부(띄어쓰기 무시) */
+                q?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": unknown;
                 };
             };
             /** @description Validation Error */

@@ -1,7 +1,7 @@
 // P12 화면: 우리 수주 현황의 '투찰 결과' 탭(낙찰·탈락)과 투찰 결과 상세.
 // 순위가 없으면 추정하지 않고 사유(비고)를 보여 준다 (docs/decisions/2026-11-17-p12a-opening-ranks.md).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { rankText, type MyBid } from '@/api/mybids'
+import { myBidsExportFilename, rankText, type MyBid } from '@/api/mybids'
 import { copy } from '@/copy'
 import { formatMoney, formatPct } from '@/utils/format'
 import { json, mockApi, mountAt, settle, text, type Mounted } from './helpers'
@@ -142,6 +142,44 @@ describe("우리 수주 현황 '투찰 결과' 탭", () => {
     expect(row.text()).not.toContain('89.9%') // 우리 투찰률도 없다
     // 직접 투찰하지 않았으므로 투찰금액 대신 우리 지분 금액(8,000만 × 18.9%)
     expect(row.get('[data-our-share-amount]').text()).toContain(formatMoney(Math.round(80_000_000 * 0.189)))
+  })
+
+  it('엑셀 다운로드는 화면 조건 그대로 요청하고 한국 날짜 파일 이름으로 저장한다', async () => {
+    const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    const api = mockApi({
+      'GET /api/v1/awards/summary': json(SUMMARY),
+      'GET /api/v1/my-bids': json(LIST),
+      'GET /api/v1/my-bids/export': () => new Response('x', { status: 200, headers: { 'content-type': XLSX } }),
+    })
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} }))
+    const names: string[] = []
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      names.push(this.download)
+    })
+    m = await mountAt('/my-awards?tab=bids&result=lost')
+    await settle()
+    const btn = m.wrapper.get('[data-my-bids-export]')
+    expect(btn.text()).toContain(copy.myBids.exportButton)
+    await btn.trigger('click')
+    await settle()
+    const call = api.calls.find((c) => c.url.startsWith('/api/v1/my-bids/export'))!
+    expect(call.url).toBe('/api/v1/my-bids/export?result=lost')
+    expect(names).toEqual([myBidsExportFilename(new Date())])
+    vi.restoreAllMocks()
+  })
+
+  it('목록이 비면 엑셀 다운로드를 누를 수 없다', async () => {
+    mockApi({
+      'GET /api/v1/awards/summary': json(SUMMARY),
+      'GET /api/v1/my-bids': json({ ...LIST, items: [], counts: { all: 0, won: 0, lost: 0 } }),
+    })
+    m = await mountAt('/my-awards?tab=bids')
+    await settle()
+    expect(m.wrapper.get('[data-my-bids-export]').attributes('disabled')).toBeDefined()
+  })
+
+  it('엑셀 파일 이름은 한국 날짜 기준', () => {
+    expect(myBidsExportFilename(new Date('2026-11-24T16:00:00Z'))).toBe('2026-11-25_투찰 결과.xlsx')
   })
 
   it('낙찰 현황 탭이 기본이고 투찰 결과는 탭을 열 때만 부른다', async () => {

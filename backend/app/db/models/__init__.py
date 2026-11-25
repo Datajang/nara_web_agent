@@ -8,6 +8,7 @@ from app.db.models.awards import (
     WatchedCompany,
 )
 from app.db.models.personal import (
+    BidResultMail,
     Bookmark,
     Conversation,
     EmailToken,
@@ -27,6 +28,7 @@ from app.db.models.shared import (
     Analysis,
     Bid,
     BidFile,
+    BidResultWatch,
     BidScore,
     BidSummary,
     CollectorCoverage,
@@ -45,6 +47,8 @@ __all__ = [
     "Analysis",
     "Bid",
     "BidFile",
+    "BidResultMail",
+    "BidResultWatch",
     "BidScore",
     "BidSummary",
     "Bookmark",

@@ -174,3 +174,37 @@ class CollectorCoverage(Base):
     covered_from: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     covered_to: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = _now()
+
+
+class BidResultWatch(Base):
+    """북마크된 일반공고의 결과 감시 (5분 타이머, 2026-11-25 결과 메일 설계).
+
+    stage: waiting(개찰 결과 기다림) → opened(개찰완료, 최종 기다림) → final(낙찰·유찰) / expired(60일).
+    유찰(final_kind=failed)이면 30일 동안 DB에서 재공고를 찾아 renotice_bid_id에 둔다.
+    """
+
+    __tablename__ = "bid_result_watch"
+    __table_args__ = (
+        CheckConstraint("stage IN ('waiting','opened','final','expired')", name="stage"),
+        CheckConstraint(
+            "final_kind IS NULL OR final_kind IN ('awarded','failed')", name="final_kind"
+        ),
+        Index(
+            "ix_bid_result_watch_due",
+            "next_check_at",
+            postgresql_where=text("stage IN ('waiting','opened')"),
+        ),
+    )
+
+    bid_id: Mapped[int] = mapped_column(ForeignKey("bids.id", ondelete="CASCADE"), primary_key=True)
+    stage: Mapped[str] = mapped_column(Text, server_default="waiting")
+    notice_ord: Mapped[str] = mapped_column(Text)
+    opening_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    next_check_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    final_kind: Mapped[str | None] = mapped_column(Text)
+    final_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    renotice_bid_id: Mapped[int | None] = mapped_column(ForeignKey("bids.id", ondelete="SET NULL"))
+    renotice_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    checks: Mapped[int] = mapped_column(Integer, server_default="0")
+    updated_at: Mapped[datetime] = _now()

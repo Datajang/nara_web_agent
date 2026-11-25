@@ -76,6 +76,8 @@ class User(Base):
     feed_include_small: Mapped[bool] = mapped_column(
         Boolean, server_default="false"
     )  # 관심 공고 1억 미만도
+    # 북마크한 공고의 결과 메일 전체 스위치 (2026-11-25, 결과 메일 설계)
+    result_mail: Mapped[bool] = mapped_column(Boolean, server_default="true")
     # /me 응답에 팀 이름이 필요하다. 사용자를 읽을 때 함께 읽는다(비동기 지연 로딩 금지)
     team: Mapped[Team | None] = relationship(lazy="joined")
 
@@ -195,6 +197,23 @@ class Bookmark(Base):
     analysis_id: Mapped[int | None] = mapped_column(ForeignKey("analyses.id", ondelete="SET NULL"))
     note: Mapped[str] = mapped_column(Text, server_default="")
     created_at: Mapped[datetime] = ts_now()
+    notify_result: Mapped[bool] = mapped_column(Boolean, server_default="true")  # 결과 메일
+
+
+class BidResultMail(Base):
+    """보낸 결과 메일 (사람·공고·단계마다 한 번, 2026-11-25)."""
+
+    __tablename__ = "bid_result_mails"
+    __table_args__ = (
+        UniqueConstraint("user_id", "bid_id", "stage"),
+        CheckConstraint("stage IN ('opened','final','renotice')", name="stage"),
+    )
+
+    id: Mapped[int] = pk()
+    user_id: Mapped[int] = _user_fk()
+    bid_id: Mapped[int] = mapped_column(ForeignKey("bids.id", ondelete="CASCADE"))
+    stage: Mapped[str] = mapped_column(Text)
+    sent_at: Mapped[datetime] = ts_now()
 
 
 class Conversation(Base):

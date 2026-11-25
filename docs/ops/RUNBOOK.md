@@ -56,6 +56,14 @@ sudo journalctl -u nara-vllm -f | grep -E 'Running|KV cache usage'   # 분석 1�
 측정: 아직 분석·요약한 적 없는 첨부 많은 공고를 하나 분석 → 위 사용량 쿼리 2번 표 `analyze`의 시간을 264초와 비교.
 vLLM 로그에서 `Running: 8 reqs`·`Waiting: 0`·KV 사용률을 본다. 되돌리기: 백업 파일을 `nara.env`로 복사 → `nara-api` 재시작.
 
+## 북마크 공고 결과 메일 (`nara-result-watch.timer`, 5분, 2026-11-25)
+배포(0013 마이그레이션 포함) 뒤 **한 번** 켠다(`deploy.sh`는 타이머를 켜지 않는다). 몫은 `G2B_RESULT_WATCH_DAILY_BUDGET`(500).
+```bash
+sudo systemctl enable --now nara-result-watch.timer
+systemctl list-timers nara-result-watch.timer
+journalctl -u nara-result-watch -n 20 --no-pager   # '결과 메일: 새 감시 N · 바뀐 공고 N · 보낸 메일 N'
+```
+
 ## 실제 장애 복구
 `systemctl stop nara-api nara-collector.timer` → 위 명령으로 새 DB(예: `nara_restored`)에 복원·확인 →
 `nara.env`의 `DATABASE_URL` DB 이름을 바꿈 → `systemctl start nara-api nara-collector.timer` → `/readyz`.

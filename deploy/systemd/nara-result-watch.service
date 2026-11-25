@@ -1,0 +1,20 @@
+# 북마크 공고 결과 메일 (2026-11-25, docs/superpowers/specs/2026-11-25-bid-result-mail-design.md).
+# 감시 맞추기 → 확인할 때가 된 공고만 G2B 확인 → 메일. 처음 켤 때: systemctl enable --now nara-result-watch.timer
+[Unit]
+Description=nara bookmarked bid result mail (check + send)
+After=network-online.target postgresql.service
+
+[Service]
+Type=oneshot
+User=nara
+WorkingDirectory=/opt/nara/app/backend
+EnvironmentFile=/etc/nara/nara.env
+Environment=TMPDIR=/var/lib/nara/tmp
+Environment=HOME=/var/lib/nara
+ExecStart=/opt/nara/venv/bin/python -m app.results
+TimeoutStartSec=240
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/nara

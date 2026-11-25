@@ -18,14 +18,21 @@ SERVICES = [
     "nara-collector-awards.service",
     "nara-backup.service",
     "nara-alert.service",
+    "nara-result-watch.service",
 ]
 TIMERS = [
     "nara-collector.timer",
     "nara-collector-awards.timer",
     "nara-backup.timer",
     "nara-alert.timer",
+    "nara-result-watch.timer",
 ]
-APP_SERVICES = ["nara-api.service", "nara-collector.service", "nara-alert.service"]
+APP_SERVICES = [
+    "nara-api.service",
+    "nara-collector.service",
+    "nara-alert.service",
+    "nara-result-watch.service",
+]
 
 
 def test_awards_collector_runs_incremental_then_backfill():
@@ -140,6 +147,17 @@ def test_collector_and_backup_and_alert_schedules():
     backup_svc = unit("nara-backup.service")
     assert one(backup_svc, "Service", "ExecStart") == "/opt/nara/app/deploy/backup.sh"
     assert "/var/backups/nara" in one(backup_svc, "Service", "ReadWritePaths").split()
+
+
+def test_result_watch_runs_every_five_minutes():
+    """북마크 공고 결과 메일(2026-11-25): 5분마다 한 번, 이전 실행과 겹치지 않을 만큼 짧게."""
+    timer = unit("nara-result-watch.timer")
+    assert one(timer, "Timer", "OnCalendar") == "*:0/5"
+    svc = unit("nara-result-watch.service")
+    assert one(svc, "Service", "Type") == "oneshot"
+    assert one(svc, "Service", "ExecStart") == "/opt/nara/venv/bin/python -m app.results"
+    assert int(one(svc, "Service", "TimeoutStartSec")) <= 600
+    assert env_example()["G2B_RESULT_WATCH_DAILY_BUDGET"] == "500"
 
 
 # ---------- nginx (§11.4, §9.5) ----------

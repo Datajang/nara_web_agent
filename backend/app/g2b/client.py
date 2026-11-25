@@ -48,7 +48,7 @@ ENDPOINTS: dict[str, tuple[str, str, str | None]] = {
 # 낙찰정보·계약정보 서비스 소스. 키는 NARA_AWARD_API_KEY(없으면 NARA_API_KEY)
 AWARD_SOURCES = frozenset({"awards", "opening_compt", "contracts"})
 OPENINGS_SOURCE = "openings"  # 낙찰정보 서비스 키를 쓰지만 낙찰 몫 예산이 아니라 자기 몫으로 센다
-# 결과 메일 감시(G2B_RESULT_WATCH_DAILY_BUDGET). 낙찰 단건·개찰결과 상태·개찰완료 목록을 이 몫으로 센다
+# 결과 메일 감시(G2B_RESULT_WATCH_DAILY_BUDGET): 낙찰 단건·개찰결과 상태·개찰완료 목록
 RESULT_WATCH_SOURCE = "result_watch"
 AWARD_OP = "getScsbidListSttusServc"
 # 개찰결과: progrsDivCdNm(개찰완료·유찰·재입찰·재시담)

@@ -461,6 +461,7 @@ export const copy = {
     noticeBody: (email: string) =>
       `개찰 직후와 최종 결과(낙찰·유찰·재공고) 때 ${email}로 보내드려요. 보관함에서 공고마다, 설정 > 계정에서 전체를 끌 수 있어요.`,
     noticeNoOpening: '이 공고는 개찰일 정보가 없어 결과 메일을 보내드릴 수 없어요.',
+    noticeTooLate: '이 공고는 이미 결과가 나왔거나 개찰이 오래 지나 결과 메일을 보내드릴 수 없어요.',
     hideForever: '다시 보지 않기',
     ok: '확인',
     libraryToggle: '결과 메일',

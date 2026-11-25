@@ -2,7 +2,7 @@
 
 - bookmarks.notify_result, users.result_mail: 기본 켬(기존 행도 켬)
 - bid_result_watch: 공고별 결과 감시 상태(5분 타이머)
-- bid_result_mails: 보낸 메일(사람·공고·단계마다 한 번)
+- bid_result_mails: 결과 메일 발송 대기열(사람·공고·단계마다 한 줄, pending → sent/failed/cancelled)
 - 컬럼·테이블 추가만이라 이전 코드와 호환된다(§11.5)
 
 Revision ID: 0013
@@ -80,9 +80,16 @@ def upgrade() -> None:
         sa.Column("user_id", sa.BigInteger(), nullable=False),
         sa.Column("bid_id", sa.BigInteger(), nullable=False),
         sa.Column("stage", sa.Text(), nullable=False),
-        sa.Column("sent_at", TS, server_default=sa.text("now()"), nullable=False),
+        sa.Column("status", sa.Text(), server_default="pending", nullable=False),
+        sa.Column("attempts", sa.Integer(), server_default="0", nullable=False),
+        sa.Column("created_at", TS, server_default=sa.text("now()"), nullable=False),
+        sa.Column("sent_at", TS, nullable=True),
         sa.CheckConstraint(
             "stage IN ('opened','final','renotice')", name=op.f("ck_bid_result_mails_stage")
+        ),
+        sa.CheckConstraint(
+            "status IN ('pending','sent','failed','cancelled')",
+            name=op.f("ck_bid_result_mails_status"),
         ),
         sa.ForeignKeyConstraint(
             ["bid_id"],
@@ -102,8 +109,16 @@ def upgrade() -> None:
         ),
     )
 
+    op.create_index(
+        "ix_bid_result_mails_pending",
+        "bid_result_mails",
+        ["id"],
+        postgresql_where=sa.text("status = 'pending'"),
+    )
+
 
 def downgrade() -> None:
+    op.drop_index("ix_bid_result_mails_pending", table_name="bid_result_mails")
     op.drop_table("bid_result_mails")
     op.drop_index("ix_bid_result_watch_due", table_name="bid_result_watch")
     op.drop_table("bid_result_watch")

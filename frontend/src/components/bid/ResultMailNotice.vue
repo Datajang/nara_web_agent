@@ -22,6 +22,12 @@ watch(
   () => (hide.value = false),
 )
 
+const message = computed(() => {
+  const n = ui.resultNotice
+  if (!n || n.watching) return copy.resultMail.noticeBody(auth.me?.email ?? '')
+  return n.hasOpening ? copy.resultMail.noticeTooLate : copy.resultMail.noticeNoOpening
+})
+
 function close() {
   if (hide.value) hideNoticeForever()
   ui.resultNotice = null
@@ -31,7 +37,7 @@ function close() {
 <template>
   <UiModal v-model:open="open" :title="copy.resultMail.noticeTitle">
     <p class="text-base text-text-2">
-      {{ ui.resultNotice?.watching === false ? copy.resultMail.noticeNoOpening : copy.resultMail.noticeBody(auth.me?.email ?? '') }}
+      {{ message }}
     </p>
     <label class="mt-4 inline-flex items-center gap-2 text-sm text-text-2">
       <input v-model="hide" name="result-mail-hide" type="checkbox" class="size-4 accent-primary" />

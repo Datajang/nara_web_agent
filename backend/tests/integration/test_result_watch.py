@@ -100,3 +100,12 @@ async def test_sync_creates_for_existing_bookmarks(deps):
     async with deps.db.session() as s:
         ids = (await s.execute(select(BidResultWatch.bid_id))).scalars().all()
     assert ids == [on.id]
+
+
+async def test_past_opening_checked_right_away(deps):
+    """개찰이 이미 지난 공고에 감시를 걸면 바로 확인한다(5분 뒤가 아니라)."""
+    bid = await _bid(deps, _regular("R26BK90000008", NOW - timedelta(hours=1)))
+    async with deps.db.transaction() as s:
+        await ensure_watch(s, bid, NOW)
+    got = await _watch(deps, bid.id)
+    assert got is not None and got.next_check_at == NOW

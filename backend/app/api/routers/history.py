@@ -27,7 +27,7 @@ from app.db.models import Bid, SearchRun
 from app.history import repo
 from app.llm.schemas import AnyAnalysis
 from app.llm.versions import bid_ref
-from app.results.watch import ensure_watch, opening_of
+from app.results.watch import ACTIVE, ensure_watch, opening_of
 
 _ANALYSIS: TypeAdapter[AnyAnalysis] = TypeAdapter(AnyAnalysis)
 
@@ -157,7 +157,9 @@ async def list_bookmarks(user: ActiveUser, s: DbSession, ctx: Ctx) -> BookmarkLi
 
 async def _watch_out(s: DbSession, bid: Bid, notify: bool, ctx: Ctx) -> BookmarkPutOut:
     """알림이 켜져 있으면 결과 감시를 걸고(일반공고·개찰일 있음) 그 상태를 돌려준다."""
-    watching = notify and await ensure_watch(s, bid, ctx.deps.clock()) is not None
+    w = await ensure_watch(s, bid, ctx.deps.clock()) if notify else None
+    # 결과가 이미 나왔거나(final) 그만둔(expired) 감시는 앞으로 메일이 없다
+    watching = w is not None and w.stage in ACTIVE
     await s.commit()
     found = opening_of(bid) if bid.source == "regular" else None
     return BookmarkPutOut(

@@ -109,3 +109,12 @@ def test_classes_grouped():
     assert "[분류 1]" in two.body and "[분류 2]" in two.body
     one = render(_view(), "a@corp.example", ORIGIN, SERVICE)
     assert "[분류" not in one.body
+
+
+def test_subject_has_no_newlines():
+    """G2B 사업명에 줄바꿈이 섞여도 메일 제목은 한 줄(EmailMessage는 제목의 줄바꿈을 거부한다)."""
+    from email.message import EmailMessage
+
+    mail = render(_view(title="데이터\r\n정비   용역"), "a@corp.example", ORIGIN, SERVICE)
+    assert mail.subject == "[나라장터 도우미] 개찰 결과: 데이터 정비 용역"
+    EmailMessage()["Subject"] = mail.subject  # 예외 없음

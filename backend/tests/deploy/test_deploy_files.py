@@ -157,7 +157,8 @@ def test_result_watch_runs_every_five_minutes():
     assert one(svc, "Service", "Type") == "oneshot"
     assert one(svc, "Service", "ExecStart") == "/opt/nara/venv/bin/python -m app.results"
     assert int(one(svc, "Service", "TimeoutStartSec")) <= 600
-    assert env_example()["G2B_RESULT_WATCH_DAILY_BUDGET"] == "500"
+    # 바쁜 날(공고마다 개찰 당일 약 150회, 최종 대기 하루 8회)도 하루 늦지 않게
+    assert env_example()["G2B_RESULT_WATCH_DAILY_BUDGET"] == "3000"
 
 
 # ---------- nginx (§11.4, §9.5) ----------

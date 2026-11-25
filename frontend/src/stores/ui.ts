@@ -45,10 +45,10 @@ export const useUiStore = defineStore('ui', () => {
     toasts.value = toasts.value.filter((t) => t.id !== id)
   }
 
-  // 북마크 결과 메일 안내 팝업(2026-11-25). watching=false면 '개찰일 정보 없음' 문구
-  const resultNotice = ref<{ watching: boolean } | null>(null)
-  function showResultNotice(watching: boolean): void {
-    resultNotice.value = { watching }
+  // 북마크 결과 메일 안내 팝업(2026-11-25). watching=false면 개찰일 유무로 '정보 없음'·'너무 늦음' 문구
+  const resultNotice = ref<{ watching: boolean; hasOpening: boolean } | null>(null)
+  function showResultNotice(watching: boolean, hasOpening: boolean): void {
+    resultNotice.value = { watching, hasOpening }
   }
 
   return {

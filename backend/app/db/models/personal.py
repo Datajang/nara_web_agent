@@ -201,19 +201,28 @@ class Bookmark(Base):
 
 
 class BidResultMail(Base):
-    """보낸 결과 메일 (사람·공고·단계마다 한 번, 2026-11-25)."""
+    """결과 메일 발송 대기열 (사람·공고·단계마다 한 줄, 2026-11-25).
+
+    감지 때 받을 사람을 정해 pending으로 넣고, 보내면 sent. 실패는 attempts를 올려 다음 실행에서
+    다시 보내고 MAX_ATTEMPTS번이면 failed. 보내기 전에 알림을 끄면 cancelled.
+    """
 
     __tablename__ = "bid_result_mails"
     __table_args__ = (
         UniqueConstraint("user_id", "bid_id", "stage"),
         CheckConstraint("stage IN ('opened','final','renotice')", name="stage"),
+        CheckConstraint("status IN ('pending','sent','failed','cancelled')", name="status"),
+        Index("ix_bid_result_mails_pending", "id", postgresql_where=text("status = 'pending'")),
     )
 
     id: Mapped[int] = pk()
     user_id: Mapped[int] = _user_fk()
     bid_id: Mapped[int] = mapped_column(ForeignKey("bids.id", ondelete="CASCADE"))
     stage: Mapped[str] = mapped_column(Text)
-    sent_at: Mapped[datetime] = ts_now()
+    status: Mapped[str] = mapped_column(Text, server_default="pending")
+    attempts: Mapped[int] = mapped_column(Integer, server_default="0")
+    created_at: Mapped[datetime] = ts_now()
+    sent_at: Mapped[datetime | None] = _ts()
 
 
 class Conversation(Base):

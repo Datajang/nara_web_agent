@@ -1,33 +1,43 @@
-"""결과 메일 받는 사람·발송 (설계 2026-11-25).
+"""결과 메일 받는 사람·발송 대기열 (설계 2026-11-25, 최종 검토 수정).
 
-받는 조건: 북마크 알림 켬 ∧ 계정 '결과 메일 받기' 켬 ∧ 활성 계정
-∧ 그 단계가 북마크 뒤에 감지됨 ∧ 아직 안 보냄.
-사람마다 발송에 성공한 뒤 bid_result_mails에 남긴다(UNIQUE로 중복 방지).
-실패는 로그만 남기고 다음 사람.
-pending: 감지 뒤 7일 안의 단계를 다시 모은다 — 지난 실행에서 SMTP가 실패한 사람에게 다시 보낸다.
+- enqueue: 결과를 감지한 그 실행에서 받을 사람을 정해 bid_result_mails에 pending으로 넣는다.
+  받는 조건: 북마크 알림 켬 ∧ 계정 '결과 메일 받기' 켬 ∧ 활성 계정 ∧ 그 단계가 북마크 뒤에 감지됨 ∧
+  아직 줄 없음(UNIQUE). 감지 때 꺼 두었던 사람은 나중에 켜도 지난 결과를 받지 않는다
+- deliver: pending을 감지 순서(id)대로 보낸다. 보내기 직전에 다시 확인해 꺼졌으면 cancelled.
+  실패는 attempts를 올리고 다음 실행에서 다시, MAX_ATTEMPTS번이면 failed(끝없이 재시도하지 않음)
 """
 
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 
-from sqlalchemy import exists, or_, select
+from sqlalchemy import ColumnElement, exists, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.mail import Mailer
 from app.db.models import BidResultMail, BidResultWatch, Bookmark, OrgSettings, User
 from app.deps import Deps
-from app.results.checker import Change, Stage
-from app.results.mail import Kind, load_view, render
+from app.results.checker import Change
+from app.results.mail import Kind, ResultView, load_view, render
 
 log = logging.getLogger(__name__)
-RETRY_WINDOW = timedelta(days=7)
+MAX_ATTEMPTS = 5
 
 
 def _detected_at(w: BidResultWatch, stage: str) -> datetime | None:
     return {"opened": w.opened_at, "final": w.final_at, "renotice": w.renotice_at}[stage]
+
+
+def _eligible(bid_id: int) -> list[ColumnElement[bool]]:
+    """지금 받을 수 있는 사람 조건(북마크 알림·계정 스위치·활성)."""
+    return [
+        Bookmark.bid_id == bid_id,
+        Bookmark.notify_result.is_(True),
+        User.result_mail.is_(True),
+        User.status == "active",
+    ]
 
 
 async def recipients(s: AsyncSession, change: Change) -> list[User]:
@@ -39,11 +49,8 @@ async def recipients(s: AsyncSession, change: Change) -> list[User]:
         select(User)
         .join(Bookmark, Bookmark.user_id == User.id)
         .where(
-            Bookmark.bid_id == change.bid_id,
-            Bookmark.notify_result.is_(True),
+            *_eligible(change.bid_id),
             Bookmark.created_at < at,
-            User.result_mail.is_(True),
-            User.status == "active",
             ~exists().where(
                 BidResultMail.user_id == User.id,
                 BidResultMail.bid_id == change.bid_id,
@@ -55,26 +62,18 @@ async def recipients(s: AsyncSession, change: Change) -> list[User]:
     return list(rows.scalars().unique())
 
 
-async def pending(s: AsyncSession, now: datetime) -> list[Change]:
-    """감지 뒤 7일 안의 (공고, 단계). 보낼 사람이 남았는지는 recipients가 가른다."""
-    since = now - RETRY_WINDOW
-    rows = await s.execute(
-        select(BidResultWatch).where(
-            or_(
-                BidResultWatch.opened_at >= since,
-                BidResultWatch.final_at >= since,
-                BidResultWatch.renotice_at >= since,
+async def enqueue(s: AsyncSession, changes: list[Change]) -> int:
+    """감지한 단계마다 받을 사람을 대기열에 넣는다. 넣은 줄 수."""
+    n = 0
+    for change in dict.fromkeys(changes):
+        for u in await recipients(s, change):
+            res = await s.execute(
+                insert(BidResultMail)
+                .values(user_id=u.id, bid_id=change.bid_id, stage=change.stage)
+                .on_conflict_do_nothing()
             )
-        )
-    )
-    out: list[Change] = []
-    for w in rows.scalars():
-        stages: tuple[Stage, ...] = ("opened", "final", "renotice")
-        for stage in stages:
-            at = _detected_at(w, stage)
-            if at is not None and at >= since:
-                out.append(Change(w.bid_id, stage))
-    return sorted(out, key=lambda c: (c.bid_id, c.stage))
+            n += res.rowcount or 0  # type: ignore[attr-defined]
+    return n
 
 
 def _kind(w: BidResultWatch, stage: str) -> Kind:
@@ -83,34 +82,58 @@ def _kind(w: BidResultWatch, stage: str) -> Kind:
     return "renotice" if stage == "renotice" else "opened"
 
 
-async def dispatch(deps: Deps, mailer: Mailer, changes: list[Change]) -> int:
-    """보낸 메일 수."""
-    sent = 0
+async def deliver(deps: Deps, mailer: Mailer, limit: int = 500) -> int:
+    """대기열을 감지 순서대로 보낸다. 보낸 메일 수."""
     settings = deps.settings
-    for change in dict.fromkeys(changes):
-        async with deps.db.session() as s:
-            users = await recipients(s, change)
-            if not users:
-                continue
-            w = await s.get_one(BidResultWatch, change.bid_id)
-            org = await s.get(OrgSettings, 1)
-            view = await load_view(
-                s, change.bid_id, org.our_bizno if org else None, _kind(w, change.stage)
-            )
-            targets = [(u.id, u.email) for u in users]
-        for uid, email in targets:
-            try:
-                await mailer.send(render(view, email, settings.app_origin, settings.service_name))
-            except Exception as e:  # noqa: BLE001 — 한 사람 실패가 나머지를 막지 않게
-                log.warning(
-                    "결과 메일 발송 실패 bid=%s stage=%s: %s", change.bid_id, change.stage, e
-                )
-                continue
-            async with deps.db.transaction() as s:
+    async with deps.db.session() as s:
+        queue = list(
+            (
                 await s.execute(
-                    insert(BidResultMail)
-                    .values(user_id=uid, bid_id=change.bid_id, stage=change.stage)
-                    .on_conflict_do_nothing()
+                    select(BidResultMail, User.email)
+                    .join(User, User.id == BidResultMail.user_id)
+                    .where(BidResultMail.status == "pending")
+                    .order_by(BidResultMail.id)
+                    .limit(limit)
                 )
-            sent += 1
+            ).all()
+        )
+        org = await s.get(OrgSettings, 1)
+        our_bizno = org.our_bizno if org else None
+    views: dict[tuple[int, str], ResultView] = {}
+    sent = 0
+    for row, email in queue:
+        async with deps.db.transaction() as s:
+            ok = await s.scalar(
+                select(func.count())
+                .select_from(Bookmark)
+                .join(User, User.id == Bookmark.user_id)
+                .where(*_eligible(row.bid_id), Bookmark.user_id == row.user_id)
+            )
+            if not ok:
+                (await s.get_one(BidResultMail, row.id)).status = "cancelled"
+                continue
+            key = (row.bid_id, row.stage)
+            if key not in views:
+                w = await s.get_one(BidResultWatch, row.bid_id)
+                views[key] = await load_view(s, row.bid_id, our_bizno, _kind(w, row.stage))
+        try:
+            await mailer.send(render(views[key], email, settings.app_origin, settings.service_name))
+        except Exception as e:  # noqa: BLE001 — 한 사람 실패가 나머지를 막지 않게
+            async with deps.db.transaction() as s:
+                r = await s.get_one(BidResultMail, row.id)
+                r.attempts += 1
+                if r.attempts >= MAX_ATTEMPTS:
+                    r.status = "failed"
+            log.warning(
+                "결과 메일 발송 실패 bid=%s stage=%s 시도 %d: %s",
+                row.bid_id,
+                row.stage,
+                row.attempts + 1,
+                type(e).__name__,
+            )
+            continue
+        async with deps.db.transaction() as s:
+            r = await s.get_one(BidResultMail, row.id)
+            r.status, r.attempts, r.sent_at = "sent", r.attempts + 1, deps.clock()
+        sent += 1
     return sent

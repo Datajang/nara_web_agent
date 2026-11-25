@@ -14,14 +14,16 @@ G2B 확인 `docs/decisions/2026-11-25-result-status-probe.md`. 코드 `backend/a
 | ③ 재공고가 올라왔어요 | 유찰 뒤 30일 안에 같은 수요기관·같은 사업명·`reNtceYn=Y` 공고가 수집됨(DB만) | 새 공고 링크 |
 
 - 재입찰·재시담은 최종이 아니다(같은 공고에서 다시 개찰). 한 실행에서 개찰과 낙찰이 함께 보이면 ②만(순위표 포함)
-- 받는 조건: 북마크 `notify_result` ∧ `users.result_mail` ∧ 활성 계정 ∧ 그 단계가 북마크 **뒤에** 감지 ∧ 미발송
-  (`bid_result_mails` UNIQUE). SMTP 실패분은 감지 뒤 7일 동안 다음 실행에서 다시 보낸다
+- 받는 사람은 **감지한 실행에서** 정한다: 북마크 `notify_result` ∧ `users.result_mail` ∧ 활성 계정 ∧ 그 단계가 북마크
+  **뒤에** 감지. `bid_result_mails`(UNIQUE)에 pending으로 넣고 감지 순서대로 보낸다. 보내기 직전에 꺼졌으면 cancelled,
+  실패는 다음 실행(5분)에서 다시, 5번이면 failed. 감지 때 꺼 두었던 사람은 나중에 켜도 지난 결과를 받지 않는다
 - 제목 `[{SERVICE_NAME}] 개찰 결과·낙찰 결과·유찰·재공고가 올라왔어요: {사업명}`, 끝에 '결과 메일은 설정 > 계정에서 끌 수 있어요.'
 
 ## 확인 간격 (`app/results/schedule.py`)
 개찰 전 호출 없음 → 개찰 뒤 3시간 5분 → 24시간까지 30분 → 3시간마다, 개찰 60일 뒤 `expired`(메일 없음).
 개찰이 7일 넘게 지난 공고는 감시를 새로 만들지 않는다. 정정공고로 차수·개찰일이 바뀌면 다시 기다린다.
-알림 켠 북마크가 없는 감시는 부르지 않는다.
+알림 켠 북마크가 없는 감시는 부르지 않는다. 최근 개찰한 공고부터 보고, 개찰 결과를 받은 뒤에는 낙찰만 묻는다(1회).
+한 실행은 G2B 확인 150초까지(유닛 240초 안에 발송까지). 순서: 지난 대기열 발송 → 감시 맞추기 → 확인 → 대기열 → 발송.
 
 ## 데이터 (0013)
 `bookmarks.notify_result`·`users.result_mail`(기본 true), `bid_result_watch`(공고별 단계 waiting·opened·final·expired,
@@ -39,4 +41,4 @@ final_kind awarded·failed, renotice_bid_id), `bid_result_mails`(user·bid·stag
 
 ## 운영
 `nara-result-watch.timer`(5분) → `python -m app.results`. 처음 한 번 `systemctl enable --now`(`docs/ops/RUNBOOK.md`).
-G2B 몫 `G2B_RESULT_WATCH_DAILY_BUDGET`(500, 낙찰정보서비스 — 낙찰 15,000 + 개찰 80,000과 합쳐 10만 아래).
+G2B 몫 `G2B_RESULT_WATCH_DAILY_BUDGET`(3000, 낙찰정보서비스 — 낙찰 15,000 + 개찰 80,000과 합쳐 10만 아래). 공고 하나가 개찰 당일 약 150회, 이후 최종 결과까지 하루 8회.

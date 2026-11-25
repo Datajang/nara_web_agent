@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Literal
@@ -26,12 +27,13 @@ from app.awards import participants
 from app.awards.collector import award_store, load_settings
 from app.db.models import Bid, BidResultWatch, Bookmark, UsageLog
 from app.deps import Deps
-from app.g2b.client import RESULT_WATCH_SOURCE, G2BBudgetExceeded, G2BError, count_calls
+from app.g2b.client import RESULT_WATCH_SOURCE, G2BBudgetExceeded, count_calls
 from app.results.schedule import RENOTICE_DAYS, next_check
 
 log = logging.getLogger(__name__)
 Stage = Literal["opened", "final", "renotice"]
 OPENED, FAILED = "개찰완료", "유찰"
+DEADLINE_S = 150.0  # 타이머 TimeoutStartSec(240) 안에 발송까지 끝나게
 _RENOTICE_MARK = re.compile(r"[(\[{<【〔「『]\s*재공고\s*[)\]}>】〕」』]")
 
 
@@ -66,7 +68,8 @@ async def _check_one(deps: Deps, w: BidResultWatch, bid: Bid, now: datetime) -> 
     g2b = deps.g2b
     assert g2b is not None
     notice = (bid.bid_no, w.notice_ord)
-    status = _class_status(await g2b.opening_status(*notice))
+    # 개찰 결과를 받은 뒤(opened)에는 낙찰만 묻는다(호출을 아껴 새로 개찰한 공고에 몫을 남긴다)
+    status = {} if w.stage == "opened" else _class_status(await g2b.opening_status(*notice))
     any_opened = OPENED in status.values()
     opened_now = False
     if w.stage == "waiting" and any_opened:
@@ -117,7 +120,8 @@ async def _due(s: AsyncSession, now: datetime, limit: int) -> list[tuple[BidResu
             BidResultWatch.next_check_at <= now,
             exists().where(Bookmark.bid_id == Bid.id, Bookmark.notify_result.is_(True)),
         )
-        .order_by(BidResultWatch.opening_at, BidResultWatch.bid_id)
+        # 가장 최근에 개찰한 공고부터: 개찰 직후가 '바로' 알려야 할 때다
+        .order_by(BidResultWatch.opening_at.desc(), BidResultWatch.bid_id)
         .limit(limit)
     )
     return [(w, b) for w, b in rows.all()]
@@ -156,39 +160,60 @@ async def _renotices(deps: Deps, now: datetime) -> list[Change]:
     return out
 
 
-async def check_due(deps: Deps, now: datetime, limit: int = 200) -> list[Change]:
-    """확인할 때가 된 감시를 개찰 오래된 순으로 확인하고, 바뀐 것(메일 보낼 것)을 돌려준다."""
+def _reschedule(row: BidResultWatch, now: datetime) -> None:
+    row.checks += 1
+    row.next_check_at = next_check(row.opening_at, now) or now
+
+
+async def check_due(
+    deps: Deps, now: datetime, limit: int = 200, deadline_s: float = DEADLINE_S
+) -> list[Change]:
+    """확인할 때가 된 감시를 최근 개찰 순으로 확인하고, 바뀐 것(메일 보낼 것)을 돌려준다.
+
+    deadline_s가 지나면 더 부르지 않는다(남은 공고는 다음 실행). 부른 횟수는 오류가 나도 남긴다.
+    """
     changes: list[Change] = []
+    stop_at = time.monotonic() + deadline_s
     async with deps.db.session() as s:
         due = await _due(s, now, limit)
     with count_calls() as calls:
-        for w, bid in due:
-            if next_check(w.opening_at, now) is None:
+        try:
+            for w, bid in due:
+                if time.monotonic() >= stop_at:
+                    log.warning("결과 메일 감시: 시간 상한, 남은 공고는 다음 실행에서")
+                    break
+                if next_check(w.opening_at, now) is None:
+                    async with deps.db.transaction() as s:
+                        (await s.get_one(BidResultWatch, w.bid_id)).stage = "expired"
+                    continue
+                try:
+                    change = await _check_one(deps, w, bid, now)
+                except G2BBudgetExceeded:
+                    log.warning("결과 메일 감시: 오늘 G2B 몫을 다 씀, 남은 공고는 다음 실행에서")
+                    break
+                except Exception as e:  # noqa: BLE001 — 한 공고의 이상한 응답이 나머지를 막지 않게
+                    assert deps.g2b is not None
+                    log.warning(
+                        "결과 메일 감시 실패 %s: %s %s",
+                        bid.bid_no,
+                        type(e).__name__,
+                        deps.g2b.mask(str(e))[:200],
+                    )
+                    async with deps.db.transaction() as s:
+                        _reschedule(await s.get_one(BidResultWatch, w.bid_id), now)
+                    continue
+                if change is not None:
+                    changes.append(change)
+        finally:
+            if calls.value and deps.g2b is not None:
                 async with deps.db.transaction() as s:
-                    (await s.get_one(BidResultWatch, w.bid_id)).stage = "expired"
-                continue
-            try:
-                change = await _check_one(deps, w, bid, now)
-            except G2BBudgetExceeded:
-                log.warning("결과 메일 감시: 오늘 G2B 몫을 다 씀, 남은 공고는 다음 실행에서")
-                break
-            except G2BError as e:
-                assert deps.g2b is not None
-                log.warning("결과 메일 감시 실패 %s: %s", bid.bid_no, deps.g2b.mask(str(e)))
-                async with deps.db.transaction() as s:
-                    row = await s.get_one(BidResultWatch, w.bid_id)
-                    row.checks += 1
-                    row.next_check_at = next_check(row.opening_at, now) or now
-                continue
-            if change is not None:
-                changes.append(change)
-    if calls.value and deps.g2b is not None:
-        async with deps.db.transaction() as s:
-            # cache.source='result_watch': 결과 메일 몫 예산이 이 기록으로 오늘 호출 수를 센다
-            s.add(
-                UsageLog(
-                    event="collector", g2b_calls=calls.value, cache={"source": RESULT_WATCH_SOURCE}
-                )
-            )
-        deps.g2b.settle(calls.value, RESULT_WATCH_SOURCE)
+                    # cache.source='result_watch': 결과 메일 몫 예산이 이 기록으로 센다
+                    s.add(
+                        UsageLog(
+                            event="collector",
+                            g2b_calls=calls.value,
+                            cache={"source": RESULT_WATCH_SOURCE},
+                        )
+                    )
+                deps.g2b.settle(calls.value, RESULT_WATCH_SOURCE)
     return changes + await _renotices(deps, now)

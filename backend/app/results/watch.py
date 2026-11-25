@@ -36,19 +36,19 @@ async def ensure_watch(s: AsyncSession, bid: Bid, now: datetime) -> BidResultWat
         return None
     ord_, at = found
     w = await s.get(BidResultWatch, bid.id)
+    first = at if now < at else now  # 개찰이 지났으면 바로 확인
     if w is None:
-        nc = next_check(at, now)
-        if at < now - WATCH_MAX_AGE or nc is None:
+        if at < now - WATCH_MAX_AGE or next_check(at, now) is None:
             return None
         w = BidResultWatch(
-            bid_id=bid.id, stage="waiting", notice_ord=ord_, opening_at=at, next_check_at=nc
+            bid_id=bid.id, stage="waiting", notice_ord=ord_, opening_at=at, next_check_at=first
         )
         s.add(w)
         await s.flush()
         return w
     if w.stage in ACTIVE and (w.notice_ord != ord_ or w.opening_at != at):
         w.notice_ord, w.opening_at, w.stage, w.opened_at = ord_, at, "waiting", None
-        w.next_check_at = next_check(at, now) or now
+        w.next_check_at = first
         w.updated_at = now
     return w
 

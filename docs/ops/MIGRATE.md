@@ -44,7 +44,7 @@ shred -u $HOME/nara-backup-key.txt                 # 개인키는 서버에 두�
 TAG=$(git -C /opt/nara/app describe --tags --exact-match)   # bootstrap이 최신 릴리스 태그로 맞춰 둠
 sudo /opt/nara/app/deploy/deploy.sh "$TAG"
 sudo CERTBOT_EMAIL=<운영 메일> /opt/nara/app/deploy/set-host.sh 34-135-176-205.sslip.io
-sudo systemctl enable --now nara-vllm nara-api nara-collector.timer nara-collector-awards.timer nara-backup.timer nara-alert.timer
+sudo systemctl enable --now nara-vllm nara-api nara-collector.timer nara-collector-awards.timer nara-backup.timer nara-alert.timer nara-result-watch.timer
 curl -s http://127.0.0.1:8010/readyz               # db ok, 몇 분 뒤 llm ok
 ```
 - 비밀값·서명 키가 그대로라 회원은 다시 가입·로그인하지 않아도 된다. 옛 서버가 멈춘 사이의 공고는 수집기가 채운다

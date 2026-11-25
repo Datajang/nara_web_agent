@@ -80,3 +80,46 @@ async def test_me_result_mail_toggle(full_api):
     after = (await c.get("/api/v1/me")).json()["result_mail"]
     await c.aclose()
     assert (before, r.status_code, r.json()["result_mail"], after) == (True, 200, False, False)
+
+
+async def test_put_bookmark_after_result_not_watching(full_api):
+    """결과가 이미 나왔거나(final) 개찰 7일 지난 공고: watching=false, 개찰일은 준다."""
+    from app.db.models import BidResultWatch
+
+    deps = full_api.ctx.deps
+    done, old = await seed(
+        deps,
+        "regular",
+        _regular("R26BK93000010", NOW - timedelta(hours=3)),
+        _regular("R26BK93000011", NOW - timedelta(days=9)),
+    )
+    async with deps.db.transaction() as s:
+        s.add(
+            BidResultWatch(
+                bid_id=done,
+                stage="final",
+                notice_ord="000",
+                opening_at=NOW - timedelta(hours=3),
+                next_check_at=NOW,
+                final_kind="awarded",
+                final_at=NOW - timedelta(hours=1),
+            )
+        )
+    c = await member(full_api, "a@corp.example")
+    r1 = (await c.put(f"/api/v1/bookmarks/b{done}", json={})).json()
+    r2 = (await c.put(f"/api/v1/bookmarks/b{old}", json={})).json()
+    await c.aclose()
+    assert (r1["watching"], r1["opening_at"] is not None) == (False, True)
+    assert (r2["watching"], r2["opening_at"] is not None) == (False, True)
+
+
+async def test_put_bookmark_missing_opening(full_api):
+    """개찰일이 없는 일반공고도 북마크는 되고 watching=false, opening_at=null(Review 3)."""
+    it = regular_item("R26BK93000012", NOW - timedelta(days=1))
+    it["opengDt"] = ""
+    (bid_id,) = await seed(full_api.ctx.deps, "regular", it)
+    c = await member(full_api, "a@corp.example")
+    r = await c.put(f"/api/v1/bookmarks/b{bid_id}", json={})
+    await c.aclose()
+    assert r.status_code == 200
+    assert (r.json()["watching"], r.json()["opening_at"]) == (False, None)

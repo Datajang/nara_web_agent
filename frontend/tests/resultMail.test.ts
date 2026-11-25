@@ -72,6 +72,17 @@ describe('북마크 결과 메일 팝업', () => {
     expect(body()).toContain(copy.resultMail.noticeNoOpening)
   })
 
+  it('이미 결과가 나왔거나 개찰이 오래 지나 지켜볼 수 없으면 메일을 약속하지 않는다', async () => {
+    mockApi({
+      'GET /api/v1/feed': feed(card()),
+      'PUT /api/v1/bookmarks/b101': json({ ...WATCHING, watching: false }),
+    })
+    m = await mountAt('/')
+    await bookmarkFirst()
+    expect(body()).toContain(copy.resultMail.noticeTooLate)
+    expect(body()).not.toContain(copy.resultMail.noticeNoOpening)
+  })
+
   it('"다시 보지 않기"를 고르면 이 브라우저에서는 다시 띄우지 않는다', async () => {
     mockApi({
       'GET /api/v1/feed': feed(card(), card({ bid_id: 'b102', title: '두 번째' })),

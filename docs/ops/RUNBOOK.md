@@ -57,7 +57,7 @@ sudo journalctl -u nara-vllm -f | grep -E 'Running|KV cache usage'   # 분석 1�
 vLLM 로그에서 `Running: 8 reqs`·`Waiting: 0`·KV 사용률을 본다. 되돌리기: 백업 파일을 `nara.env`로 복사 → `nara-api` 재시작.
 
 ## 북마크 공고 결과 메일 (`nara-result-watch.timer`, 5분, 2026-11-25)
-배포(0013 마이그레이션 포함) 뒤 **한 번** 켠다(`deploy.sh`는 타이머를 켜지 않는다). 몫은 `G2B_RESULT_WATCH_DAILY_BUDGET`(500).
+배포(0013 마이그레이션 포함) 뒤 **한 번** 켠다(`deploy.sh`는 타이머를 켜지 않는다). 몫은 `G2B_RESULT_WATCH_DAILY_BUDGET`(3000).
 ```bash
 sudo systemctl enable --now nara-result-watch.timer
 systemctl list-timers nara-result-watch.timer

@@ -191,10 +191,11 @@ async def test_renotice_window_30_days(deps, fake_g2b):
 
 
 async def test_budget_exhausted_stops_cleanly(deps, fake_g2b, db):
-    """결과 감시 몫이 바닥나면 거기서 멈추고, 남은 공고의 다음 확인 시각은 그대로(Review 5)."""
-    first = await _watched(deps, "R26BK91000004", opening=NOW - timedelta(hours=2))
-    second = await _watched(deps, "R26BK91000005")
-    before = (await _w(deps, second)).next_check_at
+    """몫이 바닥나면 거기서 멈추고 남은 공고의 다음 확인 시각은 그대로(Review 5).
+    가장 최근에 개찰한 공고를 먼저 본다(오래된 3시간 간격 공고가 몫을 먼저 쓰지 않게)."""
+    older = await _watched(deps, "R26BK91000004", opening=NOW - timedelta(hours=2))
+    newer = await _watched(deps, "R26BK91000005")
+    before = (await _w(deps, older)).next_check_at
     g2b = G2BClient(
         fake_g2b.http_client(),
         TEST_KEYS,
@@ -202,9 +203,55 @@ async def test_budget_exhausted_stops_cleanly(deps, fake_g2b, db):
         source_budgets={RESULT_WATCH_SOURCE: DbCallBudget(db, 1, sources=[RESULT_WATCH_SOURCE])},
     )
     assert await check_due(dataclasses.replace(deps, g2b=g2b), NOW) == []
-    assert (await _w(deps, first)).checks == 1
-    assert (await _w(deps, second)).next_check_at == before
+    assert (await _w(deps, newer)).checks == 1
+    assert (await _w(deps, older)).next_check_at == before
     await g2b.http.aclose()
+
+
+async def test_opened_stage_checks_award_only(deps, fake_g2b):
+    """개찰 결과를 받은 뒤에는 낙찰만 묻는다(호출 1회)."""
+    await _watched(deps, stage="opened")
+    assert await check_due(deps, NOW) == []
+    assert fake_g2b.calls == 1
+
+
+async def test_unexpected_error_does_not_block_others(deps, fake_g2b):
+    """G2B 오류가 아닌 예외도 그 공고만 건너뛰고 다음 시각으로 미룬다(나머지 메일이 멈추지 않게)."""
+    bad = await _watched(deps, "R26BK91000006", opening=NOW - timedelta(hours=2))
+    good = await _watched(deps, "R26BK91000007", opening=NOW - timedelta(hours=3))
+    fake_g2b.add("opening_status", status_item("R26BK91000007", "개찰완료"))
+    fake_g2b.add("opening_compt", opening_item("R26BK91000007", "1111111111"))
+    real = deps.g2b.opening_status
+
+    async def flaky(no, ord_):
+        if no == "R26BK91000006":
+            raise ValueError("이상한 응답")
+        return await real(no, ord_)
+
+    deps.g2b.opening_status = flaky
+    assert await check_due(deps, NOW) == [Change(good, "opened")]
+    w = await _w(deps, bad)
+    assert (w.checks, w.next_check_at) == (1, NOW + timedelta(minutes=5))
+
+
+async def test_deadline_stops_before_calling(deps, fake_g2b):
+    """한 실행의 시간 상한이 지나면 더 부르지 않는다(타이머가 끊기 전에 발송까지 가게)."""
+    bid_id = await _watched(deps)
+    before = (await _w(deps, bid_id)).next_check_at
+    assert await check_due(deps, NOW, deadline_s=0) == []
+    assert fake_g2b.calls == 0
+    assert (await _w(deps, bid_id)).next_check_at == before
+
+
+async def test_usage_logged_with_calls(deps, fake_g2b):
+    """부른 횟수는 결과 메일 몫 예산이 세도록 usage_logs(source=result_watch)에 남는다."""
+    from app.db.models import UsageLog
+
+    await _watched(deps)
+    await check_due(deps, NOW)
+    async with deps.db.session() as s:
+        logs = (await s.execute(select(UsageLog))).scalars().all()
+    assert [(x.cache.get("source"), x.g2b_calls) for x in logs] == [(RESULT_WATCH_SOURCE, 1)]
 
 
 def test_same_title_ignores_spacing_and_renotice_marks():

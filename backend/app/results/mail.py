@@ -121,7 +121,8 @@ def render(view: ResultView, to: str, app_origin: str, service_name: str) -> Mai
         f'<a href="{e(settings_link, quote=True)}" style="color:#6b7280">설정 열기</a></p>'
         "</div></body></html>"
     )
-    subject = f"[{service_name}] {_SUBJECT[view.kind]}: {view.title}"
+    one_line = " ".join(view.title.split())  # 메일 제목은 줄바꿈 금지
+    subject = f"[{service_name}] {_SUBJECT[view.kind]}: {one_line}"
     return Mail(to=to, subject=subject, body=body, html=html)
 
 

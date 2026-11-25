@@ -25,5 +25,5 @@ export function hideNoticeForever(): void {
 export function maybeShowResultNotice(bid: Pick<BidCard, 'source'>, res: BookmarkPutOut | null): void {
   const me = useAuthStore().me
   if (!res || bid.source !== 'regular' || me?.result_mail === false || noticeHidden()) return
-  useUiStore().showResultNotice(res.watching)
+  useUiStore().showResultNotice(res.watching, res.opening_at != null)
 }

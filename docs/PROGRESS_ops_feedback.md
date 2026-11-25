@@ -44,6 +44,8 @@
   `collector refetch`로 기존 구간 다시 받기 (`docs/decisions/2026-11-25-awards-paging.md`).
 - 투찰 결과 엑셀 다운로드(사용자 요청): 투찰 결과 탭 '엑셀 다운로드' → 화면 조건 그대로 `GET /my-bids/export`, '요약' + 연도별 시트
   (낙찰 등록일 KST), 14열(개찰일·결과·…·낙찰가와 차이·공동수급·공고번호 링크) (`docs/superpowers/specs/2026-11-25-my-bids-export-design.md`).
+- 배포 rc20(2026-11-25, 사용자 요청으로 Claude 실행): 위 투찰 결과 엑셀(rc18 팀 표시·rc19 페이지 겹침 포함 이후). 마이그레이션·vLLM 변경 없음,
+  /healthz·/readyz 정상, `/my-bids/export` 비로그인 401.
 
 ## 나중에 할 업데이트 (2026-11-25 사용자 결정)
 

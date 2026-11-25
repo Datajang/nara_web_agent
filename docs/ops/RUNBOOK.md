@@ -40,6 +40,11 @@ P11 배포(0010) 뒤 같은 timer가 계약정보(공동수급, source=contracts
 P12(0011) 뒤에는 개찰 결과(우리 투찰 결과, source=openings)도 받는다: 낙찰 몫과 따로 `G2B_OPENINGS_DAILY_BUDGET`(기본 300),
 최근 14일 낙찰 공고 먼저, 남는 호출로 과거. 관리자 화면 수집 이력에서 source=openings로 확인.
 
+## 팀 배정 (관리자, 2026-11-25) — 활성 계정만, 하나라도 문제면 아무것도 안 바꿈
+`cd /opt/nara/app/backend && sudo -u nara env NARA_ENV_FILE=/etc/nara/nara.env /opt/nara/venv/bin/python -m app.cli`
+`team-assign --team <팀 이름> [--owner <팀장>] --email <계정> --email <계정> ...`
+팀이 없으면 `--owner`가 팀장인 새 팀. `--owner`를 주면 기존 팀장은 팀원. 다른 팀 소속은 거부(사용자 관리 '활성'에서 팀 확인).
+
 ## LLM 사용량 보기 (읽기 전용, 2026-11-24)
 `sudo -u postgres psql -p 5434 -d nara -X -v days=14 < deploy/sql/llm_usage.sql` (저장소 루트에서) —
 날짜별 호출 수·기능별 호출/지연·시간대별·최대 동시 요청. 외부 LLM API 한도 검토용.

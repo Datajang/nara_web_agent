@@ -93,6 +93,8 @@ class AdminUserOut(UserBase):
     email_verified_at: datetime | None
     last_login_at: datetime | None
     created_at: datetime
+    team: MeTeam | None = None  # 사용자 관리에서 소속 팀·팀장 여부 표시
+    team_role: TeamRole | None = None
 
 
 class AdminUserList(BaseModel):

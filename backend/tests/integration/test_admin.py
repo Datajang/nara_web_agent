@@ -33,6 +33,8 @@ async def test_list_users_filters_by_status(api):
             "email_verified_at",
             "last_login_at",
             "created_at",
+            "team",
+            "team_role",
         }
         r = await admin.get("/api/v1/admin/users", params={"limit": 2, "offset": 0})
         assert len(r.json()["items"]) == 2 and r.json()["total"] == 3
@@ -77,3 +79,25 @@ async def test_disabling_revokes_refresh_tokens(api, client):
     async with api.db.session() as s:
         rows = (await s.scalars(select(RefreshToken).where(RefreshToken.user_id == uid))).all()
     assert rows and all(t.revoked_at is not None for t in rows)
+
+
+async def test_list_users_shows_team_and_role(api):
+    # 사용자 관리 '활성'에서 소속 팀·팀장 여부를 본다 (2026-11-25 사용자 요청)
+    from app.cli import assign_team
+    from app.deps import utcnow
+
+    await create_user(api.db, "lead@corp.example")
+    await create_user(api.db, "mem@corp.example")
+    await create_user(api.db, "solo@corp.example")
+    await assign_team(api.db, "AX컨설팅2팀", ["mem@corp.example"], "lead@corp.example", utcnow())
+    admin = await admin_client(api)
+    try:
+        r = await admin.get("/api/v1/admin/users", params={"status": "active"})
+        by = {u["email"]: u for u in r.json()["items"]}
+        assert by["lead@corp.example"]["team"]["name"] == "AX컨설팅2팀"
+        assert by["lead@corp.example"]["team_role"] == "owner"
+        assert by["mem@corp.example"]["team_role"] == "member"
+        assert by["solo@corp.example"]["team"] is None
+        assert by["solo@corp.example"]["team_role"] is None
+    finally:
+        await admin.aclose()

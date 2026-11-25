@@ -48,7 +48,7 @@ def no_team() -> ApiError:
     )
 
 
-async def _set_code(s: AsyncSession, team: Team) -> None:
+async def set_code(s: AsyncSession, team: Team) -> None:
     for _ in range(5):  # 충돌은 사실상 없지만 UNIQUE라 재시도
         team.invite_code = new_code()
         try:
@@ -60,7 +60,7 @@ async def _set_code(s: AsyncSession, team: Team) -> None:
     raise ApiError(503, "unavailable", "초대 코드를 만들지 못했어요. 잠시 후 다시 시도해 주세요.")
 
 
-def _join(user: User, team: Team, role: str, now: datetime) -> None:
+def join_as(user: User, team: Team, role: str, now: datetime) -> None:
     user.team = team
     user.team_role = role
     user.team_joined_at = now
@@ -71,8 +71,8 @@ async def create(s: AsyncSession, user: User, name: str, now: datetime) -> Team:
         raise already_in_team()
     team = Team(name=name, invite_code="", created_at=now, updated_at=now)
     s.add(team)
-    await _set_code(s, team)
-    _join(user, team, "owner", now)
+    await set_code(s, team)
+    join_as(user, team, "owner", now)
     await s.commit()
     return team
 
@@ -85,7 +85,7 @@ async def join(s: AsyncSession, user: User, code: str, now: datetime) -> Team:
         raise ApiError(
             404, "invalid_invite", "초대 코드가 맞지 않아요. 팀원에게 새 코드를 받아 주세요."
         )
-    _join(user, team, "member", now)
+    join_as(user, team, "member", now)
     await s.commit()
     return team
 
@@ -120,7 +120,7 @@ async def rename(s: AsyncSession, user: User, name: str, now: datetime) -> Team:
 
 async def rotate_code(s: AsyncSession, user: User, now: datetime) -> Team:
     team = require_owner(user)
-    await _set_code(s, team)
+    await set_code(s, team)
     team.updated_at = now
     await s.commit()
     return team

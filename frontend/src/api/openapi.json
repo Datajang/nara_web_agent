@@ -3461,6 +3461,31 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "team": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeTeam"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "team_role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "owner",
+                  "member"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Role"
           }
         },
         "type": "object",

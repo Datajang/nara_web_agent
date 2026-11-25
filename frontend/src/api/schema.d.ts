@@ -1107,6 +1107,9 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            team?: components["schemas"]["MeTeam"] | null;
+            /** Team Role */
+            team_role?: ("owner" | "member") | null;
         };
         /** AdminUserPatch */
         AdminUserPatch: {

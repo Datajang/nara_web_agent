@@ -128,6 +128,7 @@ async function apply() {
             <th scope="col" class="px-4 py-2 font-medium">{{ copy.admin.colEmail }}</th>
             <th scope="col" class="px-4 py-2 font-medium">{{ copy.admin.colName }}</th>
             <th scope="col" class="px-4 py-2 font-medium">{{ copy.admin.colRole }}</th>
+            <th scope="col" class="px-4 py-2 font-medium">{{ copy.admin.colTeam }}</th>
             <th scope="col" class="px-4 py-2 font-medium">{{ copy.admin.colCreated }}</th>
             <th scope="col" class="px-4 py-2 font-medium">{{ copy.admin.colLastLogin }}</th>
             <th scope="col" class="px-4 py-2 font-medium">{{ copy.admin.colActions }}</th>
@@ -148,6 +149,14 @@ async function apply() {
               <UiBadge :tone="u.role === 'admin' ? 'primary' : 'neutral'">
                 {{ u.role === 'admin' ? copy.nav.roleAdmin : copy.nav.roleMember }}
               </UiBadge>
+            </td>
+            <td class="text-text-2 md:px-4 md:py-3">
+              <span class="mr-2 md:hidden">{{ copy.admin.colTeam }}</span>
+              <template v-if="u.team">
+                {{ u.team.name }}
+                <UiBadge v-if="u.team_role === 'owner'" tone="primary" class="ml-1">{{ copy.team.owner }}</UiBadge>
+              </template>
+              <span v-else class="text-text-3">{{ copy.admin.noTeam }}</span>
             </td>
             <td class="text-text-3 tabular md:px-4 md:py-3">
               <span class="mr-2 md:hidden">{{ copy.admin.colCreated }}</span>{{ formatDateTime(u.created_at) }}

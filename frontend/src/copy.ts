@@ -595,6 +595,8 @@ export const copy = {
     colEmail: '이메일',
     colName: '이름',
     colRole: '역할',
+    colTeam: '팀',
+    noTeam: '소속 없음',
     colCreated: '가입일',
     colLastLogin: '마지막 로그인',
     colActions: '작업',

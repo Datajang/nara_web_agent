@@ -2,18 +2,21 @@
 
 - 북마크(알림 켬)된 일반공고 중 개찰 예정이 있는 것만. 개찰 7일 넘게 지난 공고는 새로 만들지 않는다
 - 정정공고로 차수·개찰일이 바뀌면 새 값으로 다시 기다린다(최종 결과가 나오기 전까지)
-- sync_watches: 타이머가 매번 부른다. 기존 북마크와 수집기가 받은 정정공고를 여기서 맞춘다
+- sync_watches: 타이머가 매번 부른다. 기존 북마크와 수집기가 받은 정정공고를 여기서 맞춘다.
+  개찰일이 없거나 7일 넘게 지난 북마크는 SQL에서 먼저 걸러 매번 다시 읽지 않는다
+- 북마크 저장과 타이머가 동시에 만들어도 충돌하지 않게 INSERT ... ON CONFLICT DO NOTHING
 """
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from sqlalchemy import exists, select
+from sqlalchemy import ColumnElement, exists, func, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Bid, BidResultWatch, Bookmark
-from app.g2b.mapper import parse_kst
+from app.g2b.mapper import KST, parse_kst
 from app.results.schedule import WATCH_MAX_AGE, next_check
 
 ACTIVE = ("waiting", "opened")
@@ -40,17 +43,27 @@ async def ensure_watch(s: AsyncSession, bid: Bid, now: datetime) -> BidResultWat
     if w is None:
         if at < now - WATCH_MAX_AGE or next_check(at, now) is None:
             return None
-        w = BidResultWatch(
-            bid_id=bid.id, stage="waiting", notice_ord=ord_, opening_at=at, next_check_at=first
+        await s.execute(
+            insert(BidResultWatch)
+            .values(
+                bid_id=bid.id, stage="waiting", notice_ord=ord_, opening_at=at, next_check_at=first
+            )
+            .on_conflict_do_nothing(index_elements=["bid_id"])
         )
-        s.add(w)
-        await s.flush()
-        return w
+        # 다른 쪽이 먼저 만들었으면 그 행을 받아 아래에서 맞춘다
+        w = await s.get_one(BidResultWatch, bid.id)
     if w.stage in ACTIVE and (w.notice_ord != ord_ or w.opening_at != at):
         w.notice_ord, w.opening_at, w.stage, w.opened_at = ord_, at, "waiting", None
         w.next_check_at = first
         w.updated_at = now
     return w
+
+
+def _maybe_watchable(now: datetime) -> ColumnElement[bool]:
+    """개찰일 숫자(YYYYMMDD…)가 7일(+하루 여유) 안쪽인 공고만. 정확한 판정은 ensure_watch가 한다."""
+    digits = func.regexp_replace(Bid.raw["opengDt"].astext, "[^0-9]", "", "g")
+    cutoff = (now - WATCH_MAX_AGE - timedelta(days=1)).astimezone(KST).strftime("%Y%m%d")
+    return func.left(digits, 8) >= cutoff
 
 
 async def sync_watches(s: AsyncSession, now: datetime) -> int:
@@ -60,6 +73,7 @@ async def sync_watches(s: AsyncSession, now: datetime) -> int:
             select(Bid)
             .where(
                 Bid.source == "regular",
+                _maybe_watchable(now),
                 exists().where(Bookmark.bid_id == Bid.id, Bookmark.notify_result.is_(True)),
                 ~exists().where(BidResultWatch.bid_id == Bid.id),
             )

@@ -231,3 +231,58 @@ async def test_mail_view_uses_our_rank_and_award(deps):
     body = mailer.outbox[0].body
     assert "낙찰자: (주)가온데이터 · 낙찰금액 90,000,000원" in body
     assert "우리 회사: 2위 / 2곳" in body
+
+
+async def test_mail_view_multi_class_awards_and_our_ranks(deps):
+    """분류가 여럿이면 분류마다 낙찰자, 우리 순위도 참가한 분류마다(첫 분류만이 아니라)."""
+    from app.db.models import BidAward, BidParticipant, OrgSettings
+
+    bid_id = await _final_bid(deps)
+    await _bookmark(deps, "a@corp.example", bid_id)
+    async with deps.db.transaction() as s:
+        bid = await s.get_one(Bid, bid_id)
+        s.add(OrgSettings(id=1, our_bizno="2222222222", our_name="우리"))
+        for clsfc, bizno, rank in (
+            ("1", "1111111111", 1),
+            ("1", "2222222222", 2),
+            ("2", "2222222222", 1),
+            ("2", "3333333333", 2),
+            ("2", "4444444444", 3),
+        ):
+            s.add(
+                BidParticipant(
+                    bid_ntce_no=bid.bid_no,
+                    bid_ntce_ord="000",
+                    bid_clsfc_no=clsfc,
+                    rbid_no="000",
+                    bizno=bizno,
+                    name=f"업체{bizno[0]}",
+                    rank=rank,
+                    bid_amount=1000 * rank,
+                )
+            )
+        for clsfc, rbid, winner, amt in (
+            ("1", "000", "업체1", 90_000_000),
+            ("2", "000", "옛 낙찰", 1),
+            ("2", "001", "우리", 50_000_000),
+        ):
+            s.add(
+                BidAward(
+                    bid_ntce_no=bid.bid_no,
+                    bid_ntce_ord="000",
+                    bid_clsfc_no=clsfc,
+                    rbid_no=rbid,
+                    bizno=None,
+                    winner_name=winner,
+                    title=bid.title,
+                    award_amount=amt,
+                    registered_at=NOW,
+                )
+            )
+    mailer = MemoryMailer()
+    await _send(deps, mailer, [Change(bid_id, "final")])
+    body = mailer.outbox[0].body
+    assert "[분류 1] 낙찰자: 업체1 · 낙찰금액 90,000,000원" in body
+    assert "[분류 2] 낙찰자: 우리 · 낙찰금액 50,000,000원" in body
+    assert "옛 낙찰" not in body
+    assert "우리 회사: 분류 1 2위 / 2곳 · 분류 2 1위 / 3곳" in body

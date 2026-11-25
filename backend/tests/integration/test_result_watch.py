@@ -109,3 +109,68 @@ async def test_past_opening_checked_right_away(deps):
         await ensure_watch(s, bid, NOW)
     got = await _watch(deps, bid.id)
     assert got is not None and got.next_check_at == NOW
+
+
+async def test_revision_after_opened_waits_again(deps):
+    """개찰 결과를 받은 뒤(opened) 정정공고가 나오면 새 차수로 다시 기다린다."""
+    no = "R26BK90000009"
+    bid = await _bid(deps, _regular(no, NOW - timedelta(hours=2)))
+    async with deps.db.transaction() as s:
+        w = await ensure_watch(s, bid, NOW - timedelta(hours=3))
+        assert w is not None
+        w.stage, w.opened_at = "opened", NOW - timedelta(hours=1)
+    new_open = NOW + timedelta(days=2)
+    bid = await _bid(deps, _regular(no, new_open, ord="001"))
+    async with deps.db.transaction() as s:
+        await ensure_watch(s, bid, NOW)
+    got = await _watch(deps, bid.id)
+    assert got is not None
+    assert (got.stage, got.opened_at, got.notice_ord) == ("waiting", None, "001")
+    assert (got.opening_at, got.next_check_at, got.updated_at) == (new_open, new_open, NOW)
+
+
+async def test_concurrent_creation_does_not_conflict(deps):
+    """북마크 저장과 타이머가 같은 공고의 감시를 동시에 만들어도 오류 없이 한 행(PUT 500 방지)."""
+    import asyncio
+
+    bid = await _bid(deps, _regular("R26BK90000010", NOW + timedelta(days=1)))
+
+    async def other():
+        async with deps.db.transaction() as b:
+            return await ensure_watch(b, bid, NOW)
+
+    async with deps.db.transaction() as a:
+        assert await ensure_watch(a, bid, NOW) is not None  # 아직 커밋 전
+        task = asyncio.create_task(other())
+        await asyncio.sleep(0.3)  # 다른 쪽이 같은 키에서 기다리게
+    got = await asyncio.wait_for(task, 5)
+    assert got is not None and got.bid_id == bid.id
+    async with deps.db.session() as s:
+        assert len((await s.execute(select(BidResultWatch))).scalars().all()) == 1
+
+
+async def test_sync_skips_unwatchable_bookmarks(deps, monkeypatch, caplog):
+    """개찰일이 없거나 깨졌거나 7일 넘게 지난 북마크는 매 실행 다시 읽지 않는다(경고도 없음)."""
+    import app.results.watch as watch_mod
+
+    ok = await _bid(deps, _regular("R26BK90000011", NOW + timedelta(hours=5)))
+    skip = [
+        await _bid(deps, _regular("R26BK90000012", "")),
+        await _bid(deps, _regular("R26BK90000013", "미정")),
+        await _bid(deps, _regular("R26BK90000014", NOW - timedelta(days=9))),
+    ]
+    uid = await create_user(deps.db, "u@corp.example")
+    async with deps.db.transaction() as s:
+        await s.execute(insert(Bookmark), [{"user_id": uid, "bid_id": b.id} for b in [ok, *skip]])
+    seen: list[int] = []
+    real = watch_mod.ensure_watch
+
+    async def spy(s, bid, now):
+        seen.append(bid.id)
+        return await real(s, bid, now)
+
+    monkeypatch.setattr(watch_mod, "ensure_watch", spy)
+    async with deps.db.transaction() as s:
+        assert await sync_watches(s, NOW) == 1
+    assert seen == [ok.id, ok.id]  # 새로 만들기 1번 + 진행 중 맞추기 1번
+    assert "날짜 해석 실패" not in caplog.text

@@ -143,4 +143,33 @@ describe('결과 메일 켜기·끄기', () => {
     const call = api.calls.find((c) => c.method === 'PATCH')
     expect(call?.body).toEqual({ result_mail: false })
   })
+
+  const FAIL = () => json({ error: { code: 'internal', message: '오류' } }, 500)
+
+  it('보관함 켜기·끄기 저장이 실패하면 체크박스를 되돌린다', async () => {
+    mockApi({
+      'GET /api/v1/bookmarks': json({
+        items: [
+          { bid: card({ bookmarked: true }), note: '', analysis_id: null, created_at: '2026-11-09T00:00:00Z', notify_result: true },
+        ],
+      }),
+      'PATCH /api/v1/bookmarks/b101': FAIL(),
+    })
+    m = await mountAt('/library?tab=bookmarks')
+    await settle()
+    const box = m.wrapper.get('input[name="result-mail"]')
+    await box.setValue(false)
+    await settle()
+    expect((box.element as HTMLInputElement).checked).toBe(true)
+  })
+
+  it('계정 전체 스위치 저장이 실패하면 체크박스를 되돌린다', async () => {
+    mockApi({ 'PATCH /api/v1/me': FAIL() }, { ...MEMBER, result_mail: true })
+    m = await mountAt('/settings/account')
+    await settle()
+    const sw = m.wrapper.get('input[name="result-mail-all"]')
+    await sw.setValue(false)
+    await settle()
+    expect((sw.element as HTMLInputElement).checked).toBe(true)
+  })
 })

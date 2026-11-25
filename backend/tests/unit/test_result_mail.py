@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.results.mail import RankRow, ResultView, render
+from app.results.mail import AwardLine, RankRow, ResultView, render
 
 ORIGIN = "https://nara.example"
 SERVICE = "나라장터 도우미"
@@ -29,8 +29,7 @@ def _view(**kw) -> ResultView:
         org="행정안전부",
         rows=_rows(3),
         our_rank="2위 / 3곳",
-        winner=None,
-        amount=None,
+        awards=[],
         kind="opened",
         renotice_ref=None,
         negotiated=False,
@@ -61,7 +60,7 @@ def test_our_rank_missing_says_not_participated():
 
 def test_awarded_mail_has_winner_amount():
     mail = render(
-        _view(kind="awarded", winner="(주)가온데이터", amount=90_000_000),
+        _view(kind="awarded", awards=[AwardLine("0", "(주)가온데이터", 90_000_000)]),
         "a@corp.example",
         ORIGIN,
         SERVICE,
@@ -118,3 +117,19 @@ def test_subject_has_no_newlines():
     mail = render(_view(title="데이터\r\n정비   용역"), "a@corp.example", ORIGIN, SERVICE)
     assert mail.subject == "[나라장터 도우미] 개찰 결과: 데이터 정비 용역"
     EmailMessage()["Subject"] = mail.subject  # 예외 없음
+
+
+def test_awarded_mail_lists_every_class_winner():
+    """분류가 여럿이면 분류마다 낙찰자·금액(첫 분류만 보이지 않게)."""
+    awards = [AwardLine("1", "(주)가온데이터", 90_000_000), AwardLine("2", "(주)나래", 50_000_000)]
+    rows = _rows(2, "1") + _rows(2, "2")
+    mail = render(
+        _view(kind="awarded", awards=awards, rows=rows), "a@corp.example", ORIGIN, SERVICE
+    )
+    assert "[분류 1] 낙찰자: (주)가온데이터 · 낙찰금액 90,000,000원" in mail.body
+    assert "[분류 2] 낙찰자: (주)나래 · 낙찰금액 50,000,000원" in mail.body
+
+
+def test_awarded_mail_without_award_row():
+    mail = render(_view(kind="awarded"), "a@corp.example", ORIGIN, SERVICE)
+    assert "낙찰자: - · 낙찰금액 -" in mail.body

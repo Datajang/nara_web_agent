@@ -67,13 +67,15 @@ async function act(
   fn: () => Promise<unknown>,
   key: string[],
   message: string = copy.library.removed,
-) {
+): Promise<boolean> {
   try {
     await fn()
     ui.toast(message, 'success')
     await queryClient.invalidateQueries({ queryKey: key })
+    return true
   } catch (e) {
     ui.toast(generalMessage(e), 'danger')
+    return false
   }
 }
 
@@ -130,12 +132,14 @@ function saveNote(b: Bookmark) {
     copy.library.noteSaved,
   )
 }
-function setNotify(b: Bookmark, on: boolean) {
-  void act(
+async function setNotify(b: Bookmark, box: HTMLInputElement) {
+  const on = box.checked
+  const ok = await act(
     () => bidsApi.setNotify(b.bid.bid_id, on),
     ['bookmarks'],
     on ? copy.resultMail.turnedOn : copy.resultMail.turnedOff,
   )
+  if (!ok) box.checked = !on // 저장 실패: 화면을 서버 값으로 되돌린다
 }
 
 function unbookmark(b: BidCard) {
@@ -258,7 +262,7 @@ function unbookmark(b: BidCard) {
                   type="checkbox"
                   class="size-4 accent-primary"
                   :checked="b.notify_result !== false"
-                  @change="setNotify(b, ($event.target as HTMLInputElement).checked)"
+                  @change="setNotify(b, $event.target as HTMLInputElement)"
                 />
                 {{ copy.resultMail.libraryToggle }}
               </label>

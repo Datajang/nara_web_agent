@@ -148,6 +148,21 @@ async def test_multiple_classes_one_change(deps, fake_g2b):
     assert await check_due(deps, NOW) == [Change(bid_id, "opened")]
 
 
+async def test_final_refreshes_rank_table(deps, fake_g2b):
+    """개찰 결과를 받은 뒤 한 분류만 재입찰되면 최종 때 순위표를 다시 받는다."""
+    bid_id = await _watched(deps, stage="opened")
+    fake_g2b.add("awards", award_item(NO, NOW, clsfc="1"))
+    fake_g2b.add(
+        "opening_compt",
+        opening_item(NO, "1111111111", clsfc="1"),
+        opening_item(NO, "2222222222", clsfc="2", rbid="001"),
+    )
+    assert await check_due(deps, NOW) == [Change(bid_id, "final")]
+    async with deps.db.session() as s:
+        got = (await s.execute(select(BidParticipant.bid_clsfc_no, BidParticipant.rbid_no))).all()
+    assert sorted(got) == [("1", "000"), ("2", "001")]
+
+
 async def _failed_watch(deps, failed_days_ago: float) -> int:
     bid_id = await _watched(deps, opening=NOW - timedelta(days=failed_days_ago, hours=1))
     async with deps.db.transaction() as s:

@@ -50,12 +50,14 @@ async function changePassword() {
 }
 
 const savingMail = ref(false)
-async function setResultMail(on: boolean) {
+async function setResultMail(box: HTMLInputElement) {
+  const on = box.checked
   savingMail.value = true
   try {
     auth.me = await authApi.updateMe({ result_mail: on })
     ui.toast(copy.resultMail.accountSaved, 'success')
   } catch (e) {
+    box.checked = !on // 저장 실패: 화면을 서버 값으로 되돌린다
     ui.toast(generalMessage(e), 'danger')
   } finally {
     savingMail.value = false
@@ -95,7 +97,7 @@ async function logout() {
           class="size-4 accent-primary"
           :checked="auth.me?.result_mail !== false"
           :disabled="savingMail"
-          @change="setResultMail(($event.target as HTMLInputElement).checked)"
+          @change="setResultMail($event.target as HTMLInputElement)"
         />
         {{ copy.resultMail.accountLabel }}
       </label>

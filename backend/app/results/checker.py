@@ -5,7 +5,8 @@
    분류마다 마지막 재입찰 차수의 상태가 그 분류의 상태
 2. 개찰완료가 있으면 개찰완료 목록(순위·투찰가)을 저장하고(0행이면 저장 안 함),
    낙찰을 공고번호로 본다
-3. 낙찰 행 → final/awarded. 모든 분류가 유찰 → final/failed. 재입찰·재시담 → 최종 아님
+3. 낙찰 행 → final/awarded. 모든 분류가 유찰 → final/failed. 재입찰·재시담 → 최종 아님.
+   낙찰인데 이번 실행에서 순위표를 받지 않았으면 한 번 더 받는다(개찰 뒤 한 분류만 재입찰된 경우)
 4. 같은 실행에서 개찰과 낙찰이 함께 보이면 Change(final) 하나(메일 1통에 순위·투찰가)
 유찰 뒤 30일 동안은 DB에 수집된 재공고(같은 수요기관·같은 사업명·reNtceYn=Y)를 찾는다
 (G2B 호출 없음). 알림 켠 북마크가 없는 감시는 부르지 않는다(켜면 다음 실행에서 이어 감).
@@ -71,8 +72,9 @@ async def _check_one(deps: Deps, w: BidResultWatch, bid: Bid, now: datetime) -> 
     # 개찰 결과를 받은 뒤(opened)에는 낙찰만 묻는다(호출을 아껴 새로 개찰한 공고에 몫을 남긴다)
     status = {} if w.stage == "opened" else _class_status(await g2b.opening_status(*notice))
     any_opened = OPENED in status.values()
-    opened_now = False
+    opened_now = fetched = False
     if w.stage == "waiting" and any_opened:
+        fetched = True
         rows = await g2b.opening_results(*notice, source=RESULT_WATCH_SOURCE)
         if rows:
             async with deps.db.transaction() as s:
@@ -89,6 +91,11 @@ async def _check_one(deps: Deps, w: BidResultWatch, bid: Bid, now: datetime) -> 
             _, keywords = await load_settings(deps)
             async with deps.db.transaction() as s:
                 await award_store(keywords)(s, awarded)
+            if not fetched:  # 최종 메일의 순위표를 최신 재입찰 차수로
+                rows = await g2b.opening_results(*notice, source=RESULT_WATCH_SOURCE)
+                if rows:
+                    async with deps.db.transaction() as s:
+                        await participants.store(s, notice, rows)
     failed = bool(status) and all(v == FAILED for v in status.values())
     async with deps.db.transaction() as s:
         row = await s.get_one(BidResultWatch, w.bid_id)

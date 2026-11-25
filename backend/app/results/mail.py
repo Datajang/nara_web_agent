@@ -2,6 +2,7 @@
 
 메일 종류: opened(개찰 결과) · awarded(낙찰 결과) · failed(유찰) · renotice(재공고가 올라왔어요).
 경쟁사 투찰가는 분류마다 상위 10곳 + '외 N곳'. 협상계약이면 기술·가격·총점.
+분류가 여럿이면 낙찰자·우리 순위도 분류마다(분류마다 마지막 재입찰 차수).
 """
 
 from __future__ import annotations
@@ -39,14 +40,20 @@ class RankRow:
 
 
 @dataclass(frozen=True)
+class AwardLine:
+    clsfc: str
+    winner: str | None
+    amount: int | None
+
+
+@dataclass(frozen=True)
 class ResultView:
     title: str
     bid_ref: str
     org: str | None
     rows: list[RankRow]
     our_rank: str
-    winner: str | None
-    amount: int | None
+    awards: list[AwardLine]
     kind: Kind
     renotice_ref: str | None
     negotiated: bool
@@ -82,7 +89,10 @@ def _lines(v: ResultView) -> list[str]:
         out += ["유찰된 공고의 재공고가 올라왔어요. 새 공고를 북마크하면 그 결과도 메일로 받아요."]
     else:
         if v.kind == "awarded":
-            out += [f"낙찰자: {v.winner or '-'} · 낙찰금액 {_won(v.amount)}"]
+            many = len(v.awards) > 1
+            for a in v.awards or [AwardLine("0", None, None)]:
+                tag = f"[분류 {a.clsfc}] " if many else ""
+                out += [f"{tag}낙찰자: {a.winner or '-'} · 낙찰금액 {_won(a.amount)}"]
         elif v.rows:
             first = min(
                 (r for r in v.rows if r.rank is not None), key=lambda r: r.rank or 0, default=None
@@ -153,33 +163,38 @@ async def load_view(s: AsyncSession, bid_id: int, our_bizno: str | None, kind: K
         (p for p in plist if p.rbid_no == last_rbid[p.bid_clsfc_no]),
         key=lambda p: (p.bid_clsfc_no, p.rank is None, p.rank or 0, p.name or ""),
     )
-    our = "미참가"
-    mine = next((p for p in rows if our_bizno and p.bizno == our_bizno), None)
-    if mine is not None:
-        n = sum(1 for p in rows if p.bid_clsfc_no == mine.bid_clsfc_no)
-        our = (
-            f"{mine.rank}위 / {n}곳"
-            if mine.rank is not None
-            else f"순위 없음({mine.remark or '-'})"
-        )
-    award = (
+    rank_rows = [_rank_row(p) for p in rows]
+    awards: dict[str, BidAward] = {}
+    for a in (
         await s.execute(
             select(BidAward)
             .where(BidAward.bid_ntce_no == bid.bid_no, BidAward.bid_ntce_ord == w.notice_ord)
             .order_by(BidAward.bid_clsfc_no, BidAward.rbid_no.desc())
-            .limit(1)
         )
-    ).scalar_one_or_none()
-    rank_rows = [_rank_row(p) for p in rows]
+    ).scalars():
+        awards.setdefault(a.bid_clsfc_no, a)  # 분류마다 마지막 재입찰 차수
     return ResultView(
         title=bid.title,
         bid_ref=bid_ref(bid.id),
         org=bid.org_name,
         rows=rank_rows,
-        our_rank=our,
-        winner=award.winner_name if award else None,
-        amount=award.award_amount if award else None,
+        our_rank=_our_rank(rows, our_bizno),
+        awards=[AwardLine(k, a.winner_name, a.award_amount) for k, a in sorted(awards.items())],
         kind=kind,
         renotice_ref=bid_ref(w.renotice_bid_id) if w.renotice_bid_id else None,
         negotiated=any(r.scores is not None for r in rank_rows),
     )
+
+
+def _our_rank(rows: list[BidParticipant], our_bizno: str | None) -> str:
+    """'2위 / 5곳'. 분류가 여럿이면 참가한 분류마다 '분류 1 2위 / 5곳 · 분류 2 …'."""
+    mine = [p for p in rows if our_bizno and p.bizno == our_bizno]
+    if not mine:
+        return "미참가"
+    many = len({p.bid_clsfc_no for p in rows}) > 1
+    parts = []
+    for p in mine:
+        n = sum(1 for r in rows if r.bid_clsfc_no == p.bid_clsfc_no)
+        one = f"{p.rank}위 / {n}곳" if p.rank is not None else f"순위 없음({p.remark or '-'})"
+        parts.append(f"분류 {p.bid_clsfc_no} {one}" if many else one)
+    return " · ".join(parts)

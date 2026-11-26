@@ -2830,7 +2830,7 @@ export interface components {
              * @default open
              * @enum {string}
              */
-            status: "open" | "all";
+            status: "open" | "closed" | "failed" | "all";
             /** Budget Min */
             budget_min?: number | null;
             /** Budget Max */
@@ -2865,6 +2865,11 @@ export interface components {
             total: number;
             /** Truncated */
             truncated: boolean;
+            /**
+             * Hidden Closed
+             * @default 0
+             */
+            hidden_closed: number;
             /** Items */
             items: components["schemas"]["BidCard"][];
         };

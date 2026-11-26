@@ -5,7 +5,7 @@ from datetime import timedelta
 from sqlalchemy import select, text
 
 from app.collector import runner
-from app.db.models import SearchRun, SearchRunItem, UsageLog, User
+from app.db.models import BidAward, BidOpeningStatus, SearchRun, SearchRunItem, UsageLog, User
 from app.g2b.client import G2BClient
 from app.search.query import SearchQuery
 from app.search.service import search_bids
@@ -156,3 +156,83 @@ async def test_title_search_ignores_spacing_and_allows_commas_and_long_titles(de
     assert await titles(title="AI기반 생육지원  데이터센터") == ["AI 기반 생육지원 데이터센터 구축"]
     assert await titles(title=long_title) == [long_title]
     assert await titles(title="생육지원", keywords=["구축"]) == ["AI 기반 생육지원 데이터센터 구축"]
+
+
+PAST = "2026-11-09 10:00:00"  # 마감 지남
+
+
+def _status_items():
+    def it(no, **kw):
+        return regular_item(no, NOW - timedelta(days=2), title=f"AI {no}", **kw)
+
+    return [
+        it("R26BK61000001"),  # 진행중
+        it("R26BK61000002", deadline=PAST),  # 마감 · 결과 대기
+        it("R26BK61000003", deadline=PAST),  # 유찰
+        it("R26BK61000004", deadline=PAST, ord="001"),  # 정정: 000 차수만 유찰 → 아님
+        it("R26BK61000005", deadline=PAST),  # 분류 1 유찰 · 분류 2 개찰완료 → 아님
+        it("R26BK61000006", deadline=PAST),  # 유찰 뒤 재입찰 001 개찰완료 → 아님
+        it("R26BK61000007", deadline=PAST),  # 재입찰 000 뒤 001 유찰 → 유찰
+        it("R26BK61000008", deadline=PAST),  # 유찰 행 + 낙찰 행 → 아님
+        it("R26BK61000009", deadline=PAST, kind="취소공고"),  # 취소: 어디에도 없음
+    ]
+
+
+async def _seed_outcomes(deps):
+    def st(no, status, ord_="000", clsfc="0", rbid="000"):
+        return BidOpeningStatus(
+            bid_ntce_no=no, bid_ntce_ord=ord_, bid_clsfc_no=clsfc, rbid_no=rbid, status=status
+        )
+
+    async with deps.db.transaction() as s:
+        s.add_all(
+            [
+                st("R26BK61000003", "유찰"),
+                st("R26BK61000004", "유찰", ord_="000"),
+                st("R26BK61000005", "유찰", clsfc="1"),
+                st("R26BK61000005", "개찰완료", clsfc="2"),
+                st("R26BK61000006", "유찰", rbid="000"),
+                st("R26BK61000006", "개찰완료", rbid="001"),
+                st("R26BK61000007", "재입찰", rbid="000"),
+                st("R26BK61000007", "유찰", rbid="001"),
+                st("R26BK61000008", "유찰"),
+                st("R26BK61000009", "유찰"),
+                BidAward(
+                    bid_ntce_no="R26BK61000008",
+                    bid_ntce_ord="000",
+                    bid_clsfc_no="0",
+                    rbid_no="000",
+                    title="t",
+                    registered_at=NOW,
+                ),
+            ]
+        )
+
+
+async def _nos(deps, status):
+    q = SearchQuery(keywords=["AI"], days=7, source="regular", status=status)
+    res = await search_bids(deps, None, q)
+    return {b.bid_no for b in res.items if b.bid_no.startswith("R26BK61")}, res
+
+
+async def test_status_closed_and_failed(deps, fake_g2b):
+    """마감 = 마감일 지남(결과 무관), 유찰 = 카드 배지 규칙(docs/BID_OUTCOME.md)."""
+    fake_g2b.add("regular", *_status_items())
+    await runner.backfill(deps, "regular", days=30)
+    await _seed_outcomes(deps)
+    closed, _ = await _nos(deps, "closed")
+    assert closed == {f"R26BK6100000{i}" for i in range(2, 9)}
+    failed, _ = await _nos(deps, "failed")
+    assert failed == {"R26BK61000003", "R26BK61000007"}
+    opened, _ = await _nos(deps, "open")
+    assert opened == {"R26BK61000001"}
+
+
+async def test_hidden_closed_counts_only_for_open(deps, fake_g2b):
+    fake_g2b.add("regular", *_status_items())
+    await runner.backfill(deps, "regular", days=30)
+    _, res = await _nos(deps, "open")
+    assert res.hidden_closed == 7  # 취소공고는 세지 않는다
+    for status in ("all", "closed", "failed"):
+        _, res = await _nos(deps, status)
+        assert res.hidden_closed == 0

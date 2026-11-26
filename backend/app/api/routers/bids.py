@@ -55,6 +55,7 @@ async def search(body: SearchQuery, user: ActiveUser, s: DbSession, ctx: Ctx) ->
         from_cache=res.cache_hit,
         total=res.total,
         truncated=res.truncated,
+        hidden_closed=res.hidden_closed,
         items=cards,
     )
 

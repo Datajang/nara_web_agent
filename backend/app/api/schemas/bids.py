@@ -33,6 +33,8 @@ class SearchResultOut(BaseModel):
     from_cache: bool
     total: int
     truncated: bool
+    # status=open일 때 같은 조건에서 마감돼 빠진 공고 수(그 밖엔 0, 2026-11-26)
+    hidden_closed: int = 0
     items: list[BidCard]
 
 

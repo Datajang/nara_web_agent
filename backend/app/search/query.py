@@ -6,11 +6,11 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Annotated, Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
-from sqlalchemy import ColumnElement, Select, and_, func, or_, select
-from sqlalchemy.orm import InstrumentedAttribute
+from sqlalchemy import ColumnElement, Select, and_, exists, func, or_, select
+from sqlalchemy.orm import InstrumentedAttribute, aliased
 
 from app.bids.cards import CANCELLED_KIND
-from app.db.models import Bid
+from app.db.models import Bid, BidAward, BidOpeningStatus
 
 KST = timezone(timedelta(hours=9))
 MAX_DAYS = 90
@@ -28,7 +28,8 @@ class SearchQuery(BaseModel):
     days: int = Field(default=14, ge=1, le=MAX_DAYS)
     date_from: date | None = Field(default=None, alias="from")
     date_to: date | None = Field(default=None, alias="to")
-    status: Literal["open", "all"] = "open"
+    # 진행중 · 마감(마감일 지남) · 유찰(docs/BID_OUTCOME.md 규칙) · 전체 (2026-11-26)
+    status: Literal["open", "closed", "failed", "all"] = "open"
     budget_min: int | None = Field(default=None, ge=0)
     budget_max: int | None = Field(default=None, ge=0)
     org: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] | None = None
@@ -76,11 +77,40 @@ def not_cancelled() -> ColumnElement[bool]:
     return Bid.raw["ntceKindNm"].astext.is_distinct_from(CANCELLED_KIND)
 
 
-def build_query(
-    q: SearchQuery, start: datetime, end: datetime, now: datetime, limit: int
-) -> Select[Any]:
-    """키워드는 공백으로 나눠 title ILIKE, match=all이면 AND (§5.4).
+def is_open(now: datetime) -> ColumnElement[bool]:
+    """진행중: 마감일이 없거나 아직 안 지남(§4)."""
+    return or_(Bid.deadline_at.is_(None), Bid.deadline_at > now)
 
+
+def is_closed(now: datetime) -> ColumnElement[bool]:
+    return Bid.deadline_at <= now
+
+
+def failed_only() -> ColumnElement[bool]:
+    """유찰: 카드 배지와 같은 규칙(app/bids/outcome.py). 일반공고의 현재 차수(raw bidNtceOrd)에
+    낙찰 행이 없고, 분류마다 마지막 재입찰 행이 모두 '유찰'(행이 하나 이상)."""
+    ord_ = func.coalesce(Bid.raw["bidNtceOrd"].astext, "000")
+    st, later = BidOpeningStatus, aliased(BidOpeningStatus)
+    same = and_(st.bid_ntce_no == Bid.bid_no, st.bid_ntce_ord == ord_)
+    not_last = exists().where(
+        later.bid_ntce_no == st.bid_ntce_no,
+        later.bid_ntce_ord == st.bid_ntce_ord,
+        later.bid_clsfc_no == st.bid_clsfc_no,
+        later.rbid_no > st.rbid_no,
+    )
+    awarded = exists().where(BidAward.bid_ntce_no == Bid.bid_no, BidAward.bid_ntce_ord == ord_)
+    return and_(
+        Bid.source == "regular",
+        exists().where(same, st.status == "유찰"),
+        ~exists().where(same, st.status != "유찰", ~not_last),
+        ~awarded,
+    )
+
+
+def filtered(q: SearchQuery, start: datetime, end: datetime, now: datetime) -> Select[Any]:
+    """정렬·상한 없는 검색 조건(건수 세기에도 쓴다).
+
+    키워드는 공백으로 나눠 title ILIKE, match=all이면 AND (§5.4).
     취소공고는 모든 검색(검색 탭·추천·어시스턴트·관심 공고)에서 뺀다 [결정: 2026-11-17].
     """
     stmt = select(Bid).where(Bid.notice_at >= start, Bid.notice_at < end, not_cancelled())
@@ -93,13 +123,25 @@ def build_query(
     if q.title and (cond := title_contains(q.title)) is not None:
         stmt = stmt.where(cond)
     if q.status == "open":
-        stmt = stmt.where(or_(Bid.deadline_at.is_(None), Bid.deadline_at > now))
+        stmt = stmt.where(is_open(now))
+    elif q.status in ("closed", "failed"):
+        stmt = stmt.where(is_closed(now))
+        if q.status == "failed":
+            stmt = stmt.where(failed_only())
     if q.budget_min is not None:
         stmt = stmt.where(Bid.budget >= q.budget_min)
     if q.budget_max is not None:
         stmt = stmt.where(Bid.budget <= q.budget_max)
     if q.org:
         stmt = stmt.where(Bid.org_name.ilike(_like(q.org), escape="\\"))
+    return stmt
+
+
+def build_query(
+    q: SearchQuery, start: datetime, end: datetime, now: datetime, limit: int
+) -> Select[Any]:
+    """filtered + 정렬 + 상한."""
+    stmt = filtered(q, start, end, now)
     order: tuple[Any, ...] = {
         "notice_desc": (Bid.notice_at.desc(), Bid.id.desc()),
         "deadline_asc": (Bid.deadline_at.asc().nulls_last(), Bid.id),

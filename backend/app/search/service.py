@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import delete
+from sqlalchemy import delete, func, select
 
 from app.collector import coverage, runner
 from app.db.models import Bid, SearchRun, SearchRunItem, UsageLog
@@ -25,7 +25,7 @@ from app.deps import Deps
 from app.g2b.client import CallCounter, count_calls
 from app.history.repo import browse_run, is_browse
 from app.pipeline.singleflight import LockTimeout, single_flight
-from app.search.query import SearchQuery, build_query
+from app.search.query import SearchQuery, build_query, filtered
 
 log = logging.getLogger(__name__)
 SOURCES = ("regular", "prespec")
@@ -41,6 +41,7 @@ class Found:
     data_as_of: datetime | None
     cache_hit: bool
     g2b_calls: int
+    hidden_closed: int = 0  # status=open일 때 같은 조건의 마감 공고 수(2026-11-26)
 
 
 @dataclass
@@ -54,6 +55,7 @@ class SearchResult:
     data_as_of: datetime | None
     cache_hit: bool
     g2b_calls: int
+    hidden_closed: int = 0
 
 
 async def _fill(deps: Deps, source: str, start: datetime, end: datetime) -> bool:
@@ -86,8 +88,10 @@ async def _log_late_calls(
         deps.g2b.settle(late)
 
 
-async def find_bids(deps: Deps, q: SearchQuery, cap: int) -> Found:
-    """조건에 맞는 공고를 최대 cap건. 필요하면 G2B로 커버리지를 채운다."""
+async def find_bids(deps: Deps, q: SearchQuery, cap: int, count_hidden: bool = False) -> Found:
+    """조건에 맞는 공고를 최대 cap건. 필요하면 G2B로 커버리지를 채운다.
+
+    count_hidden: 검색 화면만 — status=open이면 빠진 마감 공고 수도 센다."""
     now = deps.clock()
     start, end = q.window(now)
     sources = SOURCES if q.source == "all" else (q.source,)
@@ -119,14 +123,21 @@ async def find_bids(deps: Deps, q: SearchQuery, cap: int) -> Found:
 
     async with deps.db.session() as s:
         bids = list((await s.execute(build_query(q, start, end, now, cap))).scalars())
+        hidden = 0
+        if (
+            count_hidden and q.status == "open"
+        ):  # 상태 때문에 빠진 마감 공고를 알려 준다(DB만, G2B 없음)
+            closed = q.model_copy(update={"status": "closed"})
+            sub = filtered(closed, start, end, now).subquery()
+            hidden = int(await s.scalar(select(func.count()).select_from(sub)) or 0)
         covs = [await coverage.get(s, src) for src in sources]
     data_as_of = min((c.covered_to for c in covs if c), default=None)
-    return Found(bids, incomplete, collecting, data_as_of, cache_hit, g2b_calls)
+    return Found(bids, incomplete, collecting, data_as_of, cache_hit, g2b_calls, hidden)
 
 
 async def search_bids(deps: Deps, user_id: int | None, q: SearchQuery) -> SearchResult:
     t0 = time.monotonic()
-    found = await find_bids(deps, q, SNAPSHOT_MAX + 1)
+    found = await find_bids(deps, q, SNAPSHOT_MAX + 1, count_hidden=True)
     truncated = len(found.bids) > SNAPSHOT_MAX
     kept = found.bids[:SNAPSHOT_MAX]
     async with deps.db.transaction() as s:
@@ -172,4 +183,5 @@ async def search_bids(deps: Deps, user_id: int | None, q: SearchQuery) -> Search
         data_as_of=found.data_as_of,
         cache_hit=found.cache_hit,
         g2b_calls=found.g2b_calls,
+        hidden_closed=found.hidden_closed,
     )

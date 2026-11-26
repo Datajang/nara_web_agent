@@ -8720,6 +8720,8 @@
             "type": "string",
             "enum": [
               "open",
+              "closed",
+              "failed",
               "all"
             ],
             "title": "Status",
@@ -8820,6 +8822,11 @@
           "truncated": {
             "type": "boolean",
             "title": "Truncated"
+          },
+          "hidden_closed": {
+            "type": "integer",
+            "title": "Hidden Closed",
+            "default": 0
           },
           "items": {
             "items": {

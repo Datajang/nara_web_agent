@@ -40,7 +40,7 @@ async def test_search_returns_spec_shape_and_second_search_is_from_cache(full_ap
     await c.aclose()
     assert set(first) == {
         "run_id", "data_as_of", "incomplete", "collecting", "from_cache", "total",
-        "truncated", "items",
+        "truncated", "hidden_closed", "items",
     }  # fmt: skip
     assert first["from_cache"] is False and second["from_cache"] is True
     assert first["total"] == 1 and first["truncated"] is False

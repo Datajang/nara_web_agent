@@ -4,7 +4,8 @@ import type { SearchQuery } from '@/api/types'
 
 export type Match = 'all' | 'any'
 export type Source = 'all' | 'regular' | 'prespec'
-export type Status = 'open' | 'all'
+export type Status = 'open' | 'closed' | 'failed' | 'all'
+export const STATUSES = ['open', 'closed', 'failed', 'all'] as const
 export type Sort = 'notice_desc' | 'deadline_asc' | 'budget_desc'
 export type Period = 7 | 14 | 30 | 60 | 90 | 'custom'
 
@@ -59,7 +60,7 @@ export function parseSearch(q: LocationQuery): SearchState {
   s.title = one(q.title).slice(0, 200)
   s.match = pick(one(q.match), ['all', 'any'], 'all')
   s.source = pick(one(q.source), ['all', 'regular', 'prespec'], 'all')
-  s.status = pick(one(q.status), ['open', 'all'], 'open')
+  s.status = pick(one(q.status), STATUSES, 'open')
   s.sort = pick(one(q.sort), ['notice_desc', 'deadline_asc', 'budget_desc'], 'notice_desc')
   s.view = pick(one(q.view), ['cards', 'table'], 'cards')
   const from = one(q.from)
@@ -129,7 +130,7 @@ export function fromRunQuery(query: Record<string, unknown>): SearchState {
   if (Array.isArray(kw)) s.keywords = kw.map(String)
   if (query.match === 'any') s.match = 'any'
   if (query.source === 'regular' || query.source === 'prespec') s.source = query.source
-  if (query.status === 'all') s.status = 'all'
+  if (typeof query.status === 'string') s.status = pick(query.status, STATUSES, 'open')
   if (typeof query.sort === 'string') s.sort = pick(query.sort, ['notice_desc', 'deadline_asc', 'budget_desc'], 'notice_desc')
   if (typeof query.from === 'string' && typeof query.to === 'string') {
     s.period = 'custom'

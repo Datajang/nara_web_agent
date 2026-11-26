@@ -95,6 +95,41 @@ describe('SearchView', () => {
     expect(last!.body).not.toHaveProperty('budget_min')
   })
 
+  it('상태는 진행중·마감·유찰·전체, URL status=failed를 복원한다 (2026-11-26)', async () => {
+    const api = mockApi(routes())
+    m = await mountAt('/search?q=AI&status=failed')
+    const form = m.wrapper.get('form#search-form')
+    for (const label of [copy.search.statusOpen, copy.search.statusClosed, copy.search.statusFailed, copy.search.statusAll]) {
+      expect(form.findAll('label').some((l) => l.text() === label)).toBe(true)
+    }
+    expect(api.calls.find((c) => c.url === '/api/v1/bids/search')!.body).toMatchObject({ status: 'failed' })
+  })
+
+  it('진행중 검색에서 빠진 마감 공고 수를 알리고, 누르면 전체로 다시 검색한다 (2026-11-26)', async () => {
+    const api = mockApi(routes({ ...RESULT, hidden_closed: 3 }))
+    m = await mountAt('/search?q=AI')
+    expect(text(m.wrapper)).toContain(copy.search.hiddenClosed(3))
+    await m.wrapper.get('[data-show-closed]').trigger('click')
+    await settle()
+    expect(m.router.currentRoute.value.query.status).toBe('all')
+    expect(api.calls.filter((c) => c.url === '/api/v1/bids/search').slice(-1)[0]!.body).toMatchObject({
+      status: 'all',
+    })
+  })
+
+  it('진행 중 결과가 없고 마감 공고만 있으면 빈 화면에 보기 버튼 (2026-11-26)', async () => {
+    mockApi(routes({ ...RESULT, total: 0, items: [], hidden_closed: 2 }))
+    m = await mountAt('/search?q=AI')
+    expect(text(m.wrapper)).toContain(copy.search.emptyOpenOnly(2))
+    expect(m.wrapper.findAll('[data-show-closed]')).toHaveLength(1)
+  })
+
+  it('빠진 마감 공고가 없으면 알림이 없다', async () => {
+    mockApi(routes())
+    m = await mountAt('/search?q=AI')
+    expect(m.wrapper.find('[data-show-closed]').exists()).toBe(false)
+  })
+
   it('검색하면 조건이 URL에 반영된다', async () => {
     mockApi(routes())
     m = await mountAt('/search')

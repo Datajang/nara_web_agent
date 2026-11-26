@@ -96,6 +96,12 @@ async function submit() {
   else await router.push({ path: '/search', query })
 }
 
+/** 상태 때문에 빠진 마감 공고도 보이게: 상태만 '전체'로 바꿔 다시 검색(URL에도 남는다). */
+function showClosed() {
+  form.value = { ...form.value, status: 'all' }
+  void submit()
+}
+
 function reset() {
   form.value = defaultState()
 }
@@ -231,6 +237,8 @@ const toggleBookmark = useBookmarkToggle(items)
             hide-label
             :options="[
               { value: 'open', label: copy.search.statusOpen },
+              { value: 'closed', label: copy.search.statusClosed },
+              { value: 'failed', label: copy.search.statusFailed },
               { value: 'all', label: copy.search.statusAll },
             ]"
           />
@@ -299,7 +307,16 @@ const toggleBookmark = useBookmarkToggle(items)
         </div>
       </div>
       <p v-if="result.truncated" class="text-sm text-warning-fg">{{ copy.search.truncated }}</p>
-      <EmptyState v-if="!items.length" :title="copy.search.empty" />
+      <p v-if="items.length && result.hidden_closed" class="flex flex-wrap items-center gap-2 text-sm text-text-2">
+        {{ copy.search.hiddenClosed(result.hidden_closed) }}
+        <UiButton variant="secondary" size="sm" data-show-closed @click="showClosed">{{ copy.search.showClosed }}</UiButton>
+      </p>
+      <EmptyState v-if="!items.length && result.hidden_closed" :title="copy.search.emptyOpenOnly(result.hidden_closed)">
+        <template #action>
+          <UiButton variant="secondary" data-show-closed @click="showClosed">{{ copy.search.emptyShowClosed }}</UiButton>
+        </template>
+      </EmptyState>
+      <EmptyState v-else-if="!items.length" :title="copy.search.empty" />
       <BidList v-else :bids="items" :view="form.view" @toggle-bookmark="toggleBookmark" />
       <div v-if="hasMore" class="flex justify-center">
         <UiButton variant="secondary" :loading="loadingMore" @click="more">{{ copy.common.more }}</UiButton>

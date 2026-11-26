@@ -515,7 +515,7 @@ LLM과 G2B는 호출 횟수를 세는 가짜 객체로 바꿔 검증합니다.
   "match": "all",              // all | any
   "source": "all",             // regular | prespec | all
   "days": 14,                  // 최근 N일(1~90). from/to를 직접 줄 수도 있음
-  "status": "open",            // open | all
+  "status": "open",            // open | closed(마감일 지남) | failed(유찰, docs/BID_OUTCOME.md 규칙) | all
   "budget_min": null, "budget_max": null,
   "org": null,
   "sort": "notice_desc",       // notice_desc | deadline_asc | budget_desc
@@ -532,6 +532,7 @@ LLM과 G2B는 호출 횟수를 세는 가짜 객체로 바꿔 검증합니다.
   "from_cache": true,
   "total": 87,
   "truncated": false,
+  "hidden_closed": 0,           // status=open일 때 같은 조건에서 마감돼 빠진 공고 수(화면 알림)
   "items": [{
     "bid_id": "b101", "source": "regular", "bid_no": "20261100123-00",
     "title": "...", "org_name": "...", "budget": 120000000,

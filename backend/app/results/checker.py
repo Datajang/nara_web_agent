@@ -110,7 +110,7 @@ async def _check_one(deps: Deps, w: BidResultWatch, bid: Bid, now: datetime) -> 
             return Change(w.bid_id, "final")  # 같은 실행의 개찰은 opened_at 없이 최종 메일에 함께
         if opened_now:
             row.stage, row.opened_at = "opened", now
-        nc = next_check(row.opening_at, now)
+        nc = next_check(row.opening_at, now, row.stage)
         if nc is None:
             row.stage = "expired"
         else:
@@ -169,7 +169,7 @@ async def _renotices(deps: Deps, now: datetime) -> list[Change]:
 
 def _reschedule(row: BidResultWatch, now: datetime) -> None:
     row.checks += 1
-    row.next_check_at = next_check(row.opening_at, now) or now
+    row.next_check_at = next_check(row.opening_at, now, row.stage) or now
 
 
 async def check_due(
@@ -189,7 +189,7 @@ async def check_due(
                 if time.monotonic() >= stop_at:
                     log.warning("결과 메일 감시: 시간 상한, 남은 공고는 다음 실행에서")
                     break
-                if next_check(w.opening_at, now) is None:
+                if next_check(w.opening_at, now, w.stage) is None:
                     async with deps.db.transaction() as s:
                         (await s.get_one(BidResultWatch, w.bid_id)).stage = "expired"
                     continue

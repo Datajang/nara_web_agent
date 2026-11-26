@@ -102,6 +102,20 @@ async def test_no_result_reschedules(deps, fake_g2b):
     assert (w.stage, w.checks, w.next_check_at) == ("waiting", 1, NOW + timedelta(minutes=5))
 
 
+async def test_waiting_checks_every_five_minutes_until_opening_result(deps, fake_g2b):
+    """개찰 결과 대기는 개찰 이틀 뒤에도 5분, 낙찰 대기(opened)는 3시간(2026-11-26)."""
+    two_days = NOW - timedelta(days=2)
+    waiting = await _watched(deps, "R26BK91000011", opening=two_days)
+    opened = await _watched(deps, "R26BK91000012", opening=two_days, stage="opened")
+    just = await _watched(deps, "R26BK91000013", opening=two_days)
+    fake_g2b.add("opening_status", status_item("R26BK91000013", "개찰완료"))
+    fake_g2b.add("opening_compt", opening_item("R26BK91000013", "1111111111"))
+    assert await check_due(deps, NOW) == [Change(just, "opened")]
+    assert (await _w(deps, waiting)).next_check_at == NOW + timedelta(minutes=5)
+    assert (await _w(deps, opened)).next_check_at == NOW + timedelta(hours=3)
+    assert (await _w(deps, just)).next_check_at == NOW + timedelta(hours=3)  # 이제 낙찰 대기
+
+
 async def test_expired_after_60_days(deps, fake_g2b):
     """60일 지나면 G2B를 부르지 않고 그만(메일 없음)."""
     bid_id = await _watched(deps)

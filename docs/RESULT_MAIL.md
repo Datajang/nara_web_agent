@@ -21,7 +21,8 @@ G2B 확인 `docs/decisions/2026-11-25-result-status-probe.md`. 코드 `backend/a
 - 제목 `[{SERVICE_NAME}] 개찰 결과·낙찰 결과·유찰·재공고가 올라왔어요: {사업명}`, 끝에 '결과 메일은 설정 > 계정에서 끌 수 있어요.'
 
 ## 확인 간격 (`app/results/schedule.py`)
-개찰 전 호출 없음 → 개찰 뒤 3시간 5분 → 24시간까지 30분 → 3시간마다, 개찰 60일 뒤 `expired`(메일 없음).
+개찰 전 호출 없음. 개찰 결과 대기(waiting)는 개찰 뒤 7일까지 **5분**·그 뒤 3시간(2026-11-26, 운영 요청).
+낙찰 대기(opened)는 개찰 뒤 3시간 5분 → 24시간까지 30분 → 3시간. 개찰 60일 뒤 `expired`(메일 없음).
 개찰이 7일 넘게 지났거나 개찰일이 없는 북마크는 감시를 만들지 않고 매 실행 다시 읽지도 않는다(SQL에서 거름).
 정정공고로 차수·개찰일이 바뀌면(① 뒤라도) 다시 기다린다. 감시 행은 `ON CONFLICT DO NOTHING`(북마크·타이머 동시 생성).
 알림 켠 북마크가 없는 감시는 부르지 않는다. 최근 개찰한 공고부터 보고, 개찰 결과를 받은 뒤에는 낙찰만 묻는다(1회).
@@ -43,4 +44,4 @@ final_kind awarded·failed, renotice_bid_id), `bid_result_mails`(user·bid·stag
 
 ## 운영
 `nara-result-watch.timer`(5분) → `python -m app.results`. 처음 한 번 `systemctl enable --now`(`docs/ops/RUNBOOK.md`).
-G2B 몫 `G2B_RESULT_WATCH_DAILY_BUDGET`(3000, 낙찰정보서비스 — 낙찰 15,000 + 개찰 80,000과 합쳐 10만 아래). 공고 하나가 개찰 당일 약 150회, 이후 최종 결과까지 하루 8회.
+G2B 몫 `G2B_RESULT_WATCH_DAILY_BUDGET`(3000, 낙찰정보서비스 — 낙찰 15,000 + 개찰 80,000과 합쳐 10만 아래). 결과 대기 공고 하나가 하루 288회(7일까지) → 동시에 10건 넘게 밀리면 그날 몫이 바닥나 최근 개찰 공고부터 본다.

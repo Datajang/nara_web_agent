@@ -6,7 +6,8 @@
 
 - 증분: 어제·오늘(개찰 → 입력 지연 최대 약 24시간) + covered_to 이후 빈 구간.
   공고 수집 10분 타이머 뒤
-- 백필: org_settings.backfill_years(기본 5)만큼 과거로(낙찰 타이머)
+- 백필: org_settings.backfill_years(기본 5)만큼 과거로(낙찰 타이머).
+  단 공고 수집 시작보다 앞은 안 받는다
 """
 
 from __future__ import annotations
@@ -108,6 +109,9 @@ async def backfill(deps: Deps, days: int | None = None) -> RunResult:
     start = now - timedelta(days=days if days is not None else years * DAYS_PER_YEAR)
     async with deps.db.session() as s:
         cov = await coverage.get(s, STATUS_SOURCE)
+        bids = await coverage.get(s, "regular")
+    if bids is not None:  # 공고가 없는 과거의 상태는 카드에 쓰이지 않는다
+        start = max(start, bids.covered_from)
     windows = plan_backfill(cov, start, now)
     if not windows:
         return RunResult(status="ok")

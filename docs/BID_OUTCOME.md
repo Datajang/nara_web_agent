@@ -25,8 +25,9 @@ G2B 확인 `docs/decisions/2026-11-26-opening-status-bulk.md`. 코드 `backend/a
 ## 수집 (`--source status`, 낙찰정보 서비스 키)
 - 개찰결과 목록 `getOpengResultListInfoServc`를 **개찰일시(inqryDiv=3)** 7일 창으로, 999행 넘으면 시간으로 나눠 한 페이지씩
 - 증분: `nara-collector.service`(10분)에서 공고 증분 뒤 어제·오늘(`-`라 실패해도 공고 결과와 무관)
-- 백필: `nara-collector-awards.service`(04:30)에서 org_settings 연수만큼 과거로. 커버리지 `collector_coverage` source=status
-- 예산 `G2B_STATUS_DAILY_BUDGET`(기본 3,000). 증분 하루 수백 회 + 백필 6년 약 1,500회(한두 날)
+- 백필: `nara-collector-awards.service`(04:30)에서 org_settings 연수만큼 과거로(공고 수집 시작보다 앞은 안 받음). 커버리지 `collector_coverage` source=status
+- 1분에 999행이 넘으면 그 1분만 페이지를 넘긴다(`docs/decisions/2026-11-25-status-minute-paging.md`)
+- 예산 `G2B_STATUS_DAILY_BUDGET`(기본 3,000). 증분 하루 수백 회 + 백필 5년 약 2,300회(실측, 한두 날)
 
 ## 배포 뒤 한 번 (운영자)
 마이그레이션 0014는 `deploy.sh`가 적용한다. 과거분을 바로 채우려면(아니면 다음 04:30에 자동):

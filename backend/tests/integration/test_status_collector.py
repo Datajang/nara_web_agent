@@ -61,3 +61,42 @@ async def test_backfill_splits_a_day_over_one_page(deps, fake_g2b):
     assert r.status == "ok", r.error
     assert len(await _rows(deps)) == 8
     assert all(r.url.params.get("pageNo") == "1" for r in fake_g2b.requests)
+
+
+async def test_backfill_pages_one_minute_over_one_page(deps, fake_g2b):
+    """1분에 한 페이지보다 많으면(2021-11-25 11:00 1,159행) 그 1분만 페이지를 넘긴다.
+
+    개찰 상태는 1분 안 페이지 넘김이 안정적이다(docs/decisions/2026-11-25-status-minute-paging.md).
+    """
+    deps.g2b = G2BClient(fake_g2b.http_client(), TEST_KEYS, page_size=3, retry_delays=(0, 0, 0))
+    fake_g2b.add("opening_status", *(_st(f"R26BK1{i:07d}", "개찰완료", 30) for i in range(7)))
+    r = await status.backfill(deps, days=10)
+    assert r.status == "ok", r.error
+    assert len(await _rows(deps)) == 7
+    assert {q.url.params.get("pageNo") for q in fake_g2b.requests} == {"1", "2", "3"}
+
+
+async def test_minute_paging_overlap_still_fails(deps, fake_g2b):
+    """페이지가 겹쳐 고유 행이 건수보다 적으면 그대로 실패(조용히 빠지지 않게)."""
+    deps.g2b = G2BClient(fake_g2b.http_client(), TEST_KEYS, page_size=3, retry_delays=(0, 0, 0))
+    fake_g2b.add("opening_status", *(_st(f"R26BK1{i:07d}", "개찰완료", 30) for i in range(9)))
+    fake_g2b.page_overlap = 2  # 3페이지로 7행만 → 2행 빠짐(허용 1행 초과)
+    r = await status.backfill(deps, days=10)
+    assert r.status == "failed" and "일부만" in (r.error or "")
+
+
+async def test_backfill_stops_at_bid_coverage(deps, fake_g2b):
+    """공고가 없는 과거는 받지 않는다: 시작 = max(연수, 공고 수집 시작)."""
+    async with deps.db.transaction() as s:
+        s.add(
+            CollectorCoverage(
+                source="regular", covered_from=NOW - timedelta(days=3), covered_to=NOW
+            )
+        )
+    r = await status.backfill(deps, days=30)
+    assert r.status == "ok", r.error
+    bgns = sorted(q.url.params["inqryBgnDt"] for q in fake_g2b.requests)
+    assert (
+        bgns[0]
+        == kst_str(NOW - timedelta(days=3)).replace("-", "").replace(" ", "").replace(":", "")[:12]
+    )

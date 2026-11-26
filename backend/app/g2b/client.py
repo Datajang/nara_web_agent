@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import logging
 import re
 from collections.abc import Awaitable, Callable, Iterator, Mapping, Sequence
@@ -332,15 +333,36 @@ class G2BClient:
                 out.extend(await self._fetch_whole(source, url, params, a, b))
                 a = b
             return out
+        if total > self.page_size:
+            got = await self._page_minute(source, url, q, got, total)
         missing = total - len(got)
         where = f"{q['inqryBgnDt']}~{q['inqryEndDt']} {len(got)}/{total}건"
-        if total > self.page_size or missing > shortfall_ok(total):
+        if missing > shortfall_ok(total):
             raise G2BIncomplete(f"G2B {source} 창 일부만 받음: {where}")
         if missing > 0:
             log.warning("G2B %s 행 누락 허용(G2B 결함): %s", source, where)
             if (notes := _shortfalls.get()) is not None:
                 notes.append(where)
         return got
+
+    async def _page_minute(
+        self, source: str, url: str, q: dict[str, str], first: list[dict[str, Any]], total: int
+    ) -> list[dict[str, Any]]:
+        """1분 창이 한 페이지를 넘으면(더 못 쪼갬) 페이지를 넘겨 받고 똑같은 행은 하나로 친다.
+
+        개찰 상태는 1분 안 페이지 넘김이 안정적이다
+        (docs/decisions/2026-11-25-status-minute-paging.md).
+        겹쳐서 고유 행이 모자라면 호출한 쪽의 누락 검사가 실패로 돌린다.
+        """
+        seen: dict[str, dict[str, Any]] = {}
+        page, got = 1, first
+        while True:
+            for it in got:
+                seen.setdefault(json.dumps(it, sort_keys=True, ensure_ascii=False), it)
+            if not got or page * self.page_size >= total:
+                return list(seen.values())
+            page += 1
+            got = _items(await self._call(source, url, {**q, "pageNo": str(page)}))
 
     async def _call(self, source: str, url: str, params: dict[str, str]) -> dict[str, Any]:
         q = {"ServiceKey": self.keys.get(source, ""), **params}

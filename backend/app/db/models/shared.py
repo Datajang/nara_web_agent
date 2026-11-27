@@ -207,5 +207,7 @@ class BidResultWatch(Base):
     final_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     renotice_bid_id: Mapped[int | None] = mapped_column(ForeignKey("bids.id", ondelete="SET NULL"))
     renotice_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    eval_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # 협상 공고 평가
+    eval_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     checks: Mapped[int] = mapped_column(Integer, server_default="0")
     updated_at: Mapped[datetime] = _now()

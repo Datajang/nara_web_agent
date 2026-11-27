@@ -20,6 +20,16 @@ from app.g2b.mapper import KST, parse_kst
 from app.results.schedule import WATCH_MAX_AGE, next_check
 
 ACTIVE = ("waiting", "opened")
+NEGOTIATED = "협상"  # 낙찰방법(sucsfbidMthdNm)에 이 말이 있으면 결과가 제안서평가 뒤에 나온다
+
+
+def is_negotiated(bid: Bid) -> bool:
+    return NEGOTIATED in str((bid.raw or {}).get("sucsfbidMthdNm") or "")
+
+
+def plan_next(w: BidResultWatch, bid: Bid, now: datetime) -> datetime | None:
+    """감시 행의 다음 확인 시각(협상 공고면 평가 일시를 본다)."""
+    return next_check(w.opening_at, now, w.stage, eval_at=w.eval_at, negotiated=is_negotiated(bid))
 
 
 def opening_of(bid: Bid) -> tuple[str, datetime] | None:
@@ -54,6 +64,7 @@ async def ensure_watch(s: AsyncSession, bid: Bid, now: datetime) -> BidResultWat
         w = await s.get_one(BidResultWatch, bid.id)
     if w.stage in ACTIVE and (w.notice_ord != ord_ or w.opening_at != at):
         w.notice_ord, w.opening_at, w.stage, w.opened_at = ord_, at, "waiting", None
+        w.eval_at = w.eval_checked_at = None  # 차수가 바뀌면 평가 일시도 다시 읽는다
         w.next_check_at = first
         w.updated_at = now
     return w

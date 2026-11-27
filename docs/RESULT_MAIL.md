@@ -22,6 +22,9 @@ G2B 확인 `docs/decisions/2026-11-25-result-status-probe.md`. 코드 `backend/a
 
 ## 확인 간격 (`app/results/schedule.py`)
 개찰 전 호출 없음. 개찰 결과 대기(waiting)는 개찰 뒤 7일까지 **5분**·그 뒤 3시간(2026-11-26, 운영 요청).
+협상 공고(낙찰방법에 '협상')는 결과가 제안서평가 뒤에 나온다(개찰 뒤 중앙값 8일). 나라장터 웹 공고 상세에서
+평가 일시를 읽어(`eval_at`, 하루 한 번 다시) 평가 전에는 부르지 않고 평가 시작부터 24시간 5분 → 3시간. 날짜가 없으면
+(수요기관 평가·웹 실패) 30분. `docs/decisions/2026-11-27-proposal-eval-date.md`, 코드 `app/results/evaldate.py`.
 낙찰 대기(opened)는 개찰 뒤 3시간 5분 → 24시간까지 30분 → 3시간. 개찰 60일 뒤 `expired`(메일 없음).
 개찰이 7일 넘게 지났거나 개찰일이 없는 북마크는 감시를 만들지 않고 매 실행 다시 읽지도 않는다(SQL에서 거름).
 정정공고로 차수·개찰일이 바뀌면(① 뒤라도) 다시 기다린다. 감시 행은 `ON CONFLICT DO NOTHING`(북마크·타이머 동시 생성).
@@ -30,7 +33,7 @@ G2B 확인 `docs/decisions/2026-11-25-result-status-probe.md`. 코드 `backend/a
 
 ## 데이터 (0013)
 `bookmarks.notify_result`·`users.result_mail`(기본 true), `bid_result_watch`(공고별 단계 waiting·opened·final·expired,
-final_kind awarded·failed, renotice_bid_id), `bid_result_mails`(user·bid·stage UNIQUE).
+final_kind awarded·failed, renotice_bid_id; 0015 `eval_at`·`eval_checked_at` 협상 공고 평가 일시), `bid_result_mails`(user·bid·stage UNIQUE).
 
 ## API
 - `PUT /bookmarks/{bid_id}` → 200 `{notify_result, watching, opening_at}`(전에는 204)

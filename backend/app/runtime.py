@@ -18,6 +18,7 @@ from app.g2b.client import (
     STATUS_SOURCE,
     G2BClient,
 )
+from app.g2b.web import G2BWebClient
 from app.usage.budget import DbCallBudget
 
 
@@ -83,6 +84,13 @@ async def real_deps(settings: Settings | None = None) -> AsyncIterator[Deps]:
             file_http, settings.file_hosts, settings.file_max_mb * 1024 * 1024
         )
         try:
-            yield Deps(db=db, g2b=g2b, llm=None, downloader=downloader, settings=settings)
+            yield Deps(
+                db=db,
+                g2b=g2b,
+                llm=None,
+                downloader=downloader,
+                settings=settings,
+                g2b_web=G2BWebClient(file_http),
+            )
         finally:
             await db.dispose()

@@ -2,7 +2,8 @@
 
   python -m app.results
 
-지난 대기열 발송(deliver) → 감시 맞추기(sync_watches) → 확인할 때가 된 공고 확인(check_due,
+지난 대기열 발송(deliver) → 감시 맞추기(sync_watches) → 협상 공고 평가 일시(sync_eval_dates, 웹)
+→ 확인할 때가 된 공고 확인(check_due,
 시간 상한 있음) → 받을 사람 대기열(enqueue) → 발송(deliver). 확인이 느려도 지난 메일은 먼저 나간다.
 G2B 호출 수는 usage_logs(event=collector, cache.source=result_watch)에 남아
 결과 메일 몫 예산에 센다.
@@ -19,6 +20,7 @@ from app.deps import Deps
 from app.logging_setup import configure_logging
 from app.results.checker import check_due
 from app.results.dispatch import deliver, enqueue
+from app.results.evaldate import sync_eval_dates
 from app.results.watch import sync_watches
 from app.runtime import real_deps
 
@@ -31,6 +33,7 @@ async def run_once(deps: Deps, mailer: Mailer) -> tuple[int, int, int]:
     now = deps.clock()
     async with deps.db.transaction() as s:
         created = await sync_watches(s, now)
+    await sync_eval_dates(deps, now)
     changes = await check_due(deps, now)
     async with deps.db.transaction() as s:
         await enqueue(s, changes)

@@ -1,0 +1,68 @@
+{
+ "ErrorCode": 0,
+ "ErrorMsg": "정상적으로 조회되었습니다.",
+ "dmEvlStepMap": {
+  "evlMaagSeCd": "주010007",
+  "evlMaagSeNm": "조달청",
+  "evlDt": "2026/12/02 09:30",
+  "evlPrgrsOnofSeNm": "온라인"
+ },
+ "dmItemList1": [
+  {
+   "ord": "1",
+   "subject": "공고게시",
+   "prgNm": null,
+   "startDt": "2026/11/11 15:47:57",
+   "endDt": null
+  },
+  {
+   "ord": "2",
+   "subject": "입찰참가자격등록",
+   "prgNm": null,
+   "startDt": null,
+   "endDt": "2026/11/23 18:00:00"
+  },
+  {
+   "ord": "3",
+   "subject": "공동수급협정서제출",
+   "prgNm": "전자",
+   "startDt": null,
+   "endDt": "2026/11/23 18:00:00"
+  },
+  {
+   "ord": "4",
+   "subject": "입찰보증서접수",
+   "prgNm": null,
+   "startDt": null,
+   "endDt": "2026/11/23 18:00:00"
+  },
+  {
+   "ord": "6",
+   "subject": "제안서제출",
+   "prgNm": "전자",
+   "startDt": "2026/11/20 10:00:00",
+   "endDt": "2026/11/24 10:00:00"
+  },
+  {
+   "ord": "9",
+   "subject": "입찰서제출",
+   "prgNm": "전자입찰",
+   "startDt": "2026/11/20 10:00:00",
+   "endDt": "2026/11/24 10:00:00"
+  },
+  {
+   "ord": "10",
+   "subject": "제안서평가",
+   "prgNm": "온라인",
+   "startDt": "2026/12/02 09:30:00",
+   "endDt": null
+  },
+  {
+   "ord": "12",
+   "subject": "개찰",
+   "prgNm": null,
+   "startDt": "2026/11/24 11:00:00",
+   "endDt": null
+  }
+ ]
+}

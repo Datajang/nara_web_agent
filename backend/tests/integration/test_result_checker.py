@@ -25,7 +25,13 @@ def _regular(
     no: str, opening, *, title: str = TITLE, org: str = ORG, renotice: str = "N", notice=None
 ):
     it = regular_item(no, notice or NOW - timedelta(days=5), title=title)
-    it.update(opengDt=kst_str(opening), dminsttNm=org, reNtceYn=renotice)
+    # 협상 공고는 평가 일시 규칙을 따로 본다(test_result_evaldate). 여기는 그 외 공고
+    it.update(
+        opengDt=kst_str(opening),
+        dminsttNm=org,
+        reNtceYn=renotice,
+        sucsfbidMthdNm="적격심사제-추정가격 2억원 미만인 용역",
+    )
     return it
 
 

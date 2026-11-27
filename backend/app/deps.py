@@ -10,6 +10,7 @@ from app.config import Settings
 from app.db.session import Database
 from app.files.download import Downloader
 from app.g2b.client import G2BClient
+from app.g2b.web import EvalDateSource
 from app.llm.base import LLMClient
 
 
@@ -25,3 +26,4 @@ class Deps:
     downloader: Downloader | None
     settings: Settings
     clock: Callable[[], datetime] = field(default=utcnow)
+    g2b_web: EvalDateSource | None = None  # 나라장터 웹(협상 공고 평가 일시, 2026-11-27)

@@ -54,3 +54,47 @@ def test_boundaries():
     )
     assert next_check(OPEN, OPEN + timedelta(days=60), "waiting") is not None
     assert next_check(OPEN, OPEN + timedelta(days=60), "opened") is not None
+
+
+# ---------- 협상 공고 (2026-11-27, docs/decisions/2026-11-27-proposal-eval-date.md) ----------
+EVAL = OPEN + timedelta(days=8, hours=-1)  # 개찰 8일 뒤 평가 시작
+
+
+@pytest.mark.parametrize(
+    ("after", "expected"),
+    [
+        (timedelta(hours=1), EVAL),  # 개찰 뒤라도 평가 전에는 부르지 않음
+        (timedelta(days=7, hours=22), EVAL),
+        (timedelta(days=7, hours=23), EVAL + timedelta(minutes=5)),  # 평가 시작부터 5분
+        (timedelta(days=8, hours=22), OPEN + timedelta(days=8, hours=22, minutes=5)),  # 23시간째
+        (timedelta(days=8, hours=23), OPEN + timedelta(days=8, hours=26)),  # 24시간 지나면 3시간
+        (timedelta(days=61), OPEN + timedelta(days=61, hours=3)),  # 60일은 평가 시작부터 센다
+        (timedelta(days=69), None),
+    ],
+)
+def test_negotiated_with_eval_date(after, expected):
+    assert next_check(OPEN, OPEN + after, "waiting", eval_at=EVAL, negotiated=True) == expected
+
+
+@pytest.mark.parametrize(
+    ("after", "expected"),
+    [
+        (timedelta(hours=-1), OPEN),
+        (timedelta(minutes=10), OPEN + timedelta(minutes=40)),  # 평가일 모르면 30분
+        (timedelta(days=20), OPEN + timedelta(days=20, minutes=30)),
+        (timedelta(days=61), None),
+    ],
+)
+def test_negotiated_without_eval_date(after, expected):
+    assert next_check(OPEN, OPEN + after, "waiting", negotiated=True) == expected
+
+
+def test_negotiated_opened_keeps_opened_schedule():
+    """개찰 결과를 받은 뒤(낙찰 대기)는 협상이어도 지금 간격."""
+    at = OPEN + timedelta(hours=30)
+    assert next_check(OPEN, at, "opened", eval_at=EVAL, negotiated=True) == at + timedelta(hours=3)
+
+
+def test_eval_date_ignored_when_not_negotiated():
+    at = OPEN + timedelta(hours=1)
+    assert next_check(OPEN, at, "waiting", eval_at=EVAL) == at + timedelta(minutes=5)
